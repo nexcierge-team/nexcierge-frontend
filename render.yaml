@@ -1,0 +1,17 @@
+# Nexcierge Frontend — Render Blueprint
+# Docs: https://render.com/docs/blueprint-spec
+#
+# Cross-blueprint env wiring isn't supported, so NEXT_PUBLIC_BACKEND_URL must
+# be set manually in the Render dashboard. Paste the public URL of the
+# `nexcierge-backend` service from the backend blueprint.
+
+services:
+  - type: web
+    name: nexcierge-frontend
+    runtime: node
+    plan: starter
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NEXT_PUBLIC_BACKEND_URL
+        sync: false       # e.g. https://nexcierge-backend.onrender.com
