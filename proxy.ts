@@ -17,7 +17,7 @@ import { NextRequest, NextResponse } from "next/server";
  * Removing the gate before launch: delete the two env vars in Vercel and
  * trigger a redeploy.
  */
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   const expectedUser = process.env.BASIC_AUTH_USER;
   const expectedPass = process.env.BASIC_AUTH_PASSWORD;
 
