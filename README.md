@@ -1,55 +1,78 @@
 # Nexcierge Frontend
 
-Next.js application serving three surfaces in one codebase:
+Next.js application serving the Nexcierge landing experience and AI sourcing chat. Talks to [`nexcierge-backend`](https://github.com/nexcierge-team/nexcierge-backend) via an internal API proxy route.
 
-1. **Marketing site** — public, SEO-friendly, multilingual landing pages for international buyers
-2. **Buyer chat UI** — authenticated chat with the AI sourcing agent, dashboard for tracking submitted leads
-3. **Internal CRM** — for the local Chinese coordination team to receive handoff profiles, vet buyers, and manage manufacturer outreach
+Part of the [`nexcierge-team`](https://github.com/nexcierge-team) stack.
 
-Part of the [`nexcierge-team`](https://github.com/nexcierge-team) stack. Talks to [`nexcierge-backend`](https://github.com/nexcierge-team/nexcierge-backend) over HTTP.
-
-## Status
-
-🚧 **Not yet scaffolded.** This repo currently has only this README. Scaffolding pending.
-
-## Planned stack
+## Stack
 
 | | |
 |---|---|
-| Framework | Next.js (App Router) |
-| Styling | Tailwind CSS |
-| Components | shadcn/ui |
-| i18n | next-intl (incl. RTL for Arabic/Hebrew) |
-| Auth | Magic link via Resend or Postmark |
-| Deploy | Render (`render.yaml`) |
+| Framework | Next.js 16 (App Router) |
+| Language | TypeScript |
+| Styling | Tailwind CSS v4 |
+| Fonts | Geist (sans + mono) via `next/font` |
+| Deploy | Vercel (recommended) or Render (`render.yaml`) |
 
-## Planned route layout
+## What's built
 
-```
-app/
-├── (marketing)/         Public landing pages, multilingual
-├── (buyer)/             Authenticated buyer dashboard + chat
-└── (admin)/             Internal CRM for the Chinese coordination team
-```
+- **Chat-first homepage (`/`)** — hero tagline, prominent chat input, suggested prompts. Once a message is sent, transitions to full chat view with messages and persistent input at bottom.
+- **API proxy (`/api/chat`)** — forwards POST requests to the FastAPI backend, avoiding CORS issues.
+- **Header** with `NEXCIERGE` brand and `Login` link (login page not yet implemented).
 
-## Run locally (once scaffolded)
+## Run locally
 
 ```bash
 git clone git@github.com:nexcierge-team/nexcierge-frontend.git
 cd nexcierge-frontend
 
 npm install
-cp .env.example .env       # set NEXT_PUBLIC_BACKEND_URL
+cp .env.example .env.local       # default points at http://localhost:8000
 npm run dev
 ```
 
-## Connected services
+Then open http://localhost:3000.
 
-- **Backend API** at `NEXT_PUBLIC_BACKEND_URL` (deployed `nexcierge-backend`)
-- **Auth provider** (Resend / Postmark) for magic links
+**Requires `nexcierge-backend` running** on the URL in `BACKEND_URL`. Start it with:
 
-## Critical UX constraints (from business model)
+```bash
+cd ../nexcierge-backend          # or wherever you cloned it
+source .venv/bin/activate
+uvicorn app.main:app --reload
+```
 
-- **Buyers must complete Tier 1 pre-qualification** (company name, business reg #, destination port, project timeline) before seeing supplier details.
-- **No manufacturer contact info ever surfaces in the UI.** All buyer↔seller communication is mediated by the internal CRM.
-- **Multilingual by default.** Latin scripts + CJK + RTL all need to render correctly on day one.
+## Environment
+
+| Var | Purpose | Default |
+|---|---|---|
+| `BACKEND_URL` | FastAPI backend base URL (server-side only) | `http://localhost:8000` |
+
+## Layout
+
+```
+app/
+├── layout.tsx            Header + Geist font + global wrapper
+├── page.tsx              Chat-first homepage (client component)
+├── globals.css           Tailwind + base theme
+└── api/chat/route.ts     Proxy POST /api/chat -> $BACKEND_URL/chat
+```
+
+## Deploy
+
+### Vercel (recommended)
+1. Push to GitHub (already done)
+2. Vercel Dashboard → **New Project** → import `nexcierge-frontend`
+3. Set `BACKEND_URL` to your deployed backend URL (e.g. `https://nexcierge-backend.onrender.com`)
+4. Deploy. Custom domain (`nexcierge.com`) configurable in project settings.
+
+### Render (alternative)
+Use the included `render.yaml`. Set `BACKEND_URL` manually in dashboard (the blueprint marks it `sync: false`).
+
+## Design language
+
+- Minimalist, refined typography (Geist)
+- Mostly grayscale with high-contrast `zinc-900` text on `white`
+- Soft borders (`zinc-100`/`zinc-200`), generous whitespace
+- Single accent: `zinc-900` for primary actions and user message bubbles
+
+Inspired by the AI app aesthetic (Claude.ai, ChatGPT) — chat is the centerpiece, marketing copy is minimal.
