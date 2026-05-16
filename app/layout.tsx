@@ -13,6 +13,9 @@ export const metadata: Metadata = {
   description:
     "AI sourcing concierge for international buyers. Identify domestic Chinese suppliers, qualify requirements, and execute through a managed sourcing workflow.",
   metadataBase: new URL("https://nexcierge.com"),
+  // Pre-launch: keep the deployed preview out of search engines. Remove
+  // before public launch so Google can index the marketing pages.
+  robots: { index: false, follow: false },
   openGraph: {
     title: "Nexcierge — The smart way to source equipment",
     description:
