@@ -47,7 +47,7 @@ export function proxy(req: NextRequest) {
   return new NextResponse("Authentication required", {
     status: 401,
     headers: {
-      "WWW-Authenticate": 'Basic realm="Nexcierge — private preview"',
+      "WWW-Authenticate": 'Basic realm="Nexcierge - private preview"',
     },
   });
 }
