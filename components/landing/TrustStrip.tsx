@@ -1,0 +1,31 @@
+import { CheckCircle2, Globe2, ShieldCheck, Workflow } from "lucide-react";
+import { Reveal } from "./Reveal";
+
+const BADGES = [
+  { icon: ShieldCheck, label: "Human-verified sourcing" },
+  { icon: Globe2, label: "Domestic Chinese market access" },
+  { icon: CheckCircle2, label: "Factory audit available" },
+  { icon: Workflow, label: "Managed procurement support" },
+];
+
+export function TrustStrip() {
+  return (
+    <section className="border-b border-zinc-200/70 bg-[#fbfbfd]">
+      <div className="mx-auto max-w-6xl px-6 py-10">
+        <Reveal>
+          <ul className="grid grid-cols-1 gap-y-4 gap-x-8 sm:grid-cols-2 lg:grid-cols-4">
+            {BADGES.map((b) => (
+              <li
+                key={b.label}
+                className="flex items-center gap-3 text-sm text-zinc-700"
+              >
+                <b.icon className="h-4 w-4 text-zinc-500" strokeWidth={1.5} />
+                <span>{b.label}</span>
+              </li>
+            ))}
+          </ul>
+        </Reveal>
+      </div>
+    </section>
+  );
+}

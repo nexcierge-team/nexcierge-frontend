@@ -4,89 +4,140 @@
 
 | | |
 |---|---|
-| Framework | Next.js 16 (App Router) |
+| Framework | Next.js 16 (App Router, Turbopack) |
 | Language | TypeScript (strict mode) |
 | Styling | Tailwind CSS v4 |
-| Fonts | Geist (sans + mono) via `next/font` |
-| Build | Turbopack (Next 16 default) |
-| Deploy | Vercel (recommended) or Render |
+| UI primitives | shadcn-style components (Radix + CVA) |
+| Animation | Framer Motion (subtle, scroll-reveal + page transitions) |
+| Icons | lucide-react |
+| Fonts | Inter via `next/font/google` |
+| Deploy | Vercel (recommended) — see project README |
 
-## Layout
+## Repository layout
 
 ```
 app/
-├── layout.tsx          Root layout — header (NEXCIERGE + Login) + Geist fonts
-├── page.tsx            Chat-first homepage (client component)
-├── globals.css         Tailwind base + theme tokens
-└── api/
-    └── chat/route.ts   POST /api/chat → proxies to FastAPI BACKEND_URL/chat
+├── layout.tsx              Root layout (Inter font, metadata)
+├── globals.css             Tailwind + design tokens + animations + base styles
+├── page.tsx                Landing page (server, assembles sections)
+├── chat/page.tsx           Full-screen AI sourcing chat
+├── dashboard/page.tsx      Mock authenticated dashboard (sidebar + cards)
+├── about/page.tsx          About / trust page
+├── contact/page.tsx        Contact form (client, mock submit)
+└── api/chat/route.ts       POST /api/chat -> proxies to FastAPI BACKEND_URL/chat
+
+components/
+├── ui/                     shadcn-style primitives
+│   ├── button.tsx          CVA variants: primary/secondary/ghost/accent · sm/md/lg
+│   ├── card.tsx            Card + Header/Title/Description/Content/Footer
+│   ├── input.tsx
+│   ├── textarea.tsx
+│   └── accordion.tsx       Radix accordion
+├── layout/
+│   ├── Header.tsx          Sticky, blurred, marketing pages
+│   └── Footer.tsx          4-column footer
+├── landing/
+│   ├── Reveal.tsx          Scroll-reveal wrapper (Framer Motion + useInView)
+│   ├── SectionHeader.tsx   Reusable eyebrow + title + description block
+│   ├── Hero.tsx            Split layout with chat preview
+│   ├── HeroChatPreview.tsx Animated mock conversation card
+│   ├── TrustStrip.tsx      4 trust badges
+│   ├── HowItWorks.tsx      5-step process grid
+│   ├── Comparison.tsx      Traditional vs Nexcierge table
+│   ├── Categories.tsx      6-card machinery category grid
+│   ├── FAQ.tsx             Radix accordion FAQ
+│   └── FinalCTA.tsx        Centered final call-to-action
+├── chat/
+│   ├── ChatSidebar.tsx     Conversation history sidebar
+│   ├── ChatComposer.tsx    Auto-resizing textarea + send button
+│   ├── MessageBubble.tsx   Bubbles + typing indicator
+│   └── SupplierCard.tsx    In-chat supplier match card with CTAs
+└── dashboard/
+    ├── DashboardSidebar.tsx  Nav (Requests, Quotes, Suppliers, etc.)
+    └── RequestCard.tsx       Status-tagged sourcing request tile
+
+lib/
+├── utils.ts                cn() helper (clsx + tailwind-merge)
+└── mockData.ts             All static content: prompts, FAQs, categories, requests, mock supplier
+
+types/
+├── chat.ts                 Message · SupplierMatch · ChatSession
+└── dashboard.ts            RequestStatus · SourcingRequest
 ```
 
-No `src/` directory — `app/` lives at the root (Next 16 supports both; we use the simpler form).
+## Routes
 
-## Chat-first homepage state machine
+| Route | Type | Page |
+|---|---|---|
+| `/` | static | Landing — hero + trust + how-it-works + comparison + categories + FAQ + final CTA |
+| `/chat` | static (interactive client) | AI sourcing chat with sidebar, composer, supplier cards |
+| `/dashboard` | static | Mock authenticated dashboard with stats + request cards |
+| `/about` | static | Trust page — pillars + verification process + team |
+| `/contact` | static (interactive client) | Contact form + channels |
+| `/api/chat` | dynamic | Server-side proxy to FastAPI `BACKEND_URL/chat` |
 
-The single page (`app/page.tsx`) has two visual states driven by `messages.length`:
+## Server vs Client component boundaries
+
+- `app/layout.tsx`, `app/page.tsx`, `app/about/page.tsx`, `app/dashboard/page.tsx` are **Server Components** — they assemble the page from a mix of server-rendered and client child components.
+- `app/chat/page.tsx`, `app/contact/page.tsx` are **Client Components** (`"use client"`) because they need state, refs, and effects.
+- `components/landing/*` are mostly Client Components because of `framer-motion` + Radix dependencies.
+- `components/ui/*` mark `"use client"` where Radix or refs are required (Button, Accordion). Card/Input/Textarea are server-safe.
+- `app/api/chat/route.ts` is a Route Handler — runs server-side only.
+
+## Chat-first interactive state machine
+
+The chat page has two visual states keyed off `messages.length`:
 
 ```
-┌───────────────────────┐         ┌─────────────────────────┐
-│  EMPTY STATE          │  send   │  ACTIVE STATE           │
-│                       │ ──────► │                         │
-│  • Centered hero      │         │  • Scrolling messages   │
-│  • Large chat input   │         │  • Sticky bottom input  │
-│  • Suggestion chips   │         │  • Loading dots indicator│
-└───────────────────────┘         └─────────────────────────┘
-                                       │
-                                       ▼
-                                  Reload page → back to empty
+EMPTY:  centered hero, large composer, suggestion chips
+   │
+   ▼  first message sent
+ACTIVE: scrolling message list + sticky composer at bottom
+   │
+   ▼  user clicks New conversation (sidebar) → new sessionId → back to EMPTY
 ```
 
-Both states share the same `ChatInput` component. Suggestion chips fire the same `sendMessage()` as form submit.
+A new `sessionId` (UUID) is generated on:
+- First mount
+- Click on "+ New conversation" in the sidebar
+- (Not yet) page refresh — sessions don't persist across reloads
 
-## Session management
+The chat page calls `/api/chat` (the Route Handler proxy) on every message — no direct browser-to-FastAPI calls.
 
-- One `sessionId` per page load, generated via `crypto.randomUUID()` in a `useState` initializer
-- Session is **NOT** persisted to localStorage yet → page refresh = new session
-- `sessionId` is included in every `POST /api/chat` call so the backend can thread the conversation
+## Supplier cards in chat
 
-When persistence lands (login or anonymous sessions stored server-side), update the init to read from cookie/localStorage first and fall back to `crypto.randomUUID()`.
+When the agent's reply references a PET bottle blower (heuristic match in `shouldAttachSupplier`), a `SupplierCard` is attached to the agent's message. This is a placeholder for the future flow where the agent's structured tool output (from the backend's `search_machinery` tool) drives card rendering. **TODO:** wire this to the backend's actual tool results when streaming/structured outputs land.
 
-## Server vs Client components
+## Design system
 
-- `layout.tsx` is a **Server Component** (default) — renders the static shell + metadata
-- `page.tsx` is a **Client Component** (`'use client'` directive) because it needs `useState`, `useRef`, `useEffect`, `onSubmit`
-- `app/api/chat/route.ts` is a **Route Handler** (Web `Request`/`Response`) — runs on the server only
-
-Be careful about adding server-side data fetching to `page.tsx` — it'd need to be split into a server parent + client child. For now, the homepage has no server-side data, so this is fine.
+See `docs/DESIGN_SYSTEM.md` for color tokens, typography, spacing, and component patterns.
 
 ## API integration
 
-The frontend never calls the FastAPI backend directly. It calls its own `/api/chat` route, which proxies server-side to `process.env.BACKEND_URL`. Reasons:
-- No CORS to configure
-- `BACKEND_URL` stays server-side (not exposed to the browser)
-- Easier to add auth, rate limiting, or logging later
+See `docs/API_INTEGRATION.md` for the proxy pattern, env vars, and future streaming plan.
 
-See `docs/API_INTEGRATION.md` for the proxy details.
+## Animation principles
 
-## Routes (current)
-
-| Route | Type | Purpose |
-|---|---|---|
-| `/` | static | Chat-first homepage |
-| `/api/chat` | dynamic (route handler) | Proxy to backend `/chat` |
-| `/login` | (not yet built) | Magic-link login |
+- Subtle by default — `Reveal` does a 16px y-translate + opacity fade on scroll into view
+- One easing curve: `[0.22, 1, 0.36, 1]` (a soft cubic bezier, close to Apple's standard)
+- No parallax, no spring physics, no auto-playing carousels
+- Hero chat preview has a scripted micro-animation (bubbles appear in sequence, chips fade in) — runs once on mount
+- Accordion uses Radix's height + opacity transitions defined in `globals.css`
 
 ## Planned additions
 
-- **`/dashboard`** — authenticated buyer dashboard (past conversations, submitted leads)
-- **`/admin/*`** — internal CRM for Chinese team (auth-gated, separate route group)
-- **`/(marketing)/`** — `/about`, `/how-it-works`, `/pricing`, `/contact` (SEO pages, multilingual)
-- **i18n** via `next-intl` — buyer-facing pages need EN + ZH + ES + HI + AR at minimum
-- **Streaming chat** — Gemini supports SSE; switch `/api/chat` route handler to stream tokens
+- **Magic-link auth** (login page + middleware) — requires backend support
+- **Streaming chat responses** via SSE — see `docs/API_INTEGRATION.md`
+- **Internal CRM** under `/admin/*` (separate route group, separate auth)
+- **i18n** via `next-intl` — at least EN + ZH + ES + HI + AR for buyer-facing pages
+- **Dark mode** — Tailwind `dark:` variants once the base palette is finalized
+- **Wire SupplierCard to real backend tool outputs** instead of the heuristic match
 
 ## How to apply when extending
 
-- Adding a new page → place under `app/` following App Router conventions; mark `'use client'` only if needed
-- Adding shared UI → create `components/` directory at repo root (not under `app/`)
-- Changing the layout/navigation → edit `app/layout.tsx`
+- New page → place under `app/`. Server Component by default; mark `"use client"` only if it needs state/effects.
+- New marketing section → add a component to `components/landing/`, compose into `app/page.tsx`.
+- New UI primitive → add to `components/ui/` following the shadcn pattern (CVA for variants, forwardRef, displayName).
+- New mock data → add to `lib/mockData.ts` with a type in `types/`.
 - **Always update `docs/ARCHITECTURE.md` when adding a route, changing the state machine, or changing the API integration pattern.**
+- **Always update `docs/DESIGN_SYSTEM.md` when introducing new visual primitives.**

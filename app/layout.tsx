@@ -1,22 +1,24 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import Link from "next/link";
+import { Inter } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "Nexcierge — The Smart Way to Source Equipment",
+  title: "Nexcierge — Source industrial machinery from China, intelligently.",
   description:
-    "AI-powered industrial machinery sourcing, direct from Chinese manufacturers.",
+    "AI sourcing concierge for international buyers. Identify domestic Chinese suppliers, qualify requirements, and execute through a managed sourcing workflow.",
+  metadataBase: new URL("https://nexcierge.com"),
+  openGraph: {
+    title: "Nexcierge — The smart way to source equipment",
+    description:
+      "AI-powered industrial machinery sourcing from Chinese manufacturers, with human verification and managed procurement.",
+    type: "website",
+  },
 };
 
 export default function RootLayout({
@@ -25,29 +27,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col bg-white text-zinc-900">
-        <header className="border-b border-zinc-100 px-6 py-4">
-          <div className="max-w-6xl mx-auto flex items-center justify-between">
-            <Link
-              href="/"
-              className="font-semibold tracking-[0.18em] text-zinc-900 text-sm"
-            >
-              NEXCIERGE
-            </Link>
-            <Link
-              href="/login"
-              className="text-sm text-zinc-600 hover:text-zinc-900 transition-colors"
-            >
-              Login
-            </Link>
-          </div>
-        </header>
-        <main className="flex flex-col flex-1">{children}</main>
-      </body>
+    <html lang="en" className={`${inter.variable} h-full antialiased`}>
+      <body className="min-h-full bg-white text-zinc-900">{children}</body>
     </html>
   );
 }
