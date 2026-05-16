@@ -8,7 +8,7 @@ import { SectionHeader } from "./SectionHeader";
 
 export function Categories() {
   return (
-    <section className="border-b border-zinc-200/70 bg-white">
+    <section className="border-b border-gray-200/70 bg-white">
       <div className="mx-auto max-w-6xl px-6 py-24 sm:py-32">
         <SectionHeader
           eyebrow="Categories"
@@ -31,20 +31,20 @@ export function Categories() {
             >
               <Link
                 href="/chat"
-                className="group relative flex h-full flex-col justify-between rounded-2xl border border-zinc-200 bg-white p-7 transition-all duration-200 hover:border-zinc-300 hover:shadow-[0_8px_30px_-12px_rgba(0,0,0,0.08)]"
+                className="group relative flex h-full flex-col justify-between rounded-2xl border border-gray-200 bg-white p-7 transition-all duration-200 hover:border-gray-300 hover:shadow-[0_8px_30px_-12px_rgba(0,0,0,0.08)]"
               >
                 <div>
-                  <div className="text-lg font-semibold text-zinc-900">
+                  <div className="text-lg font-semibold text-gray-900">
                     {c.title}
                   </div>
-                  <p className="mt-3 text-sm leading-relaxed text-zinc-600">
+                  <p className="mt-3 text-sm leading-relaxed text-gray-600">
                     {c.description}
                   </p>
                 </div>
-                <div className="mt-8 flex items-center justify-between border-t border-zinc-100 pt-4 text-xs text-zinc-400">
+                <div className="mt-8 flex items-center justify-between border-t border-gray-100 pt-4 text-xs text-gray-400">
                   <span className="tracking-wide">{c.examples}</span>
                   <ArrowUpRight
-                    className="h-4 w-4 text-zinc-400 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-zinc-900"
+                    className="h-4 w-4 text-gray-400 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-gray-900"
                     strokeWidth={1.5}
                   />
                 </div>

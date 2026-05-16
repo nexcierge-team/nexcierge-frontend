@@ -8,10 +8,10 @@ export function FinalCTA() {
     <section className="bg-white">
       <div className="mx-auto max-w-4xl px-6 py-28 text-center sm:py-36">
         <Reveal>
-          <h2 className="text-4xl font-semibold tracking-[-0.015em] text-zinc-900 sm:text-5xl">
+          <h2 className="text-4xl font-semibold tracking-[-0.015em] text-gray-900 sm:text-5xl">
             Need machinery sourced?
           </h2>
-          <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-zinc-600 sm:text-lg">
+          <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-gray-600 sm:text-lg">
             Describe what you&apos;re looking for. The AI sourcing concierge takes
             it from there.
           </p>

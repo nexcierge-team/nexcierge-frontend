@@ -1,14 +1,21 @@
 @import "tailwindcss";
 
+/* ─────────────────────────────────────────────────────────
+ * Nexcierge — Midnight Blue Accent palette
+ * Canonical source: /brand/PALETTE.md (workspace-level)
+ * ───────────────────────────────────────────────────────── */
 :root {
+  /* Base */
   --color-canvas: #ffffff;
-  --color-section: #fbfbfd;
-  --color-text: #1d1d1f;
-  --color-text-muted: #6e6e73;
-  --color-border: #e6e6e9;
-  --color-border-strong: #d1d1d6;
-  --color-accent: #0066cc;
-  --color-accent-hover: #0055aa;
+  --color-section: #f7f8fa;
+  --color-text: #111827;
+  --color-text-muted: #6b7280;
+  --color-border: #e5e7eb;
+
+  /* Brand */
+  --color-accent: #0f2747;        /* Midnight navy — brand accent */
+  --color-accent-hover: #1d4ed8;  /* Deep blue — accent hover */
+  --color-accent-soft: #dce8f8;   /* Powder blue — soft AI accent */
 }
 
 @theme inline {
@@ -70,7 +77,6 @@ body {
   font-family: var(--font-sans);
 }
 
-/* Subtle scrollbar */
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
@@ -79,18 +85,17 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #d4d4d8;
+  background: #d1d5db;
   border-radius: 8px;
   border: 2px solid transparent;
   background-clip: padding-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #a1a1aa;
+  background: #9ca3af;
   background-clip: padding-box;
   border: 2px solid transparent;
 }
 
-/* Selection */
 ::selection {
-  background: rgba(0, 102, 204, 0.18);
+  background: rgba(29, 78, 216, 0.18); /* deep blue, soft */
 }

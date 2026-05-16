@@ -2,81 +2,109 @@
 
 The aesthetic is intentionally minimal — closer to Claude.ai / ChatGPT than to a SaaS landing page. Chat is the centerpiece; marketing copy is sparse.
 
-## Colors (Tailwind classes)
+The canonical color reference for the whole company lives at [`/brand/PALETTE.md`](../../brand/PALETTE.md). What follows is how those tokens are used inside the frontend specifically.
 
-| Role | Class | Notes |
+## Palette — Midnight Blue Accent
+
+### Base
+| Token | Hex | Tailwind class | Use |
+|---|---|---|---|
+| Canvas | `#FFFFFF` | `bg-white` | Page background |
+| Secondary background | `#F7F8FA` | `bg-[#F7F8FA]` | Soft sections, sidebars |
+| Text primary | `#111827` | `text-gray-900` | Headlines, body |
+| Text secondary | `#6B7280` | `text-gray-500` (≈ `text-gray-600`) | Subtitles, meta |
+| Border | `#E5E7EB` | `border-gray-200` | Cards, dividers |
+
+### Brand accent
+| Token | Hex | Use |
 |---|---|---|
-| Page background | `bg-white` | Single mode for now; dark mode planned |
-| Primary text | `text-zinc-900` | Near-black |
-| Secondary text | `text-zinc-600` | Less emphasis |
-| Tertiary / placeholder | `text-zinc-400` / `placeholder-zinc-400` | |
-| Subtle borders | `border-zinc-100` (lighter) / `border-zinc-200` (standard) | |
-| User message bubble | `bg-zinc-900 text-white` | Dark accent for the buyer's voice |
-| Agent message bubble | `bg-zinc-100 text-zinc-900` | Light gray |
-| Primary action (send) | `bg-zinc-900 text-white` (hover: `bg-zinc-700`) | |
-| Disabled action | `bg-zinc-200 text-zinc-400` | |
+| **Midnight navy** | `#0F2747` | Primary brand color — CTAs, eyebrow text, status indicators, accent dots, focus rings |
+| **Deep blue** (hover) | `#1D4ED8` | Hover state on midnight navy elements (primary buttons) |
+| **Powder blue** (soft AI) | `#DCE8F8` | Soft AI-themed backgrounds: AI status pills, AI badges, optional message-bubble tints |
 
-**No color accent yet.** When we add one (CTAs, links), it should be a single muted accent — not multiple. Likely deep navy or warm gray.
+> **Important:** the Tailwind utility scale is **`gray-*`** (not `zinc-*`). `gray-900` matches `#111827` exactly; `zinc-900` is `#18181b` and is the wrong neutral.
+
+## Buttons (in `components/ui/button.tsx`)
+
+| Variant | Background | Text | Hover | Use |
+|---|---|---|---|---|
+| `primary` | `#0F2747` (midnight navy) | white | `#1D4ED8` (deep blue) | Main page CTAs |
+| `accent` | `#0F2747` | white | `#1D4ED8` | Same visual as primary; used in cards for AI-specific actions (e.g. "Request human review") |
+| `secondary` | white + `border-gray-200` | `text-gray-900` | `bg-gray-50` | Side CTAs, "Learn more" |
+| `ghost` | transparent | `text-gray-700` | `bg-gray-100` | Tertiary actions |
+
+Focus ring: `ring-[#0F2747]` (midnight navy) on all variants.
 
 ## Typography
 
-- **Font:** Geist Sans (loaded via `next/font/google` in `app/layout.tsx`)
-- **Mono:** Geist Mono (loaded but not currently used)
-- **Hero h1:** `text-4xl sm:text-5xl font-semibold tracking-tight`
+- **Font:** Inter (loaded via `next/font/google` in `app/layout.tsx`)
+- **Body font feature settings:** `'rlig', 'calt', 'ss01'` — enables ligatures and stylistic alternates
+- **Hero h1:** `text-4xl sm:text-5xl font-semibold tracking-[-0.02em]`
+- **Section h2:** `text-3xl sm:text-4xl font-semibold tracking-[-0.015em]`
 - **Body:** default size (1rem) with `leading-relaxed` in chat bubbles
-- **Subtle / meta:** `text-sm text-zinc-500` or `text-sm text-zinc-600`
-- **Brand wordmark:** `font-semibold tracking-[0.18em] text-sm` (uppercase NEXCIERGE)
+- **Subtle / meta:** `text-sm text-gray-500`
+- **Brand wordmark:** `font-semibold tracking-[0.16em] text-sm` (uppercase NEXCIERGE)
 
 ## Spacing
 
-- Page max-width: `max-w-6xl` for header, `max-w-2xl` for chat content
-- Vertical rhythm: `mb-3` (hero title → subtitle), `mb-10` (subtitle → input), `space-y-5` (between message bubbles)
-- Padding around chat input: `px-5 py-4` for empty-state, `px-5 py-3` for active-state
-- Chip group: `gap-2` between chips, `mt-6` from input
+- Page max-widths: `max-w-6xl` for sections, `max-w-2xl` for chat content, `max-w-3xl` for FAQ / dashboard prose
+- Vertical rhythm: sections use `py-24 sm:py-32` for major spacing
+- Chat bubbles: `space-y-5` between messages, `rounded-2xl px-4 py-3`
+- Cards: `rounded-2xl border border-gray-200`, `p-5`–`p-7` content padding
 
 ## Component patterns
 
 ### Chat input
 - Rounded `rounded-2xl` textarea with `resize-none`
-- Border `border-zinc-200` → focus `border-zinc-400` (no ring)
+- Border `border-gray-200` → focus `border-gray-400` (no ring)
 - Send button absolutely positioned bottom-right, circular, fires on Enter (Shift+Enter for newline)
-- Up arrow SVG icon (not paper plane — feels more "submit" than "send")
+- Up arrow SVG icon
 
 ### Suggestion chips
-- Pill: `rounded-full px-3 py-1.5 border border-zinc-200`
-- Hover: subtle `bg-zinc-100` + text darkens to `zinc-900`
-- Fire the same `sendMessage()` as form submit
+- Pill: `rounded-full px-3 py-1.5 border border-gray-200`
+- Hover: subtle `bg-gray-50` + text darkens to `text-gray-900`
 
 ### Message bubbles
-- `max-w-[85%]` so long messages don't span full width
-- `rounded-2xl px-4 py-3`
+- User: `bg-gray-900 text-white`
+- Agent: `bg-white border border-gray-200 text-gray-900 shadow-[0_1px_2px_rgba(0,0,0,0.03)]`
+- `max-w-[88%]` so long messages don't span full width
 - `whitespace-pre-wrap` to preserve linebreaks from the agent
+
+### Status pills (dashboard)
+- AI-related: `bg-[#DCE8F8] text-[#0F2747] ring-[#BFD3F0]` (Supplier Matching uses this — it's the soft AI accent)
+- Functional Tailwind tints for non-AI states: `emerald-*` for Quote Ready, `amber-*` for Negotiating, etc.
 
 ### Loading indicator (agent typing)
 - Three small dots in agent bubble, `animate-bounce` with staggered delays (`0.15s`, `0.3s`)
 
 ## Animations
 
-Use Tailwind defaults: `transition-colors`, `animate-bounce`. No custom keyframes yet.
+- Single easing curve everywhere: `cubic-bezier(0.22, 1, 0.36, 1)`
+- `Reveal` wrapper does a 16px y-translate + opacity fade on scroll into view (once-only)
+- Accordion uses Radix's height + opacity transitions defined in `globals.css`
+- No parallax, no spring physics, no auto-playing carousels
 
 ## Accessibility
 
 - All buttons have `aria-label` where the icon alone isn't enough (e.g. send button)
 - Enter to submit, Shift+Enter for newline — standard chat UX
-- Disabled state visually distinct (`disabled:bg-zinc-200 disabled:text-zinc-400`)
+- Disabled state visually distinct (`disabled:bg-gray-200 disabled:text-gray-400`)
+- Focus rings on all interactive elements use `ring-[#0F2747]`
 
-**TODO:** add focus-visible styles, prefers-reduced-motion check for the loading bounce.
+**TODO:** add focus-visible styles for non-button elements; prefers-reduced-motion check for the loading bounce.
 
 ## Dark mode (planned, not built)
 
 - Use Tailwind's `dark:` variants
-- Background: `dark:bg-zinc-950`
-- Text: `dark:text-zinc-100`
-- Toggle via `prefers-color-scheme` initially; manual toggle in header later
+- Background: `dark:bg-gray-950`
+- Text: `dark:text-gray-100`
+- Accent: brighten midnight navy slightly for better contrast (`#1D4ED8` itself may become the dark-mode default)
 
 ## How to apply when extending
 
-- Stay within the zinc scale — don't introduce new gray/neutral families
-- New visual primitive (modal, dropdown, table) → add a section to this doc with the canonical pattern before using it twice
-- New icon → SVG inline, 14–16px, `stroke-width="1.5"`, `currentColor` for fill/stroke
-- **Always update `docs/DESIGN_SYSTEM.md` when changing color tokens, spacing rules, or component patterns.**
+- **Stay within the gray + midnight-blue palette.** Don't introduce new neutral families (slate, stone, zinc).
+- **Reuse the variables in `globals.css`** when authoring custom styles. Don't hardcode `#0F2747` in CSS files; use `var(--color-accent)`. Tailwind utilities can keep the hex inline.
+- **New visual primitive (modal, dropdown, table) →** add a section to this doc with the canonical pattern before using it twice.
+- **New icon →** SVG inline, 14–16px, `stroke-width="1.5"`, `currentColor` for fill/stroke.
+- **Status pill that represents AI behavior →** use the powder-blue + midnight-navy combination.
+- **Always update `docs/DESIGN_SYSTEM.md` AND `/brand/PALETTE.md` when changing color tokens.**

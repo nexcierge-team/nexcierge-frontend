@@ -18,22 +18,22 @@ export default function DashboardPage() {
       <DashboardSidebar />
 
       <main className="flex-1 overflow-y-auto">
-        <header className="sticky top-0 z-10 border-b border-zinc-200 bg-white/85 backdrop-blur-xl">
+        <header className="sticky top-0 z-10 border-b border-gray-200 bg-white/85 backdrop-blur-xl">
           <div className="flex items-center justify-between px-8 py-5">
             <div>
-              <h1 className="text-xl font-semibold tracking-tight text-zinc-900">
+              <h1 className="text-xl font-semibold tracking-tight text-gray-900">
                 Sourcing requests
               </h1>
-              <p className="text-sm text-zinc-500">
+              <p className="text-sm text-gray-500">
                 Track active sourcing workflows and supplier matches.
               </p>
             </div>
             <div className="flex items-center gap-3">
               <div className="relative hidden md:block">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" strokeWidth={1.5} />
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" strokeWidth={1.5} />
                 <input
                   placeholder="Search requests"
-                  className="h-10 w-64 rounded-full border border-zinc-200 bg-white pl-10 pr-4 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-400 focus:outline-none"
+                  className="h-10 w-64 rounded-full border border-gray-200 bg-white pl-10 pr-4 text-sm text-gray-900 placeholder:text-gray-400 focus:border-gray-400 focus:outline-none"
                 />
               </div>
               <Button asChild size="sm">
@@ -51,10 +51,10 @@ export default function DashboardPage() {
             {STATS.map((s) => (
               <div
                 key={s.label}
-                className="rounded-2xl border border-zinc-200 bg-white px-5 py-5"
+                className="rounded-2xl border border-gray-200 bg-white px-5 py-5"
               >
-                <div className="text-xs text-zinc-500">{s.label}</div>
-                <div className="mt-2 text-2xl font-semibold tracking-tight text-zinc-900">
+                <div className="text-xs text-gray-500">{s.label}</div>
+                <div className="mt-2 text-2xl font-semibold tracking-tight text-gray-900">
                   {s.value}
                 </div>
               </div>
@@ -63,12 +63,12 @@ export default function DashboardPage() {
 
           <section className="mt-10">
             <div className="flex items-baseline justify-between">
-              <h2 className="text-sm font-medium uppercase tracking-[0.14em] text-zinc-400">
+              <h2 className="text-sm font-medium uppercase tracking-[0.14em] text-gray-400">
                 Recent requests
               </h2>
               <Link
                 href="/chat"
-                className="text-sm text-zinc-500 hover:text-zinc-900 transition-colors"
+                className="text-sm text-gray-500 hover:text-gray-900 transition-colors"
               >
                 View all
               </Link>

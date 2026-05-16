@@ -12,7 +12,7 @@ import { Reveal } from "./Reveal";
 
 export function FAQ() {
   return (
-    <section className="border-b border-zinc-200/70 bg-[#fbfbfd]">
+    <section className="border-b border-gray-200/70 bg-[#F7F8FA]">
       <div className="mx-auto max-w-3xl px-6 py-24 sm:py-32">
         <SectionHeader
           eyebrow="FAQ"

@@ -55,14 +55,14 @@ export function ChatComposer({
         placeholder={placeholder ?? "Message Nexcierge…"}
         rows={rows}
         className={cn(
-          "w-full resize-none rounded-2xl border border-zinc-200 bg-white px-5 py-3.5 pr-14 text-[15px] text-zinc-900 placeholder:text-zinc-400 shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-colors focus:border-zinc-400 focus:outline-none",
+          "w-full resize-none rounded-2xl border border-gray-200 bg-white px-5 py-3.5 pr-14 text-[15px] text-gray-900 placeholder:text-gray-400 shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-colors focus:border-gray-400 focus:outline-none",
         )}
       />
       <button
         type="submit"
         disabled={disabled || !value.trim()}
         aria-label="Send message"
-        className="absolute right-2.5 bottom-2.5 flex h-9 w-9 items-center justify-center rounded-full bg-zinc-900 text-white shadow-sm transition-all duration-200 hover:bg-zinc-800 disabled:bg-zinc-200 disabled:text-zinc-400 disabled:shadow-none"
+        className="absolute right-2.5 bottom-2.5 flex h-9 w-9 items-center justify-center rounded-full bg-gray-900 text-white shadow-sm transition-all duration-200 hover:bg-gray-800 disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none"
       >
         <ArrowUp className="h-4 w-4" strokeWidth={2} />
       </button>

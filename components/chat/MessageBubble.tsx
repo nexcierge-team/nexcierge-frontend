@@ -22,8 +22,8 @@ export function MessageBubble({ message }: MessageBubbleProps) {
             className={cn(
               "rounded-2xl px-4 py-3 text-[15px] leading-relaxed whitespace-pre-wrap",
               isUser
-                ? "bg-zinc-900 text-white"
-                : "bg-white border border-zinc-200 text-zinc-900 shadow-[0_1px_2px_rgba(0,0,0,0.03)]",
+                ? "bg-gray-900 text-white"
+                : "bg-white border border-gray-200 text-gray-900 shadow-[0_1px_2px_rgba(0,0,0,0.03)]",
             )}
           >
             {message.content}
@@ -50,12 +50,12 @@ export function TypingIndicator() {
       transition={{ duration: 0.2 }}
       className="flex justify-start"
     >
-      <div className="rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+      <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
         <span className="inline-flex items-end gap-1">
           {[0, 0.15, 0.3].map((d) => (
             <span
               key={d}
-              className="h-1.5 w-1.5 animate-bounce rounded-full bg-zinc-400"
+              className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400"
               style={{ animationDelay: `${d}s` }}
             />
           ))}

@@ -8,16 +8,16 @@ import { HeroChatPreview } from "./HeroChatPreview";
 
 export function Hero() {
   return (
-    <section className="relative overflow-hidden border-b border-zinc-200/70">
+    <section className="relative overflow-hidden border-b border-gray-200/70">
       <div className="mx-auto grid max-w-6xl items-center gap-16 px-6 pt-20 pb-24 lg:grid-cols-[1.05fr_0.95fr] lg:gap-12 lg:pt-28 lg:pb-32">
         <div className="max-w-2xl">
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-            className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs text-zinc-600"
+            className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs text-gray-600"
           >
-            <span className="h-1.5 w-1.5 rounded-full bg-[#0066cc]" />
+            <span className="h-1.5 w-1.5 rounded-full bg-[#0F2747]" />
             AI sourcing concierge · now in private preview
           </motion.div>
 
@@ -25,12 +25,12 @@ export function Hero() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.05, ease: [0.22, 1, 0.36, 1] }}
-            className="mt-6 text-[2.75rem] font-semibold leading-[1.05] tracking-[-0.02em] text-zinc-900 sm:text-5xl lg:text-[3.5rem]"
+            className="mt-6 text-[2.75rem] font-semibold leading-[1.05] tracking-[-0.02em] text-gray-900 sm:text-5xl lg:text-[3.5rem]"
           >
             Source industrial machinery
             <br className="hidden sm:block" />
-            <span className="text-zinc-500"> from China</span>
-            <span className="text-zinc-900">
+            <span className="text-gray-500"> from China</span>
+            <span className="text-gray-900">
               {" "}without brokers, trade fairs, or guesswork.
             </span>
           </motion.h1>
@@ -39,7 +39,7 @@ export function Hero() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
-            className="mt-6 max-w-xl text-lg leading-relaxed text-zinc-600"
+            className="mt-6 max-w-xl text-lg leading-relaxed text-gray-600"
           >
             Describe what you need. Our AI sourcing concierge helps identify
             suppliers, qualify requirements, and connect you with a managed

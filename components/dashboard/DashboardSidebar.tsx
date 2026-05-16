@@ -25,11 +25,11 @@ export function DashboardSidebar() {
   const [active, setActive] = useState("requests");
 
   return (
-    <aside className="hidden h-full w-64 shrink-0 flex-col border-r border-zinc-200 bg-[#fbfbfd] md:flex">
-      <div className="flex items-center justify-between border-b border-zinc-200 px-5 py-4">
+    <aside className="hidden h-full w-64 shrink-0 flex-col border-r border-gray-200 bg-[#F7F8FA] md:flex">
+      <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
         <Link
           href="/"
-          className="font-semibold tracking-[0.16em] text-[14px] text-zinc-900"
+          className="font-semibold tracking-[0.16em] text-[14px] text-gray-900"
         >
           NEXCIERGE
         </Link>
@@ -54,7 +54,7 @@ export function DashboardSidebar() {
                     <item.icon
                       className={cn(
                         "h-4 w-4 shrink-0",
-                        isActive ? "text-zinc-900" : "text-zinc-400",
+                        isActive ? "text-gray-900" : "text-gray-400",
                       )}
                       strokeWidth={1.5}
                     />
@@ -62,15 +62,15 @@ export function DashboardSidebar() {
                       className={cn(
                         "text-sm",
                         isActive
-                          ? "font-medium text-zinc-900"
-                          : "text-zinc-700",
+                          ? "font-medium text-gray-900"
+                          : "text-gray-700",
                       )}
                     >
                       {item.label}
                     </span>
                   </span>
                   {item.count !== undefined && (
-                    <span className="text-xs text-zinc-400">{item.count}</span>
+                    <span className="text-xs text-gray-400">{item.count}</span>
                   )}
                 </button>
               </li>
@@ -79,16 +79,16 @@ export function DashboardSidebar() {
         </ul>
       </nav>
 
-      <div className="border-t border-zinc-200 p-4">
+      <div className="border-t border-gray-200 p-4">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-900 text-[11px] font-medium text-white">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-900 text-[11px] font-medium text-white">
             AC
           </div>
           <div className="min-w-0">
-            <div className="truncate text-sm font-medium text-zinc-900">
+            <div className="truncate text-sm font-medium text-gray-900">
               Acme Industrial
             </div>
-            <div className="truncate text-xs text-zinc-400">
+            <div className="truncate text-xs text-gray-400">
               procurement@acme.example
             </div>
           </div>

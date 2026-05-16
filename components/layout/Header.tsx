@@ -15,11 +15,11 @@ export function Header() {
   const onChatPage = pathname?.startsWith("/chat");
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-zinc-200/70 bg-white/80 backdrop-blur-xl">
+    <header className="sticky top-0 z-40 w-full border-b border-gray-200/70 bg-white/80 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
         <Link
           href="/"
-          className="font-semibold tracking-[0.16em] text-[15px] text-zinc-900"
+          className="font-semibold tracking-[0.16em] text-[15px] text-gray-900"
           aria-label="Nexcierge home"
         >
           NEXCIERGE
@@ -33,8 +33,8 @@ export function Header() {
               className={cn(
                 "text-sm transition-colors",
                 pathname === item.href
-                  ? "text-zinc-900"
-                  : "text-zinc-600 hover:text-zinc-900",
+                  ? "text-gray-900"
+                  : "text-gray-600 hover:text-gray-900",
               )}
             >
               {item.label}
@@ -42,7 +42,7 @@ export function Header() {
           ))}
           <Link
             href="/dashboard"
-            className="text-sm text-zinc-600 hover:text-zinc-900 transition-colors"
+            className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
           >
             Dashboard
           </Link>
@@ -51,7 +51,7 @@ export function Header() {
         <div className="flex items-center gap-3">
           <Link
             href="/dashboard"
-            className="hidden text-sm text-zinc-600 hover:text-zinc-900 transition-colors sm:block md:hidden"
+            className="hidden text-sm text-gray-600 hover:text-gray-900 transition-colors sm:block md:hidden"
           >
             Log in
           </Link>

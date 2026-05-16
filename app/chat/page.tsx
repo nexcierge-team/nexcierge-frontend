@@ -130,14 +130,14 @@ export default function ChatPage() {
       />
 
       <div className="flex h-full min-w-0 flex-1 flex-col">
-        <div className="flex items-center justify-between border-b border-zinc-200 bg-white/80 px-6 py-4 backdrop-blur-xl">
-          <div className="flex items-center gap-2 text-sm font-medium text-zinc-900">
-            <Sparkles className="h-4 w-4 text-[#0066cc]" strokeWidth={1.75} />
+        <div className="flex items-center justify-between border-b border-gray-200 bg-white/80 px-6 py-4 backdrop-blur-xl">
+          <div className="flex items-center gap-2 text-sm font-medium text-gray-900">
+            <Sparkles className="h-4 w-4 text-[#0F2747]" strokeWidth={1.75} />
             Sourcing concierge
           </div>
           <a
             href="/"
-            className="text-sm text-zinc-500 hover:text-zinc-900 transition-colors"
+            className="text-sm text-gray-500 hover:text-gray-900 transition-colors"
           >
             Exit
           </a>
@@ -155,10 +155,10 @@ export default function ChatPage() {
                 className="mx-auto flex h-full max-w-2xl flex-col items-center justify-center px-6"
               >
                 <div className="w-full">
-                  <h1 className="text-center text-3xl font-semibold tracking-[-0.015em] text-zinc-900 sm:text-4xl">
+                  <h1 className="text-center text-3xl font-semibold tracking-[-0.015em] text-gray-900 sm:text-4xl">
                     What machinery are you sourcing?
                   </h1>
-                  <p className="mt-3 text-center text-base text-zinc-500">
+                  <p className="mt-3 text-center text-base text-gray-500">
                     Describe what you need in your own words. The agent will
                     qualify the requirements.
                   </p>
@@ -181,7 +181,7 @@ export default function ChatPage() {
                         key={p}
                         onClick={() => send(p)}
                         disabled={loading}
-                        className="rounded-full border border-zinc-200 bg-white px-3.5 py-2 text-xs text-zinc-700 transition-colors hover:border-zinc-300 hover:bg-zinc-50 disabled:opacity-50"
+                        className="rounded-full border border-gray-200 bg-white px-3.5 py-2 text-xs text-gray-700 transition-colors hover:border-gray-300 hover:bg-gray-50 disabled:opacity-50"
                       >
                         {p}
                       </button>
@@ -211,7 +211,7 @@ export default function ChatPage() {
         </div>
 
         {!isEmpty && (
-          <div className="border-t border-zinc-200 bg-white px-6 py-4">
+          <div className="border-t border-gray-200 bg-white px-6 py-4">
             <div className="mx-auto max-w-3xl">
               <ChatComposer
                 value={input}
@@ -220,7 +220,7 @@ export default function ChatPage() {
                 disabled={loading}
                 placeholder="Reply…"
               />
-              <div className="mt-2 text-center text-[11px] text-zinc-400">
+              <div className="mt-2 text-center text-[11px] text-gray-400">
                 Press Enter to send · Shift + Enter for a new line
               </div>
             </div>

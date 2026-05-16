@@ -28,7 +28,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${inter.variable} h-full antialiased`}>
-      <body className="min-h-full bg-white text-zinc-900">{children}</body>
+      <body className="min-h-full bg-white text-gray-900">{children}</body>
     </html>
   );
 }
