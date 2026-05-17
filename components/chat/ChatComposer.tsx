@@ -56,6 +56,8 @@ export function ChatComposer({
         rows={rows}
         className={cn(
           "w-full resize-none rounded-2xl border border-gray-200 bg-white px-5 py-3.5 pr-14 text-[15px] text-gray-900 placeholder:text-gray-400 shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-colors focus:border-gray-400 focus:outline-none",
+          // Hide the textarea's scrollbar (auto-resize handles vertical growth up to max-height)
+          "scrollbar-none [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]",
         )}
       />
       <button

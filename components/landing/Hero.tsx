@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { HeroChatPreview } from "./HeroChatPreview";
 
@@ -52,15 +51,12 @@ export function Hero() {
             transition={{ duration: 0.7, delay: 0.25, ease: [0.22, 1, 0.36, 1] }}
             className="mt-9 flex flex-wrap items-center gap-3"
           >
-            <Button asChild size="lg">
-              <Link href="/chat">
-                Start sourcing
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </Button>
             <Button asChild variant="secondary" size="lg">
               <Link href="#how-it-works">How it works</Link>
             </Button>
+            <p className="text-sm text-gray-500">
+              or click the chat to start sourcing →
+            </p>
           </motion.div>
         </div>
 
