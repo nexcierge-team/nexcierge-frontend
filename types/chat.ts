@@ -5,6 +5,9 @@ export interface Message {
   role: ChatRole;
   content: string;
   supplierCards?: SupplierMatch[];
+  // True when this message is an agent reply produced because the API
+  // call failed (network, 5xx, etc.). The UI renders a Retry button on it.
+  error?: boolean;
 }
 
 /**

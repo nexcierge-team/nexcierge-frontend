@@ -8,6 +8,10 @@ import { SupplierDetailModal } from "./SupplierDetailModal";
 
 interface SupplierCardProps {
   match: SupplierMatch;
+  // When false, Customize + Request-human-review buttons are hidden.
+  // Drives the gating UX: buyers can't trigger handoff actions until the
+  // agent has confirmed pre-qualification is complete.
+  preQualComplete?: boolean;
   onCustomize?: (match: SupplierMatch) => void;
   onRequestReview?: (match: SupplierMatch) => void;
 }
@@ -16,6 +20,7 @@ const SPECS_TO_SHOW = 4;
 
 export function SupplierCard({
   match,
+  preQualComplete = false,
   onCustomize,
   onRequestReview,
 }: SupplierCardProps) {
@@ -99,22 +104,26 @@ export function SupplierCard({
           >
             Customize
           </Button>
-          <Button
-            size="sm"
-            variant="accent"
-            className="ml-auto"
-            onClick={() => onRequestReview?.(match)}
-          >
-            Request human review
-          </Button>
+          {/* The Request human review button only appears after the agent
+              calls signal_pre_qual_complete — until then the buyer can't
+              trigger handoff. View specs + Customize stay available
+              throughout (info-only / chat prompt). */}
+          {preQualComplete && (
+            <Button
+              size="sm"
+              variant="accent"
+              className="ml-auto"
+              onClick={() => onRequestReview?.(match)}
+            >
+              Request human review
+            </Button>
+          )}
         </div>
       </div>
 
       <SupplierDetailModal
         match={detailOpen ? match : null}
         onClose={() => setDetailOpen(false)}
-        onCustomize={onCustomize}
-        onRequestReview={onRequestReview}
       />
     </>
   );

@@ -23,7 +23,7 @@ export function HeroChatModal({
   initialMessage,
   onClose,
 }: HeroChatModalProps) {
-  const { messages, loading, sendMessage } = useChat();
+  const { messages, loading, sendMessage, retry, preQualComplete } = useChat();
   const [input, setInput] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
   const sentInitialRef = useRef(false);
@@ -149,7 +149,13 @@ export function HeroChatModal({
               ) : (
                 <div className="space-y-5">
                   {messages.map((m) => (
-                    <MessageBubble key={m.id} message={m} />
+                    <MessageBubble
+                      key={m.id}
+                      message={m}
+                      preQualComplete={preQualComplete}
+                      onRetry={retry}
+                      retryDisabled={loading}
+                    />
                   ))}
                   {loading && <TypingIndicator />}
                   <div ref={endRef} />

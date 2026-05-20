@@ -32,35 +32,37 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  // Sticky session flag — flips true the moment the backend reports
+  // pre_qual_complete; stays true for the rest of the session.
+  const [preQualComplete, setPreQualComplete] = useState(false);
+  // Tracks last user message so the Retry button on an error bubble can
+  // re-send it without forcing the user to retype.
+  const [lastUserMessage, setLastUserMessage] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
-  async function send(text: string) {
-    const trimmed = text.trim();
-    if (!trimmed || loading) return;
-
-    const userMsg: Message = {
-      id: newMessageId(),
-      role: "user",
-      content: trimmed,
-    };
-    setMessages((prev) => [...prev, userMsg]);
-    setInput("");
-    setLoading(true);
-
+  // Shared API call. `send` adds the user bubble first; `retry` skips that
+  // since the original user message is already on screen.
+  async function callApi(text: string): Promise<void> {
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ session_id: sessionId, message: trimmed }),
+        body: JSON.stringify({ session_id: sessionId, message: text }),
       });
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
       const data = await res.json();
       const reply =
         data.reply ?? "Sorry — something went wrong. Please try again.";
       const supplierCards = (data.supplier_matches ?? []) as SupplierMatch[];
+      if (data.pre_qual_complete) {
+        setPreQualComplete(true);
+      }
       const agentMsg: Message = {
         id: newMessageId(),
         role: "agent",
@@ -74,9 +76,46 @@ export default function ChatPage() {
         {
           id: newMessageId(),
           role: "agent",
-          content: "Connection error. Please try again in a moment.",
+          content:
+            "Connection error. Please try again, or check that the backend is running.",
+          error: true,
         },
       ]);
+    }
+  }
+
+  async function send(text: string) {
+    const trimmed = text.trim();
+    if (!trimmed || loading) return;
+
+    setLastUserMessage(trimmed);
+    setMessages((prev) => [
+      ...prev,
+      { id: newMessageId(), role: "user", content: trimmed },
+    ]);
+    setInput("");
+    setLoading(true);
+    try {
+      await callApi(trimmed);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function retry() {
+    if (!lastUserMessage || loading) return;
+    // Pop the trailing error bubble so the conversation reads cleanly
+    // when the retry succeeds
+    setMessages((prev) => {
+      const last = prev[prev.length - 1];
+      if (last?.role === "agent" && last.error) {
+        return prev.slice(0, -1);
+      }
+      return prev;
+    });
+    setLoading(true);
+    try {
+      await callApi(lastUserMessage);
     } finally {
       setLoading(false);
     }
@@ -87,6 +126,8 @@ export default function ChatPage() {
     setActiveHistoryId(undefined);
     setMessages([]);
     setInput("");
+    setPreQualComplete(false);
+    setLastUserMessage(null);
   }
 
   function pickHistory(id: string) {
@@ -190,7 +231,13 @@ export default function ChatPage() {
               >
                 <div className="space-y-5">
                   {messages.map((m) => (
-                    <MessageBubble key={m.id} message={m} />
+                    <MessageBubble
+                      key={m.id}
+                      message={m}
+                      preQualComplete={preQualComplete}
+                      onRetry={retry}
+                      retryDisabled={loading}
+                    />
                   ))}
                   {loading && <TypingIndicator />}
                   <div ref={endRef} />

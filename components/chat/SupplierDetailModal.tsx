@@ -3,21 +3,16 @@
 import { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Box, MapPin, ShieldCheck, Star, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import type { SupplierMatch } from "@/types/chat";
 
 interface SupplierDetailModalProps {
   match: SupplierMatch | null;
   onClose: () => void;
-  onCustomize?: (m: SupplierMatch) => void;
-  onRequestReview?: (m: SupplierMatch) => void;
 }
 
 export function SupplierDetailModal({
   match,
   onClose,
-  onCustomize,
-  onRequestReview,
 }: SupplierDetailModalProps) {
   // Esc to close + lock body scroll while open
   useEffect(() => {
@@ -154,31 +149,6 @@ export function SupplierDetailModal({
                 )}
 
               </div>
-            </div>
-
-            {/* Footer */}
-            <div className="flex flex-wrap items-center gap-2 border-t border-gray-200 bg-white px-6 py-4">
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => {
-                  onCustomize?.(match);
-                  onClose();
-                }}
-              >
-                Customize
-              </Button>
-              <Button
-                size="sm"
-                variant="accent"
-                className="ml-auto"
-                onClick={() => {
-                  onRequestReview?.(match);
-                  onClose();
-                }}
-              >
-                Request human review
-              </Button>
             </div>
           </motion.div>
         </motion.div>

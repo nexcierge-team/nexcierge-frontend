@@ -2,10 +2,10 @@ import type { SourcingRequest } from "@/types/dashboard";
 import type { ChatSession } from "@/types/chat";
 
 export const SUGGESTED_PROMPTS = [
-  "PET bottle blowing machine, 1500 bottles/hour",
-  "CNC lathe for stainless steel parts",
-  "Injection molding machine, 200-ton clamping",
-  "Fiber laser cutter for 12mm steel",
+  "Injection molding machine for plastic parts",
+  "PET bottle blowing machine",
+  "Rubber molding press",
+  "Pulp moulding machinery for paper tableware",
 ];
 
 export const QUICK_CATEGORIES = [

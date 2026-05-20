@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { RotateCw } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
@@ -9,9 +10,24 @@ import { SupplierCard } from "./SupplierCard";
 
 interface MessageBubbleProps {
   message: Message;
+  // Whether the agent has confirmed all required pre-qualification fields
+  // are collected. When false, SupplierCards still render but hide the
+  // consequential action buttons (Customize, Request human review). Keep
+  // "View specs" visible always — it just opens an info modal.
+  preQualComplete?: boolean;
+  // Called when the user clicks Retry on an error bubble. Re-sends the
+  // last user message via the chat hook.
+  onRetry?: () => void;
+  // Disables the retry button while a request is in flight.
+  retryDisabled?: boolean;
 }
 
-export function MessageBubble({ message }: MessageBubbleProps) {
+export function MessageBubble({
+  message,
+  preQualComplete,
+  onRetry,
+  retryDisabled,
+}: MessageBubbleProps) {
   const isUser = message.role === "user";
   return (
     <motion.div
@@ -32,11 +48,28 @@ export function MessageBubble({ message }: MessageBubbleProps) {
               "rounded-2xl px-4 py-3 text-[15px] leading-relaxed",
               isUser
                 ? "bg-gray-900 text-white whitespace-pre-wrap"
-                : "bg-white border border-gray-200 text-gray-900 shadow-[0_1px_2px_rgba(0,0,0,0.03)]",
+                : message.error
+                  ? "bg-white border border-red-200 text-red-900 shadow-[0_1px_2px_rgba(0,0,0,0.03)]"
+                  : "bg-white border border-gray-200 text-gray-900 shadow-[0_1px_2px_rgba(0,0,0,0.03)]",
             )}
           >
             {isUser ? (
               message.content
+            ) : message.error ? (
+              <div>
+                <div>{message.content}</div>
+                {onRetry && (
+                  <button
+                    type="button"
+                    onClick={onRetry}
+                    disabled={retryDisabled}
+                    className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-white px-3 py-1 text-xs font-medium text-red-700 transition-colors hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <RotateCw className="h-3 w-3" strokeWidth={2} />
+                    Retry
+                  </button>
+                )}
+              </div>
             ) : (
               <AgentMarkdown content={message.content} />
             )}
@@ -46,7 +79,11 @@ export function MessageBubble({ message }: MessageBubbleProps) {
         {message.supplierCards && message.supplierCards.length > 0 && (
           <div className="grid w-full gap-3">
             {message.supplierCards.map((s) => (
-              <SupplierCard key={s.id} match={s} />
+              <SupplierCard
+                key={s.id}
+                match={s}
+                preQualComplete={preQualComplete}
+              />
             ))}
           </div>
         )}
