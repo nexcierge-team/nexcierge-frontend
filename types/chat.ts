@@ -11,11 +11,14 @@ export interface Message {
  * Mirrors the JSON shape returned by `backend/app/db.py::_serialize`.
  * snake_case kept on purpose so we can pass the API response through
  * without transformation.
+ *
+ * Note: the source listing URL is intentionally NOT in this type — the
+ * backend strips it from the response so buyers can't bypass our local
+ * coordination team and contact suppliers directly.
  */
 export interface SupplierMatch {
   id: string;
   source?: string;
-  url: string;
   name: string;
   category?: string | null;
   description?: string | null;
