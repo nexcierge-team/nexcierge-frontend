@@ -1,5 +1,5 @@
 import type { SourcingRequest } from "@/types/dashboard";
-import type { ChatSession, SupplierMatch } from "@/types/chat";
+import type { ChatSession } from "@/types/chat";
 
 export const SUGGESTED_PROMPTS = [
   "PET bottle blowing machine, 1500 bottles/hour",
@@ -177,20 +177,6 @@ export const MOCK_CHAT_SESSIONS: ChatSession[] = [
     preview: "9 needles per head, 1000 spm, garment production...",
   },
 ];
-
-export const MOCK_SUPPLIER_MATCH: SupplierMatch = {
-  id: "M003",
-  title: "PET Bottle Blowing Machine SBM-2000",
-  specs: [
-    { label: "Cavities", value: "2" },
-    { label: "Output", value: "2000 bph" },
-    { label: "Max volume", value: "2 L" },
-    { label: "Voltage", value: "380V 50Hz" },
-  ],
-  priceRangeUsd: [8000, 12000],
-  moq: 1,
-  leadTimeDays: 30,
-};
 
 export const MOCK_REQUESTS: SourcingRequest[] = [
   {

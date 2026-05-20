@@ -9,12 +9,8 @@ import {
   MessageBubble,
   TypingIndicator,
 } from "@/components/chat/MessageBubble";
-import {
-  MOCK_CHAT_SESSIONS,
-  MOCK_SUPPLIER_MATCH,
-  SUGGESTED_PROMPTS,
-} from "@/lib/mockData";
-import type { Message } from "@/types/chat";
+import { MOCK_CHAT_SESSIONS, SUGGESTED_PROMPTS } from "@/lib/mockData";
+import type { Message, SupplierMatch } from "@/types/chat";
 
 function newSessionId() {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
@@ -27,12 +23,6 @@ function newMessageId() {
   return Math.random().toString(36).slice(2);
 }
 
-function shouldAttachSupplier(text: string) {
-  const t = text.toLowerCase();
-  return (
-    t.includes("pet") || t.includes("bottle") || t.includes("blowing")
-  );
-}
 
 export default function ChatPage() {
   const [sessionId, setSessionId] = useState<string>(newSessionId);
@@ -70,12 +60,12 @@ export default function ChatPage() {
       const data = await res.json();
       const reply =
         data.reply ?? "Sorry — something went wrong. Please try again.";
-      const attachSupplier = shouldAttachSupplier(trimmed);
+      const supplierCards = (data.supplier_matches ?? []) as SupplierMatch[];
       const agentMsg: Message = {
         id: newMessageId(),
         role: "agent",
         content: reply,
-        supplierCards: attachSupplier ? [MOCK_SUPPLIER_MATCH] : undefined,
+        supplierCards: supplierCards.length > 0 ? supplierCards : undefined,
       };
       setMessages((prev) => [...prev, agentMsg]);
     } catch {

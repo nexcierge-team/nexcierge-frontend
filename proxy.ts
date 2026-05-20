@@ -1,31 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
 
 /**
- * Two-layer HTTP Basic Auth.
+ * HTTP Basic Auth gate for the entire site.
  *
- * 1. SITE PREVIEW PASSWORD (`BASIC_AUTH_USER` + `BASIC_AUTH_PASSWORD`)
- *    Required for all pages and API routes EXCEPT `/dashboard*`. Shared with
- *    coworkers / stakeholders who need to see the public surfaces during the
- *    private preview.
+ * Enabled only when BOTH `BASIC_AUTH_USER` and `BASIC_AUTH_PASSWORD` are set
+ * in env. If either is missing, requests pass through unauthenticated.
  *
- * 2. ADMIN PASSWORD (`ADMIN_USER` + `ADMIN_PASSWORD`)
- *    Required for `/dashboard*`. The dashboard is mock data today but is a
- *    privileged surface — only Nexcierge team members should see it until
- *    real buyer auth (magic link) lands. Browser caches credentials per
- *    realm, so admins are prompted once per session.
+ * - Local dev: leave the vars unset in `.env.local` -> no auth prompt
+ * - Vercel preview / production: set the vars in Project Settings -> Environment
+ *   to require credentials before any page or API route loads
  *
- * Either layer is disabled when its env vars are unset (e.g. local dev).
- * Public launch: delete both pairs of env vars.
+ * Coworker access: share the URL + the configured username/password over a
+ * secure channel. The browser caches credentials per-origin until the user
+ * closes all windows, so they enter once.
+ *
+ * Removing the gate before launch: delete the two env vars in Vercel and
+ * trigger a redeploy.
  */
+export function proxy(req: NextRequest) {
+  const expectedUser = process.env.BASIC_AUTH_USER;
+  const expectedPass = process.env.BASIC_AUTH_PASSWORD;
 
-const ADMIN_PATH_PREFIX = "/dashboard";
+  // Auth disabled when either credential is missing.
+  if (!expectedUser || !expectedPass) {
+    return NextResponse.next();
+  }
 
-function checkAuth(
-  req: NextRequest,
-  user: string,
-  pass: string,
-  realm: string,
-): NextResponse | null {
   const auth = req.headers.get("authorization");
   if (auth) {
     const [scheme, encoded] = auth.split(" ");
@@ -33,51 +33,23 @@ function checkAuth(
       try {
         const decoded = atob(encoded);
         const idx = decoded.indexOf(":");
-        const u = decoded.slice(0, idx);
-        const p = decoded.slice(idx + 1);
-        if (u === user && p === pass) {
-          return null; // pass
+        const user = decoded.slice(0, idx);
+        const pass = decoded.slice(idx + 1);
+        if (user === expectedUser && pass === expectedPass) {
+          return NextResponse.next();
         }
       } catch {
         // fall through to 401
       }
     }
   }
+
   return new NextResponse("Authentication required", {
     status: 401,
     headers: {
-      "WWW-Authenticate": `Basic realm="${realm}"`,
+      "WWW-Authenticate": 'Basic realm="Nexcierge - private preview"',
     },
   });
-}
-
-export function proxy(req: NextRequest) {
-  const { pathname } = new URL(req.url);
-  const isAdminRoute = pathname.startsWith(ADMIN_PATH_PREFIX);
-
-  if (isAdminRoute) {
-    const adminUser = process.env.ADMIN_USER;
-    const adminPass = process.env.ADMIN_PASSWORD;
-    if (adminUser && adminPass) {
-      const fail = checkAuth(req, adminUser, adminPass, "Nexcierge admin");
-      if (fail) return fail;
-    }
-    return NextResponse.next();
-  }
-
-  const siteUser = process.env.BASIC_AUTH_USER;
-  const sitePass = process.env.BASIC_AUTH_PASSWORD;
-  if (siteUser && sitePass) {
-    const fail = checkAuth(
-      req,
-      siteUser,
-      sitePass,
-      "Nexcierge - private preview",
-    );
-    if (fail) return fail;
-  }
-
-  return NextResponse.next();
 }
 
 export const config = {

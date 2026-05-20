@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { Message } from "@/types/chat";
-import { MOCK_SUPPLIER_MATCH } from "./mockData";
+import type { Message, SupplierMatch } from "@/types/chat";
 
 function newSessionId() {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
@@ -13,11 +12,6 @@ function newSessionId() {
 
 function newMessageId() {
   return Math.random().toString(36).slice(2);
-}
-
-function shouldAttachSupplier(text: string) {
-  const t = text.toLowerCase();
-  return t.includes("pet") || t.includes("bottle") || t.includes("blowing");
 }
 
 export function useChat() {
@@ -44,14 +38,14 @@ export function useChat() {
       const data = await res.json();
       const reply =
         data.reply ?? "Sorry — something went wrong. Please try again.";
-      const attach = shouldAttachSupplier(trimmed);
+      const supplierCards = (data.supplier_matches ?? []) as SupplierMatch[];
       setMessages((prev) => [
         ...prev,
         {
           id: newMessageId(),
           role: "agent",
           content: reply,
-          supplierCards: attach ? [MOCK_SUPPLIER_MATCH] : undefined,
+          supplierCards: supplierCards.length > 0 ? supplierCards : undefined,
         },
       ]);
     } catch {
