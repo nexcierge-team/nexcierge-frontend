@@ -1,14 +1,17 @@
 import { NextResponse } from "next/server";
 import { getOrCreateUser } from "@/lib/supabase/route";
 import { getSupabaseServer } from "@/lib/supabase/server";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { getSession } from "@/lib/db/sessions";
 
 // Delete a buyer's chat session. Cascades to chat_messages + rfqs via
-// ON DELETE CASCADE foreign keys (see 0002 + 0003 migrations).
+// ON DELETE CASCADE FKs (0002 + 0003).
 //
-// Idempotent: 404 if the session doesn't exist or doesn't belong to
-// the caller; 204 on success. RLS would block cross-user deletes too,
-// but we 404 explicitly for a cleaner client experience.
+// Ownership: enforced by the user-scoped `getSession` SELECT below
+// (which respects RLS). Only after we've confirmed the caller owns the
+// row do we use the service-role admin client to actually delete — the
+// RLS policies on chat_sessions don't include a DELETE clause, so a
+// user-scoped delete would silently match zero rows.
 export async function DELETE(
   _req: Request,
   ctx: { params: Promise<{ id: string }> },
@@ -24,7 +27,8 @@ export async function DELETE(
     return NextResponse.json({ error: "Session not found" }, { status: 404 });
   }
 
-  const { error } = await supabase
+  const admin = getSupabaseAdmin();
+  const { error } = await admin
     .from("chat_sessions")
     .delete()
     .eq("id", id);
