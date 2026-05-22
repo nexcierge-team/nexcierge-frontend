@@ -179,15 +179,36 @@ export function useChat() {
           profileSnapshot !== lastAttachedProfile;
         if (attachCard) setLastAttachedProfile(profileSnapshot);
 
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: data.agent_message?.id ?? newMessageId(),
-            role: "agent",
-            content: data.reply ?? "",
-            profileCard: attachCard ? profile : undefined,
-          },
-        ]);
+        // Race-safe agent-message append. The realtime INSERT for this
+        // same row usually arrives BEFORE this POST response because the
+        // server inserts it ~2-5s before sending the HTTP reply (the
+        // Gemini call dominates). If realtime won, the message is
+        // already in `messages` — append again would duplicate the
+        // bubble. Check seenIds first; if the realtime path already
+        // claimed it, just patch in the profileCard.
+        const agentId = data.agent_message?.id as string | undefined;
+        const alreadyRendered = agentId && seenIds.current.has(agentId);
+        if (agentId) seenIds.current.add(agentId);
+
+        if (alreadyRendered) {
+          if (attachCard && profile && agentId) {
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === agentId ? { ...m, profileCard: profile } : m,
+              ),
+            );
+          }
+        } else {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: agentId ?? newMessageId(),
+              role: "agent",
+              content: data.reply ?? "",
+              profileCard: attachCard ? profile : undefined,
+            },
+          ]);
+        }
 
         if (bootstrap && profile) {
           setBootstrap({
