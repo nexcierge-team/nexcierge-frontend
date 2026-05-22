@@ -8,6 +8,61 @@ export interface HubspotSyncResult {
   dealId: string;
 }
 
+/**
+ * Thrown when HubSpot rejects a write because one of the RFQ fields
+ * fails its server-side validation (most commonly a typo'd email like
+ * `user@gmail.coim`). Caller can convert this to a 422 and surface the
+ * specific field to the buyer instead of silently failing.
+ */
+export class HubspotValidationError extends Error {
+  constructor(
+    public readonly field: string,
+    public readonly value: string,
+    public readonly hubspotCode: string,
+    message: string,
+  ) {
+    super(message);
+    this.name = "HubspotValidationError";
+  }
+}
+
+// Type guard for the SDK's error shape — it's a plain Error subclass
+// with `code` (HTTP status) and `body` (parsed JSON).
+interface HubspotApiError {
+  code: number;
+  body: {
+    category?: string;
+    errors?: Array<{
+      code: string;
+      message: string;
+      context?: { propertyName?: string[] };
+    }>;
+  };
+}
+
+function asHubspotApiError(e: unknown): HubspotApiError | null {
+  if (!e || typeof e !== "object") return null;
+  const candidate = e as Partial<HubspotApiError>;
+  if (typeof candidate.code !== "number" || !candidate.body) return null;
+  return candidate as HubspotApiError;
+}
+
+function maybeRethrowValidation(e: unknown, fallbackValue: string): never {
+  const apiErr = asHubspotApiError(e);
+  if (apiErr && apiErr.code === 400 && apiErr.body?.category === "VALIDATION_ERROR") {
+    const first = apiErr.body.errors?.[0];
+    if (first) {
+      const field = first.context?.propertyName?.[0] ?? "unknown_field";
+      const friendly =
+        first.code === "INVALID_EMAIL"
+          ? `The email address ${fallbackValue} looks invalid — please double-check it (common typos: .coim → .com, .con → .com, missing @).`
+          : `HubSpot rejected the ${field} field: ${first.message}`;
+      throw new HubspotValidationError(field, fallbackValue, first.code, friendly);
+    }
+  }
+  throw e;
+}
+
 export interface SyncArgs {
   rfq: RfqsRow;
   // The buyer's full_name + email come from the rfq itself; we only
@@ -74,23 +129,28 @@ export async function syncBriefToHubspot(
   // 1. Find or create Contact.
   const { first, last } = splitName(rfq.full_name);
   let contactId: string;
-  const searchRes = await hubspot.crm.contacts.searchApi.doSearch({
-    filterGroups: [
-      {
-        filters: [
-          {
-            propertyName: "email",
-            operator: FilterOperatorEnum.Eq,
-            value: rfq.business_email,
-          },
-        ],
-      },
-    ],
-    properties: ["email"],
-    sorts: [],
-    limit: 1,
-    after: "0",
-  });
+  let searchRes;
+  try {
+    searchRes = await hubspot.crm.contacts.searchApi.doSearch({
+      filterGroups: [
+        {
+          filters: [
+            {
+              propertyName: "email",
+              operator: FilterOperatorEnum.Eq,
+              value: rfq.business_email,
+            },
+          ],
+        },
+      ],
+      properties: ["email"],
+      sorts: [],
+      limit: 1,
+      after: "0",
+    });
+  } catch (e) {
+    maybeRethrowValidation(e, rfq.business_email);
+  }
 
   const contactProps: Record<string, string> = {
     email: rfq.business_email,
@@ -101,18 +161,24 @@ export async function syncBriefToHubspot(
     jobtitle: rfq.job_role,
   };
 
-  if (searchRes.results.length > 0) {
-    contactId = searchRes.results[0].id;
-    // Refresh fields in case the buyer updated their name/company.
-    await hubspot.crm.contacts.basicApi.update(contactId, {
-      properties: contactProps,
-    });
-  } else {
-    const createRes = await hubspot.crm.contacts.basicApi.create({
-      properties: contactProps,
-      associations: [],
-    });
-    contactId = createRes.id;
+  try {
+    if (searchRes!.results.length > 0) {
+      contactId = searchRes!.results[0].id;
+      // Refresh fields in case the buyer updated their name/company.
+      await hubspot.crm.contacts.basicApi.update(contactId, {
+        properties: contactProps,
+      });
+    } else {
+      const createRes = await hubspot.crm.contacts.basicApi.create({
+        properties: contactProps,
+        associations: [],
+      });
+      contactId = createRes.id;
+    }
+  } catch (e) {
+    maybeRethrowValidation(e, rfq.business_email);
+    // satisfies the compiler — maybeRethrowValidation always throws
+    throw e;
   }
 
   // 2. Create the Deal.

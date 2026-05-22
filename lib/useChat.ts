@@ -320,6 +320,26 @@ export function useChat() {
         }
       }
 
+      // Profile field rejected by CRM validation (typo'd email, etc.).
+      // Surface the message inline so the buyer can fix it in chat and
+      // retry handoff. Don't flip reviewRequested — they're not handed
+      // off yet.
+      if (res.status === 422) {
+        const data = await res.json().catch(() => ({}));
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: newMessageId(),
+            role: "agent",
+            content:
+              data?.message ??
+              "One of your details looks invalid. Please correct it in chat and try Request human review again.",
+            error: true,
+          },
+        ]);
+        return;
+      }
+
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       const inserted = (data.inserted_messages ?? []) as ChatMessagesRow[];

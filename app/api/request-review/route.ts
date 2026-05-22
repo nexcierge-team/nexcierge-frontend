@@ -12,7 +12,7 @@ import {
   firstNameFromFull,
 } from "@/lib/constants";
 import { hubspotEnabled } from "@/lib/hubspot/client";
-import { syncBriefToHubspot } from "@/lib/hubspot/sync";
+import { HubspotValidationError, syncBriefToHubspot } from "@/lib/hubspot/sync";
 
 interface RequestReviewBody {
   session_id: string;
@@ -81,8 +81,25 @@ export async function POST(req: Request) {
         dealId: ids.dealId,
       });
     } catch (e) {
-      // HubSpot is non-fatal: still let the buyer hand off. AM can
-      // create the deal manually if needed. Log loudly.
+      // Validation errors (e.g. typo'd email) are FATAL — the buyer
+      // needs to correct the profile before the brief is usable, and
+      // silently handing off would leave the AM with an unreachable
+      // contact. Return 422 with a clear message so the client can
+      // surface it and the buyer can fix it in chat.
+      if (e instanceof HubspotValidationError) {
+        return NextResponse.json(
+          {
+            error: "invalid_profile_field",
+            field: e.field,
+            value: e.value,
+            message: e.message,
+          },
+          { status: 422 },
+        );
+      }
+      // Other HubSpot failures (rate limit, network, etc.) are
+      // non-fatal — let the buyer hand off; AM can create the deal
+      // manually if needed.
       console.error(
         "hubspot sync failed — proceeding without CRM write:",
         e,
