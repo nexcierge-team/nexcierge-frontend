@@ -77,3 +77,21 @@ export async function markHandoff(
     .eq("id", sessionId);
   if (error) throw error;
 }
+
+/**
+ * Bulk reassign every chat_session owned by `fromUserId` to `toUserId`.
+ * Used by /auth/callback when a freshly-signed-in user is taking over
+ * data from the anonymous user they were a moment ago. Caller must use
+ * the service-role client to bypass RLS.
+ */
+export async function transferSessionsOwnership(
+  supabase: Client,
+  fromUserId: string,
+  toUserId: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from("chat_sessions")
+    .update({ user_id: toUserId })
+    .eq("user_id", fromUserId);
+  if (error) throw error;
+}

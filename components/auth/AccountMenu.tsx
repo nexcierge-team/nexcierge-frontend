@@ -105,15 +105,15 @@ export function AccountMenu({
         aria-haspopup="menu"
         aria-expanded={menuOpen}
         className={cn(
-          "inline-flex items-center gap-2 transition-colors",
+          "items-center gap-2 transition-colors",
           variant === "button"
-            ? "h-9 rounded-full border border-gray-200 bg-white px-3 hover:border-gray-300 hover:bg-gray-50"
-            : "text-xs text-gray-700 hover:text-gray-900",
+            ? "inline-flex h-9 max-w-[260px] rounded-full border border-gray-200 bg-white px-3 hover:border-gray-300 hover:bg-gray-50"
+            : "flex w-full min-w-0 text-xs text-gray-700 hover:text-gray-900",
         )}
       >
         <span
           className={cn(
-            "inline-flex items-center justify-center rounded-full bg-[#0F2747] text-white",
+            "inline-flex shrink-0 items-center justify-center rounded-full bg-[#0F2747] text-white",
             variant === "button" ? "h-6 w-6 text-[11px]" : "h-5 w-5 text-[10px]",
           )}
           aria-hidden="true"
@@ -122,11 +122,12 @@ export function AccountMenu({
         </span>
         <span
           className={cn(
-            "max-w-[14ch] truncate",
+            "min-w-0 flex-1 truncate text-left",
             variant === "button"
               ? "text-sm font-medium text-gray-900"
               : "text-xs text-gray-800",
           )}
+          title={email}
         >
           {email}
         </span>
@@ -183,9 +184,12 @@ export function AccountChip() {
     );
   }
   return (
-    <span className="inline-flex items-center gap-1.5 text-xs text-gray-700">
-      <UserRound className="h-3.5 w-3.5" strokeWidth={1.5} />
-      <span className="max-w-[18ch] truncate">{user.email}</span>
+    <span
+      className="inline-flex min-w-0 max-w-full items-center gap-1.5 text-xs text-gray-700"
+      title={user.email ?? ""}
+    >
+      <UserRound className="h-3.5 w-3.5 shrink-0" strokeWidth={1.5} />
+      <span className="min-w-0 flex-1 truncate">{user.email}</span>
     </span>
   );
 }

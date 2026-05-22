@@ -34,6 +34,8 @@ export function HeroChatModal({
     requestReview,
     authPromptOpen,
     dismissAuthPrompt,
+    otherIsTyping,
+    notifyTyping,
   } = useChat();
   const [input, setInput] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
@@ -170,7 +172,7 @@ export function HeroChatModal({
                       retryDisabled={loading}
                     />
                   ))}
-                  {loading && <TypingIndicator />}
+                  {(loading || otherIsTyping) && <TypingIndicator />}
                   <div ref={endRef} />
                 </div>
               )}
@@ -180,7 +182,10 @@ export function HeroChatModal({
             <div className="border-t border-gray-200 bg-white px-6 py-4">
               <ChatComposer
                 value={input}
-                onChange={setInput}
+                onChange={(v) => {
+                  setInput(v);
+                  if (v) notifyTyping();
+                }}
                 onSubmit={handleSubmit}
                 disabled={loading}
                 placeholder={

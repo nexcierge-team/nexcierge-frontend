@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { RotateCw, UserRound } from "lucide-react";
+import { CheckCheck, RotateCw, UserRound } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
@@ -115,6 +115,15 @@ export function MessageBubble({
             reviewSubmitting={reviewSubmitting}
             onRequestReview={onRequestReview}
           />
+        )}
+
+        {/* Read receipt under outgoing messages only — incoming bubbles
+            don't need to tell the sender "I've read this". */}
+        {isSelf && message.readAt && !message.error && (
+          <div className="inline-flex items-center gap-1 px-1 text-[10px] font-medium text-gray-400">
+            <CheckCheck className="h-3 w-3" strokeWidth={2} />
+            Read
+          </div>
         )}
       </div>
     </motion.div>

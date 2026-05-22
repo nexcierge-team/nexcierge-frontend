@@ -23,6 +23,8 @@ export default function ChatPage() {
     bootstrapError,
     authPromptOpen,
     dismissAuthPrompt,
+    otherIsTyping,
+    notifyTyping,
     sendMessage,
     retry,
     requestReview,
@@ -57,6 +59,11 @@ export default function ChatPage() {
         activeId={sessionId ?? undefined}
         onNew={openSession}
         onSelect={openSession}
+        onDeleteActive={() => {
+          // Active conversation was deleted — kick the user to a fresh
+          // /chat which will bootstrap a brand-new session.
+          window.location.href = "/chat";
+        }}
       />
 
       <div className="flex h-full min-w-0 flex-1 flex-col">
@@ -103,7 +110,10 @@ export default function ChatPage() {
                     <div className="mt-10">
                       <ChatComposer
                         value={input}
-                        onChange={setInput}
+                        onChange={(v) => {
+                        setInput(v);
+                        if (v) notifyTyping();
+                      }}
                         onSubmit={() => send(input)}
                         placeholder="Tell us what machinery you're looking for…"
                         disabled={loading}
@@ -147,7 +157,7 @@ export default function ChatPage() {
                         retryDisabled={loading}
                       />
                     ))}
-                    {loading && <TypingIndicator />}
+                    {(loading || otherIsTyping) && <TypingIndicator />}
                     <div ref={endRef} />
                   </div>
                 </motion.div>

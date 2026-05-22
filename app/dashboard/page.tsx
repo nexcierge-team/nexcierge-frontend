@@ -8,7 +8,9 @@ import { ChatComposer } from "@/components/chat/ChatComposer";
 import { MessageBubble } from "@/components/chat/MessageBubble";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { AccountMenu } from "@/components/auth/AccountMenu";
+import { TypingIndicator } from "@/components/chat/MessageBubble";
 import { getSupabaseBrowser } from "@/lib/supabase/browser";
+import { useRealtimeChat } from "@/lib/useRealtimeChat";
 import type {
   ChatMessagesRow,
   ChatSenderType,
@@ -61,6 +63,7 @@ function rowToMessage(row: ChatMessagesRow): Message {
     role: senderRoleMap[row.sender_type],
     content: row.content,
     from,
+    readAt: row.read_at,
   };
 }
 
@@ -158,44 +161,64 @@ export default function DashboardPage() {
     [meId],
   );
 
-  // Realtime subscription for the open brief — mirrors the buyer-side
-  // subscription in useChat. Buyer messages typed in /chat land here.
+  // Realtime via the shared hook. Both this AM dashboard and the
+  // buyer's /chat join the same channel name (`session:<id>`) so
+  // postgres-changes AND typing broadcasts reach both sides.
+  const handleInsert = useCallback((row: ChatMessagesRow) => {
+    if (seenIds.current.has(row.id)) return;
+    seenIds.current.add(row.id);
+    setOpen((prev) =>
+      prev && prev.sessionId === row.chat_session_id
+        ? { ...prev, messages: [...prev.messages, rowToMessage(row)] }
+        : prev,
+    );
+  }, []);
+  const handleUpdate = useCallback((row: ChatMessagesRow) => {
+    setOpen((prev) =>
+      prev && prev.sessionId === row.chat_session_id
+        ? {
+            ...prev,
+            messages: prev.messages.map((m) =>
+              m.id === row.id ? { ...m, readAt: row.read_at } : m,
+            ),
+          }
+        : prev,
+    );
+  }, []);
+  const { otherIsTyping, notifyTyping, notifyStoppedTyping } = useRealtimeChat({
+    sessionId: open?.sessionId ?? null,
+    myUserId: meId,
+    myRole: "account_manager",
+    onMessageInsert: handleInsert,
+    onMessageUpdate: handleUpdate,
+  });
+
+  // AM-side mark-read: mark buyer messages as read whenever the brief
+  // is open and we see unread ones.
   useEffect(() => {
     if (!open?.sessionId) return;
-    const supabase = getSupabaseBrowser();
-    const channel = supabase
-      .channel(`am-chat:${open.sessionId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "chat_messages",
-          filter: `chat_session_id=eq.${open.sessionId}`,
-        },
-        (payload: { new: ChatMessagesRow }) => {
-          const row = payload.new;
-          // Skip our own messages — already rendered optimistically in
-          // sendReply (the optimistic bubble uses the server-returned id,
-          // but recording here belt-and-braces if a realtime echo races
-          // ahead).
-          if (meId && row.sender_user_id === meId) {
-            seenIds.current.add(row.id);
-            return;
-          }
-          if (seenIds.current.has(row.id)) return;
-          seenIds.current.add(row.id);
-          setOpen((prev) =>
-            prev && prev.sessionId === row.chat_session_id
-              ? { ...prev, messages: [...prev.messages, rowToMessage(row)] }
-              : prev,
-          );
-        },
-      )
-      .subscribe();
-    return () => {
-      void supabase.removeChannel(channel);
-    };
+    if (typeof document !== "undefined" && document.hidden) return;
+    const hasUnread = open.messages.some(
+      (m) => m.role === "user" && m.readAt == null,
+    );
+    if (!hasUnread) return;
+    void fetch(
+      `/api/am/sessions/${encodeURIComponent(open.sessionId)}/mark-read`,
+      { method: "POST" },
+    ).catch((e) => console.error("am mark-read failed:", e));
+  }, [open?.sessionId, open?.messages]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    function onVisibility() {
+      if (document.hidden || !open?.sessionId) return;
+      void fetch(
+        `/api/am/sessions/${encodeURIComponent(open.sessionId)}/mark-read`,
+        { method: "POST" },
+      ).catch(() => {});
+    }
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
   }, [open?.sessionId]);
 
   async function claim() {
@@ -223,6 +246,7 @@ export default function DashboardPage() {
     setSending(true);
     const text = composer.trim();
     setComposer("");
+    notifyStoppedTyping();
     try {
       const res = await fetch(
         `/api/am/sessions/${encodeURIComponent(open.sessionId)}/messages`,
@@ -298,6 +322,8 @@ export default function DashboardPage() {
             sending={sending}
             composer={composer}
             setComposer={setComposer}
+            onComposerChange={notifyTyping}
+            otherIsTyping={otherIsTyping}
             onClaim={claim}
             onSend={sendReply}
             onClose={() => setOpen(null)}
@@ -471,6 +497,8 @@ function BriefPane({
   sending,
   composer,
   setComposer,
+  onComposerChange,
+  otherIsTyping,
   onClaim,
   onSend,
   onClose,
@@ -480,6 +508,8 @@ function BriefPane({
   sending: boolean;
   composer: string;
   setComposer: (v: string) => void;
+  onComposerChange: () => void;
+  otherIsTyping: boolean;
   onClaim: () => void;
   onSend: () => void;
   onClose: () => void;
@@ -529,6 +559,7 @@ function BriefPane({
                   viewerRole="account_manager"
                 />
               ))}
+              {otherIsTyping && <TypingIndicator />}
               <div ref={endRef} />
             </div>
           </div>
@@ -538,7 +569,10 @@ function BriefPane({
               <div className="mx-auto max-w-3xl">
                 <ChatComposer
                   value={composer}
-                  onChange={setComposer}
+                  onChange={(v) => {
+                    setComposer(v);
+                    if (v) onComposerChange();
+                  }}
                   onSubmit={onSend}
                   disabled={sending}
                   placeholder={

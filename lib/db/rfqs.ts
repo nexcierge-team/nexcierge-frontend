@@ -179,6 +179,22 @@ export function profileToRfqUpdate(profile: ProfileShape): Partial<RfqsRow> {
   };
 }
 
+/**
+ * Bulk reassign every rfq owned by `fromUserId` to `toUserId`.
+ * Counterpart to transferSessionsOwnership; used by /auth/callback.
+ */
+export async function transferRfqsOwnership(
+  supabase: Client,
+  fromUserId: string,
+  toUserId: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from("rfqs")
+    .update({ user_id: toUserId })
+    .eq("user_id", fromUserId);
+  if (error) throw error;
+}
+
 export async function markRfqSubmitted(
   supabase: Client,
   sessionId: string,

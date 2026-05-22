@@ -20,6 +20,10 @@ export interface Message {
   // True when this message is an agent reply produced because the API
   // call failed (network, 5xx, etc.). The UI renders a Retry button on it.
   error?: boolean;
+  // ISO timestamp of when the recipient marked this message as read.
+  // Only meaningful on messages SENT by the current viewer — drives
+  // the "Read" indicator under outgoing bubbles.
+  readAt?: string | null;
 }
 
 /**

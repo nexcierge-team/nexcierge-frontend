@@ -37,7 +37,9 @@ Run them in the order above. Each is idempotent (uses `if not exists` / `or repl
 
 **Authentication → Providers → Anonymous Sign-Ins → Enable.**
 
-Buyers will sign in anonymously the first time they open `/chat`. The same `auth.users.id` upgrades to a permanent user when they later link Google / email — no data migration needed.
+Buyers sign in anonymously the first time they open `/chat`. When they later sign in with Google / email, the server-side `/auth/callback` route migrates their anonymous `chat_sessions` and `rfqs` to the new permanent user via the `nx_pre_signin_uid` cookie set by `POST /api/auth/prepare-signin`. The buyer's UID *does* change across the boundary (different from Supabase's `linkIdentity` model — which we deliberately avoid because it breaks on repeat sign-ins), but the user-visible chat history is preserved.
+
+You do **not** need to enable the "Manual Linking" toggle. We don't call `linkIdentity` anywhere.
 
 ## 4. Configure Google OAuth
 

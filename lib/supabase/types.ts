@@ -50,6 +50,7 @@ export interface ChatMessagesRow {
   content: string;
   metadata: Record<string, unknown>;
   created_at: string;
+  read_at: string | null;
 }
 
 export interface RfqsRow {

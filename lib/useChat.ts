@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getSupabaseBrowser } from "@/lib/supabase/browser";
+import { useRealtimeChat } from "@/lib/useRealtimeChat";
 import type {
   BuyerProfile,
   ChatRole,
@@ -32,6 +32,7 @@ function rowToMessage(row: ChatMessagesRow): Message {
     role: senderRoleMap[row.sender_type],
     content: row.content,
     from,
+    readAt: row.read_at,
   };
 }
 
@@ -104,16 +105,18 @@ export function useChat() {
           rowToMessage,
         );
         initialMessages.forEach((m) => seenIds.current.add(m.id));
-        // Attach the profile card to the last agent message if the
-        // profile is complete (so refreshing mid-handoff still shows it).
+        // Attach the profile card to the last AI message (NOT an
+        // account-manager message — those happen post-handoff and the
+        // card would visually jump around as the AM types). Pre-handoff
+        // this is the most recent AI reply; post-handoff this is the
+        // hard-coded HANDOFF_REPLY close. Either way, it's a stable
+        // anchor that doesn't move as the conversation continues.
         let attached = false;
         if (data.profile_complete && initialMessages.length > 0) {
           for (let i = initialMessages.length - 1; i >= 0; i--) {
-            if (initialMessages[i].role === "agent") {
-              initialMessages[i] = {
-                ...initialMessages[i],
-                profileCard: data.profile,
-              };
+            const m = initialMessages[i];
+            if (m.role === "agent" && !m.from) {
+              initialMessages[i] = { ...m, profileCard: data.profile };
               attached = true;
               break;
             }
@@ -218,11 +221,18 @@ export function useChat() {
       ...prev,
       { id: newMessageId(), role: "user", content: trimmed },
     ]);
-    setLoading(true);
+    // Stop the outgoing "buyer is typing" broadcast — we just sent.
+    notifyStoppedTyping();
+    // Only flag `loading=true` (which drives the AI typing dots) when
+    // we're actually expecting an AI reply. Post-handoff the message
+    // is just a note for the AM; no auto-reply, so no typing indicator
+    // on our side.
+    const showAiTyping = !reviewRequested;
+    if (showAiTyping) setLoading(true);
     try {
       await callApi(trimmed);
     } finally {
-      setLoading(false);
+      if (showAiTyping) setLoading(false);
     }
   }
 
@@ -288,50 +298,62 @@ export function useChat() {
     setAuthPromptOpen(false);
   }
 
-  // Realtime subscription. As soon as we know our chat_session_id, open
-  // a Postgres-changes channel filtered to messages on that session.
-  // Account-manager replies (and any out-of-band server writes) land
-  // here without a poll. seenIds dedupes against POST-response echoes
-  // and against this subscription's own re-deliveries on reconnect.
-  //
-  // Important: we skip rows where sender_user_id matches the current
-  // user. Those were already rendered optimistically in sendMessage —
-  // the realtime arrival would be a duplicate with a different local id
-  // (random) vs DB id (UUID), so React can't dedupe via key collision.
-  const myUserId = bootstrap?.userId;
+  // Realtime: deduped INSERT + UPDATE handlers + typing presence.
+  // Delegated to useRealtimeChat so the same logic powers both buyer
+  // and AM views.
+  const myUserId = bootstrap?.userId ?? null;
+  const handleInsert = useCallback(
+    (row: ChatMessagesRow) => {
+      if (seenIds.current.has(row.id)) return;
+      seenIds.current.add(row.id);
+      setMessages((prev) => [...prev, rowToMessage(row)]);
+    },
+    [],
+  );
+  const handleUpdate = useCallback((row: ChatMessagesRow) => {
+    setMessages((prev) =>
+      prev.map((m) => (m.id === row.id ? { ...m, readAt: row.read_at } : m)),
+    );
+  }, []);
+  const { otherIsTyping, notifyTyping, notifyStoppedTyping } = useRealtimeChat({
+    sessionId,
+    myUserId,
+    myRole: "buyer",
+    onMessageInsert: handleInsert,
+    onMessageUpdate: handleUpdate,
+  });
+
+  // Read receipts (buyer): mark every incoming message as read whenever
+  // the tab is focused and there's an unread one. Fires on mount, on
+  // visibility change, and whenever the message list grows.
   useEffect(() => {
     if (!sessionId) return;
-    const supabase = getSupabaseBrowser();
-    const channel = supabase
-      .channel(`chat:${sessionId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "chat_messages",
-          filter: `chat_session_id=eq.${sessionId}`,
-        },
-        (payload: { new: ChatMessagesRow }) => {
-          const row = payload.new;
-          if (myUserId && row.sender_user_id === myUserId) {
-            // Our own message — already rendered optimistically. Just
-            // record the real id so any later operation that looks at
-            // seenIds (e.g. another realtime re-delivery) treats it as
-            // seen.
-            seenIds.current.add(row.id);
-            return;
-          }
-          if (seenIds.current.has(row.id)) return;
-          seenIds.current.add(row.id);
-          setMessages((prev) => [...prev, rowToMessage(row)]);
-        },
-      )
-      .subscribe();
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, [sessionId, myUserId]);
+    if (typeof document !== "undefined" && document.hidden) return;
+    const hasUnread = messages.some(
+      (m) => m.role !== "user" && m.readAt == null && m.id.length > 8,
+    );
+    if (!hasUnread) return;
+    void fetch(
+      `/api/chat/sessions/${encodeURIComponent(sessionId)}/mark-read`,
+      { method: "POST" },
+    ).catch((e) => console.error("mark-read failed:", e));
+  }, [sessionId, messages]);
+
+  // Re-trigger mark-read when the tab becomes visible (user returns from
+  // another tab or window). The effect above also runs on focus-induced
+  // re-renders, but document.visibilitychange is the canonical signal.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    function onVisibility() {
+      if (document.hidden || !sessionId) return;
+      void fetch(
+        `/api/chat/sessions/${encodeURIComponent(sessionId)}/mark-read`,
+        { method: "POST" },
+      ).catch(() => {});
+    }
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, [sessionId]);
 
   // Auto-resume handoff after the user returns from OAuth / magic-link
   // verification. The callback route redirects to /chat?resume=handoff;
@@ -364,6 +386,8 @@ export function useChat() {
     isAnonymous: bootstrap?.isAnonymous ?? true,
     authPromptOpen,
     dismissAuthPrompt,
+    otherIsTyping,
+    notifyTyping,
     sendMessage,
     retry,
     requestReview,

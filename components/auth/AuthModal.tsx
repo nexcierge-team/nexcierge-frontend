@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Mail, Loader2, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -44,6 +45,24 @@ export function AuthModal({
 }: AuthModalProps) {
   const [email, setEmail] = useState("");
   const [flow, setFlow] = useState<FlowState>({ kind: "idle" });
+  // Track mount so createPortal isn't called during SSR (document is
+  // undefined server-side). After hydration, mounted flips true and we
+  // start portalling.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Lock body scroll while the modal is open. Without this, scrolling
+  // the page behind the overlay looks broken.
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
 
   function defaultRedirect(): string {
     if (typeof window === "undefined") return "/chat?resume=handoff";
@@ -55,10 +74,14 @@ export function AuthModal({
   async function signInWithGoogle() {
     setFlow({ kind: "loading", provider: "google" });
     try {
+      // Stash the current anon user_id server-side BEFORE the redirect
+      // so /auth/callback can transfer any anon chat data to the new
+      // permanent user after sign-in completes. No-op when there's no
+      // anon session.
+      await fetch("/api/auth/prepare-signin", { method: "POST" });
+
       const supabase = getSupabaseBrowser();
-      // linkIdentity upgrades the anonymous user in place when possible;
-      // falls back to signInWithOAuth semantics on a fresh session.
-      const { data, error } = await supabase.auth.linkIdentity({
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
           redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(
@@ -83,12 +106,17 @@ export function AuthModal({
     if (!trimmed) return;
     setFlow({ kind: "loading", provider: "email" });
     try {
+      await fetch("/api/auth/prepare-signin", { method: "POST" });
+
       const supabase = getSupabaseBrowser();
-      // Update the anonymous user's email — Supabase sends a
-      // confirmation link. Clicking it verifies the email AND promotes
-      // the user to permanent. Redirect URL on the link is governed by
-      // the Site URL in Supabase project settings (set to /auth/callback).
-      const { error } = await supabase.auth.updateUser({ email: trimmed });
+      const { error } = await supabase.auth.signInWithOtp({
+        email: trimmed,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(
+            defaultRedirect().replace(window.location.origin, ""),
+          )}`,
+        },
+      });
       if (error) throw error;
       setFlow({ kind: "magic_link_sent", email: trimmed });
     } catch (e) {
@@ -103,7 +131,11 @@ export function AuthModal({
 
   const isLoading = flow.kind === "loading";
 
-  return (
+  // Don't try to portal until we've mounted client-side (avoids SSR
+  // mismatch and `document is not defined` errors during pre-render).
+  if (!mounted) return null;
+
+  return createPortal(
     <AnimatePresence>
       {open && (
         <motion.div
@@ -235,7 +267,8 @@ export function AuthModal({
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 }
 

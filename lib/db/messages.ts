@@ -47,6 +47,26 @@ export async function insertMessage(
   return data;
 }
 
+// Mark every "incoming" message in a session as read by the current
+// user. RLS narrows the UPDATE to messages whose sender_type matches
+// the policy for the calling role (buyer marks non-user messages, AM
+// marks user messages). Returns the list of message ids that were
+// actually flipped so callers can broadcast / dedupe.
+export async function markIncomingMessagesRead(
+  supabase: Client,
+  sessionId: string,
+): Promise<string[]> {
+  const nowIso = new Date().toISOString();
+  const { data, error } = await supabase
+    .from("chat_messages")
+    .update({ read_at: nowIso })
+    .eq("chat_session_id", sessionId)
+    .is("read_at", null)
+    .select("id");
+  if (error) throw error;
+  return (data ?? []).map((row: { id: string }) => row.id);
+}
+
 // Bulk insert preserving caller-provided order. Used by the handoff flow
 // to insert AI close + divider + AM welcome in one shot.
 export async function insertMessages(

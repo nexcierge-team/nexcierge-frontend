@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Plus, MessageSquare, Loader2 } from "lucide-react";
+import { Plus, MessageSquare, Loader2, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AccountMenu } from "@/components/auth/AccountMenu";
+import { useAuthUser } from "@/lib/useAuthUser";
 
 interface ChatSidebarProps {
   // The currently-loaded chat_session id (drives the active-row highlight).
@@ -14,6 +15,10 @@ interface ChatSidebarProps {
   onNew: (newSessionId: string) => void;
   // Called when a past chat is clicked. Parent navigates to load it.
   onSelect: (sessionId: string) => void;
+  // Called when the active conversation is deleted — parent should
+  // navigate the user somewhere safe (e.g. /chat with no session_id
+  // so a fresh one is created).
+  onDeleteActive?: () => void;
   // Used to refresh the list after navigation / handoff. Defaults to
   // bootstrap-time only; passing a higher value forces a re-fetch.
   refreshKey?: number;
@@ -30,13 +35,19 @@ export function ChatSidebar({
   activeId,
   onNew,
   onSelect,
+  onDeleteActive,
   refreshKey,
 }: ChatSidebarProps) {
   const [sessions, setSessions] = useState<SidebarSession[]>([]);
-  const [isAnonymous, setIsAnonymous] = useState(true);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  // Live auth state — single source of truth across the app. Replaces
+  // the stale fetched `is_anonymous` that wouldn't refresh after sign-in.
+  const { user, isAnonymous } = useAuthUser();
 
+  // Re-fetch sessions whenever the auth identity changes (anonymous →
+  // signed in, or vice versa). user.id flips on linkIdentity / signOut.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -46,7 +57,6 @@ export function ChatSidebar({
         const data = await res.json();
         if (cancelled) return;
         setSessions(data.sessions ?? []);
-        setIsAnonymous(Boolean(data.is_anonymous));
       } catch (e) {
         console.error("sidebar fetch failed:", e);
       } finally {
@@ -56,7 +66,7 @@ export function ChatSidebar({
     return () => {
       cancelled = true;
     };
-  }, [refreshKey]);
+  }, [refreshKey, user?.id]);
 
   async function handleNew() {
     if (creating) return;
@@ -71,6 +81,29 @@ export function ChatSidebar({
       console.error("create session failed:", e);
     } finally {
       setCreating(false);
+    }
+  }
+
+  async function handleDelete(sessionId: string, title: string | null) {
+    if (deletingId) return;
+    const label = title?.trim() || "this conversation";
+    if (!window.confirm(`Delete "${label}"? This can't be undone.`)) return;
+    setDeletingId(sessionId);
+    try {
+      const res = await fetch(
+        `/api/chat/sessions/${encodeURIComponent(sessionId)}`,
+        { method: "DELETE" },
+      );
+      if (!res.ok && res.status !== 204) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+      setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+      if (sessionId === activeId) onDeleteActive?.();
+    } catch (e) {
+      console.error("delete session failed:", e);
+      window.alert("Couldn't delete that conversation. Please try again.");
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -111,16 +144,22 @@ export function ChatSidebar({
           <ul className="space-y-0.5">
             {sessions.map((s) => {
               const active = s.id === activeId;
+              const isDeleting = deletingId === s.id;
               return (
-                <li key={s.id}>
+                <li
+                  key={s.id}
+                  className={cn(
+                    "group relative rounded-lg transition-colors",
+                    active
+                      ? "bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
+                      : "hover:bg-white/60",
+                    isDeleting && "opacity-50",
+                  )}
+                >
                   <button
                     onClick={() => onSelect(s.id)}
-                    className={cn(
-                      "group flex w-full items-start gap-3 rounded-lg px-3 py-2.5 text-left transition-colors",
-                      active
-                        ? "bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
-                        : "hover:bg-white/60",
-                    )}
+                    disabled={isDeleting}
+                    className="flex w-full items-start gap-3 rounded-lg px-3 py-2.5 pr-9 text-left disabled:cursor-not-allowed"
                   >
                     <MessageSquare
                       className={cn(
@@ -148,6 +187,27 @@ export function ChatSidebar({
                             : "Chatting with AI"}
                       </div>
                     </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void handleDelete(s.id, s.title);
+                    }}
+                    disabled={isDeleting}
+                    aria-label={`Delete conversation ${s.title || "untitled"}`}
+                    className={cn(
+                      "absolute right-2 top-1/2 -translate-y-1/2 flex h-6 w-6 items-center justify-center rounded-md text-gray-400 transition-all",
+                      "opacity-0 group-hover:opacity-100 focus:opacity-100",
+                      "hover:bg-gray-100 hover:text-red-600",
+                      "disabled:cursor-not-allowed disabled:opacity-30",
+                    )}
+                  >
+                    {isDeleting ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} />
+                    ) : (
+                      <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+                    )}
                   </button>
                 </li>
               );
