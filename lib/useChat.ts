@@ -150,23 +150,59 @@ export function useChat() {
   const callApi = useCallback(
     async (text: string): Promise<void> => {
       if (!sessionId) return;
+
+      // Hard 30s ceiling on the POST. FastAPI / Gemini typically
+      // responds in 2-5s; anything longer is almost certainly a hang
+      // (cold start, network glitch, lost server). Without this the
+      // typing dots stayed up forever and the user had no feedback.
+      const controller = new AbortController();
+      const timeoutHandle = setTimeout(() => controller.abort(), 30_000);
+
       try {
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ session_id: sessionId, message: text }),
+          signal: controller.signal,
         });
+        clearTimeout(timeoutHandle);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
 
-        // Record IDs so we don't double-render the Realtime echo.
+        // Bookkeeping: record user_message.id so a later Realtime echo
+        // (e.g. multi-tab) doesn't render it twice. Defense-in-depth on
+        // top of the sender_user_id check in useRealtimeChat.
         if (data.user_message?.id) seenIds.current.add(data.user_message.id);
+        // agent_message id goes in too, but mostly for symmetry — the
+        // Realtime INSERT handler now filters sender_type='ai' so this
+        // id will never be checked on the realtime side. Cheap to add.
         if (data.agent_message?.id) seenIds.current.add(data.agent_message.id);
 
-        // Post-handoff: just the user message echo, no agent reply.
-        if (data.ai_skipped) {
-          // The user message was already appended optimistically in
-          // sendMessage. Nothing to add here.
+        // Post-handoff: server short-circuited the AI call. Just leave
+        // the optimistic user bubble in place.
+        if (data.ai_skipped) return;
+
+        const agentId = data.agent_message?.id as string | undefined;
+        const replyText = (data.reply ?? "") as string;
+
+        // Defensive: a 200 OK with no agent_message means the server
+        // wrote the user message but never produced an AI reply. Surface
+        // it loudly so we never repeat the silent-typing-dots failure.
+        if (!agentId || !replyText) {
+          console.error(
+            "chat returned 200 but agent_message is missing",
+            data,
+          );
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: newMessageId(),
+              role: "agent",
+              content:
+                "The AI didn't return a reply. Please try again.",
+              error: true,
+            },
+          ]);
           return;
         }
 
@@ -179,36 +215,20 @@ export function useChat() {
           profileSnapshot !== lastAttachedProfile;
         if (attachCard) setLastAttachedProfile(profileSnapshot);
 
-        // Race-safe agent-message append. The realtime INSERT for this
-        // same row usually arrives BEFORE this POST response because the
-        // server inserts it ~2-5s before sending the HTTP reply (the
-        // Gemini call dominates). If realtime won, the message is
-        // already in `messages` — append again would duplicate the
-        // bubble. Check seenIds first; if the realtime path already
-        // claimed it, just patch in the profileCard.
-        const agentId = data.agent_message?.id as string | undefined;
-        const alreadyRendered = agentId && seenIds.current.has(agentId);
-        if (agentId) seenIds.current.add(agentId);
-
-        if (alreadyRendered) {
-          if (attachCard && profile && agentId) {
-            setMessages((prev) =>
-              prev.map((m) =>
-                m.id === agentId ? { ...m, profileCard: profile } : m,
-              ),
-            );
-          }
-        } else {
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: agentId ?? newMessageId(),
-              role: "agent",
-              content: data.reply ?? "",
-              profileCard: attachCard ? profile : undefined,
-            },
-          ]);
-        }
+        // POST is now the sole source of truth for AI message rendering
+        // (Realtime filters sender_type='ai'). Unconditionally append.
+        // React batches setLoading(false) in sendMessage's `finally` with
+        // this setMessages call into one commit, so the user sees the
+        // typing dots become the bubble in a single frame.
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: agentId,
+            role: "agent",
+            content: replyText,
+            profileCard: attachCard ? profile : undefined,
+          },
+        ]);
 
         if (bootstrap && profile) {
           setBootstrap({
@@ -218,14 +238,22 @@ export function useChat() {
           });
         }
       } catch (e) {
-        console.error("chat send failed:", e);
+        clearTimeout(timeoutHandle);
+        const aborted =
+          (e instanceof DOMException && e.name === "AbortError") ||
+          (e instanceof Error && e.name === "AbortError");
+        console.error(
+          aborted ? "chat send timed out after 30s" : "chat send failed:",
+          e,
+        );
         setMessages((prev) => [
           ...prev,
           {
             id: newMessageId(),
             role: "agent",
-            content:
-              "Connection error. Please try again, or check that the backend is running.",
+            content: aborted
+              ? "The AI took too long to respond. Please try again."
+              : "Connection error. Please try again, or check that the backend is running.",
             error: true,
           },
         ]);

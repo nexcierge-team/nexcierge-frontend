@@ -141,7 +141,18 @@ export async function POST(req: Request) {
       content: backendData.reply,
     });
   } catch (e) {
-    console.error("ai message insert failed:", e);
+    // Gemini succeeded but persistence failed. Log the reply text so an
+    // operator can manually replay it into chat_messages if recovery is
+    // needed — otherwise the buyer's chat shows the typing dots followed
+    // by an error and the AI's answer is lost.
+    console.error(
+      "ai message insert failed for session",
+      session.id,
+      "— reply that was generated but not saved:",
+      backendData.reply,
+      "error:",
+      e,
+    );
     return NextResponse.json(
       { error: "Reply generated but could not be saved", user_message: userMsg },
       { status: 500 },

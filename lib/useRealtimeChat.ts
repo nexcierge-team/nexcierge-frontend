@@ -100,6 +100,12 @@ export function useRealtimeChat({
           const row = payload.new;
           // Skip our own messages — caller rendered them optimistically.
           if (myUserId && row.sender_user_id === myUserId) return;
+          // Skip AI messages — POST /api/chat returns them in its
+          // response, and the POST path is the single source of truth.
+          // Without this skip we'd race the POST and either duplicate
+          // the bubble or silently swallow it (the failure mode that
+          // motivated this whole rewrite).
+          if (row.sender_type === "ai") return;
           insertRef.current(row);
         },
       )
