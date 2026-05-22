@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { AccountMenu } from "@/components/auth/AccountMenu";
 
 const NAV = [
   { href: "/about", label: "About" },
@@ -49,12 +50,7 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-3">
-          <Link
-            href="/dashboard"
-            className="hidden text-sm text-gray-600 hover:text-gray-900 transition-colors sm:block md:hidden"
-          >
-            Log in
-          </Link>
+          <AccountMenu redirectTo={pathname ?? "/"} />
           {!onChatPage && (
             <Button asChild size="sm">
               <Link href="/chat">Start sourcing</Link>

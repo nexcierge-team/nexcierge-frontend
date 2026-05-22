@@ -10,6 +10,7 @@ import {
   MessageBubble,
   TypingIndicator,
 } from "@/components/chat/MessageBubble";
+import { AuthModal } from "@/components/auth/AuthModal";
 import { SUGGESTED_PROMPTS } from "@/lib/mockData";
 
 interface HeroChatModalProps {
@@ -23,7 +24,17 @@ export function HeroChatModal({
   initialMessage,
   onClose,
 }: HeroChatModalProps) {
-  const { messages, loading, sendMessage, retry, preQualComplete } = useChat();
+  const {
+    messages,
+    loading,
+    sendMessage,
+    retry,
+    reviewRequested,
+    reviewSubmitting,
+    requestReview,
+    authPromptOpen,
+    dismissAuthPrompt,
+  } = useChat();
   const [input, setInput] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
   const sentInitialRef = useRef(false);
@@ -152,7 +163,9 @@ export function HeroChatModal({
                     <MessageBubble
                       key={m.id}
                       message={m}
-                      preQualComplete={preQualComplete}
+                      reviewRequested={reviewRequested}
+                      reviewSubmitting={reviewSubmitting}
+                      onRequestReview={requestReview}
                       onRetry={retry}
                       retryDisabled={loading}
                     />
@@ -170,7 +183,11 @@ export function HeroChatModal({
                 onChange={setInput}
                 onSubmit={handleSubmit}
                 disabled={loading}
-                placeholder="Message Nexcierge…"
+                placeholder={
+                  reviewRequested
+                    ? "Message your account manager…"
+                    : "Message Nexcierge…"
+                }
                 autoFocus
               />
               <div className="mt-2 text-center text-[11px] text-gray-400">
@@ -178,6 +195,7 @@ export function HeroChatModal({
               </div>
             </div>
           </motion.div>
+          <AuthModal open={authPromptOpen} onClose={dismissAuthPrompt} />
         </motion.div>
       )}
     </AnimatePresence>

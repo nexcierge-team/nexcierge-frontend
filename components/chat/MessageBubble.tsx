@@ -1,34 +1,58 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { RotateCw } from "lucide-react";
+import { RotateCw, UserRound } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
 import type { Message } from "@/types/chat";
-import { SupplierCard } from "./SupplierCard";
+import { ProfileSummaryCard } from "./ProfileSummaryCard";
 
 interface MessageBubbleProps {
   message: Message;
-  // Whether the agent has confirmed all required pre-qualification fields
-  // are collected. When false, SupplierCards still render but hide the
-  // consequential action buttons (Customize, Request human review). Keep
-  // "View specs" visible always — it just opens an info modal.
-  preQualComplete?: boolean;
+  // True once the buyer has clicked Request human review (sticky for the
+  // rest of the session). Swaps the CTA on the profile card for the
+  // "Transferring…" badge.
+  reviewRequested?: boolean;
+  // True while the request_review POST is in flight — shows a spinner on
+  // the CTA. Parent owns the loading flag because it owns the fetch.
+  reviewSubmitting?: boolean;
+  onRequestReview?: () => void;
   // Called when the user clicks Retry on an error bubble. Re-sends the
   // last user message via the chat hook.
   onRetry?: () => void;
   // Disables the retry button while a request is in flight.
   retryDisabled?: boolean;
+  // Whose perspective are we rendering for? Default "buyer" — buyer
+  // messages align right (self), AM/AI on the left (incoming). On the
+  // AM dashboard, pass "account_manager" so AM messages flip to the
+  // right and buyer messages render on the left. Drives alignment +
+  // bubble styling only — content + attribution labels stay the same.
+  viewerRole?: "buyer" | "account_manager";
 }
 
 export function MessageBubble({
   message,
-  preQualComplete,
+  reviewRequested = false,
+  reviewSubmitting = false,
+  onRequestReview,
   onRetry,
   retryDisabled,
+  viewerRole = "buyer",
 }: MessageBubbleProps) {
-  const isUser = message.role === "user";
+  if (message.role === "divider") {
+    return <Divider label={message.content} />;
+  }
+
+  const isAccountManager = message.from === "account_manager";
+  // "self" = the sender we should align right (with the dark bubble).
+  const isSelf =
+    viewerRole === "buyer"
+      ? message.role === "user"
+      : isAccountManager;
+  // Keep the existing variable name to minimise downstream churn — the
+  // semantics are now "render as outgoing/self bubble".
+  const isUser = isSelf;
   return (
     <motion.div
       initial={{ opacity: 0, y: 6 }}
@@ -42,6 +66,14 @@ export function MessageBubble({
           isUser ? "items-end" : "items-start",
         )}
       >
+        {isAccountManager && viewerRole === "buyer" && (
+          <div className="flex items-center gap-1.5 px-1 text-[11px] font-medium text-gray-500">
+            <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-[#0F2747] text-white">
+              <UserRound className="h-2.5 w-2.5" strokeWidth={2.25} />
+            </span>
+            Account manager
+          </div>
+        )}
         {message.content && (
           <div
             className={cn(
@@ -76,16 +108,13 @@ export function MessageBubble({
           </div>
         )}
 
-        {message.supplierCards && message.supplierCards.length > 0 && (
-          <div className="grid w-full gap-3">
-            {message.supplierCards.map((s) => (
-              <SupplierCard
-                key={s.id}
-                match={s}
-                preQualComplete={preQualComplete}
-              />
-            ))}
-          </div>
+        {message.profileCard && (
+          <ProfileSummaryCard
+            profile={message.profileCard}
+            reviewRequested={reviewRequested}
+            reviewSubmitting={reviewSubmitting}
+            onRequestReview={onRequestReview}
+          />
         )}
       </div>
     </motion.div>
@@ -157,6 +186,30 @@ function AgentMarkdown({ content }: { content: string }) {
     >
       {content}
     </ReactMarkdown>
+  );
+}
+
+
+// Full-width separator marking the switch from the AI sourcing
+// conversation to the account-manager conversation after handoff. Sits
+// outside the bubble layout so it doesn't pick up the user/agent
+// alignment styles.
+function Divider({ label }: { label: string }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3 }}
+      className="flex items-center gap-3 py-2"
+      role="separator"
+      aria-label={label}
+    >
+      <span className="h-px flex-1 bg-gray-200" />
+      <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+        {label}
+      </span>
+      <span className="h-px flex-1 bg-gray-200" />
+    </motion.div>
   );
 }
 

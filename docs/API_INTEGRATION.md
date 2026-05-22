@@ -1,62 +1,103 @@
 # API Integration
 
-The frontend never calls the FastAPI backend directly from the browser. All chat requests go through a Next.js Route Handler at `/api/chat`, which proxies server-side to `process.env.BACKEND_URL`.
+The frontend never calls the FastAPI backend directly from the browser. All requests go through Next.js Route Handlers under `/api/*`, which proxy server-side to `process.env.BACKEND_URL`.
 
-## Why a proxy
+## Why proxies
 
 1. **No CORS** — the request is server-to-server from Vercel to Render, not browser-to-Render
 2. **`BACKEND_URL` stays server-side** — never exposed to the client bundle, can be a private hostname later
-3. **Single place to add cross-cutting concerns** — auth, rate limiting, logging, response transformation
+3. **Single place to add cross-cutting concerns** — auth, rate limiting, logging
 4. **Easier to migrate to streaming later** — wrap the proxy in an SSE response without touching the client component
 
-## Flow
+## Endpoints
+
+| Frontend route | Backend target | Purpose |
+|---|---|---|
+| `POST /api/chat` | `POST /chat` | Conversational turn — sends user message, returns agent reply + full buyer profile + flags |
+| `POST /api/request-review` | `POST /sessions/{id}/request_review` | Buyer-initiated handoff to the local account manager |
+
+## Flow — chat turn
 
 ```
 Browser
   │  POST /api/chat  {session_id, message}
   ▼
 Next.js Route Handler  (app/api/chat/route.ts)
-  │
   │  fetch(`${BACKEND_URL}/chat`, ...)
   ▼
 FastAPI Backend
-  │
-  │  Gemini call + tool execution
+  │  Gemini call + update_buyer_profile tool execution
   ▼
-Returns reply + profile_submitted + profile
+Returns {reply, profile, profile_complete, review_requested}
   │
   ▼
 Route Handler returns same JSON to browser
+```
+
+## Flow — Request human review
+
+```
+Browser
+  │  Buyer clicks Request human review CTA on ProfileSummaryCard
+  │  POST /api/request-review  {session_id}
+  ▼
+Next.js Route Handler  (app/api/request-review/route.ts)
+  │  fetch(`${BACKEND_URL}/sessions/{id}/request_review`, POST)
+  ▼
+FastAPI Backend
+  │  Verifies profile_complete, flips state.review_requested=true
+  │  Returns HANDOFF_REPLY (hard-coded — no LLM call)
+  ▼
+Returns {reply, profile, profile_complete: true, review_requested: true}
+  │
+  ▼
+Client appends three messages in order:
+  • the hard-coded AI close
+  • a divider row labeled "Account manager"
+  • a personalized welcome from the account manager
+flips local reviewRequested=true (sticky), swaps the card CTA for a
+"Transferring to our account manager…" badge, switches composer to
+"Message your account manager…" mode. Subsequent user sends append
+locally only (no /api/chat call).
 ```
 
 ## Environment
 
 | Var | Where read | Default | Notes |
 |---|---|---|---|
-| `BACKEND_URL` | `app/api/chat/route.ts` | `http://localhost:8000` | Server-side only. NOT prefixed `NEXT_PUBLIC_` so it's never in the client bundle. |
+| `BACKEND_URL` | `app/api/*/route.ts` | `http://localhost:8000` | Server-side only. NOT prefixed `NEXT_PUBLIC_` so it's never in the client bundle. |
 
-In Vercel deployment, set `BACKEND_URL` to the Render backend URL (e.g. `https://nexcierge-backend.onrender.com`) in Project Settings → Environment Variables.
+In Vercel deployment, set `BACKEND_URL` to the Render backend URL (e.g. `https://nexcierge-backend.onrender.com`).
 
-## Request shape
+## Request / response shapes
 
-The frontend sends what the FastAPI endpoint expects:
+### `POST /api/chat`
 
+**Request:**
 ```json
-{
-  "session_id": "<crypto.randomUUID() from client>",
-  "message": "<trimmed user input>"
-}
+{ "session_id": "<crypto.randomUUID()>", "message": "<trimmed user input>" }
 ```
 
-## Response shape
+**Response:** see `backend/docs/API.md` `POST /chat` — full `profile` dict always present, plus `profile_complete` and `review_requested` booleans.
 
-Same as `POST /chat` returns. The client treats `data.reply` as the agent's response and uses `data.profile_submitted` to detect the handoff completion (currently doesn't do anything special with it — future: show a "lead submitted" confirmation UI).
+### `POST /api/request-review`
+
+**Request:**
+```json
+{ "session_id": "<the live session id>" }
+```
+
+**Response:** see `backend/docs/API.md` `POST /sessions/{id}/request_review`. The client uses `reply` (agent's handoff acknowledgment) and `review_requested: true`.
+
+**Error mapping:**
+- `404` (session not found) — shouldn't happen in normal use; client surfaces a generic error message
+- `409` (profile not complete) — shouldn't happen because the UI only exposes the button when `profile_complete` is true; client surfaces a generic error message
+- `502` (backend unreachable) — Route Handler catches and returns its own 502 JSON
 
 ## Error handling
 
-- Backend unreachable → Route Handler catches, returns `{reply: "Backend is unreachable...", status: 502}`
-- Client displays the error reply as if it were an agent message
-- No retry logic yet (Gemini SDK retries internally for rate limits, but we don't on the frontend)
+- Backend unreachable → Route Handler catches, returns `{error: "...", status: 502}`
+- Client displays an error reply bubble in chat (with Retry for chat turns; the Request human review handler just shows the error message and leaves the CTA enabled)
 
 ## Future: streaming
 
@@ -65,11 +106,11 @@ Gemini supports SSE token streaming. Migration plan:
 2. Route handler: forward the stream (use `ReadableStream` or `TransformStream`)
 3. Client: replace `fetch().then(res => res.json())` with `fetch().then(res => res.body.getReader())` and append tokens incrementally
 
-This will substantially improve perceived latency for the first reply (current cold response is 2–5s on flash-lite).
+Will substantially improve perceived latency for the first reply.
 
 ## How to apply when extending
 
-- Adding a new backend endpoint that the browser needs → add a corresponding Route Handler under `app/api/`
-- Changing the request/response shape → update both this doc AND the backend's `schemas.py`
+- Adding a new backend endpoint that the browser needs → add a corresponding Route Handler under `app/api/`, document here
+- Changing a request/response shape → update both this doc AND the backend's `schemas.py` AND `backend/docs/API.md`
 - Adding auth → put the validation in the Route Handler so the client never sees the auth secret
 - **Always update `docs/API_INTEGRATION.md` when changing the proxy logic, env vars, or response shape.**

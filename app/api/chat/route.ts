@@ -1,22 +1,160 @@
-import { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+import { getOrCreateUser } from "@/lib/supabase/route";
+import { getSupabaseServer } from "@/lib/supabase/server";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { getSession } from "@/lib/db/sessions";
+import { insertMessage, listMessages } from "@/lib/db/messages";
+import {
+  getRfq,
+  profileToRfqUpdate,
+  rfqRowToProfile,
+  updateRfqFields,
+} from "@/lib/db/rfqs";
+import type { ChatMessagesRow } from "@/lib/supabase/types";
 
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8000";
 
-export async function POST(req: NextRequest) {
-  const body = await req.json();
+// Convert DB chat_messages rows into the {role, content} pairs the
+// backend's Gemini history accepts. account_manager / system rows are
+// frontend concerns and don't belong in the LLM history.
+function toBackendHistory(rows: ChatMessagesRow[]) {
+  return rows
+    .filter((r) => r.sender_type === "user" || r.sender_type === "ai")
+    .map((r) => ({
+      role: r.sender_type === "ai" ? ("model" as const) : ("user" as const),
+      content: r.content,
+    }));
+}
 
+interface ChatPostBody {
+  session_id: string;
+  message: string;
+}
+
+export async function POST(req: Request) {
+  let body: ChatPostBody;
+  try {
+    body = (await req.json()) as ChatPostBody;
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+  if (!body.session_id || !body.message?.trim()) {
+    return NextResponse.json(
+      { error: "session_id and non-empty message required" },
+      { status: 400 },
+    );
+  }
+
+  const auth = await getOrCreateUser();
+  if (!auth) {
+    return NextResponse.json({ error: "Auth failure" }, { status: 500 });
+  }
+
+  const supabase = await getSupabaseServer();
+  const session = await getSession(supabase, body.session_id);
+  if (!session || session.user_id !== auth.userId) {
+    return NextResponse.json({ error: "Session not found" }, { status: 404 });
+  }
+
+  // Persist the user message under the buyer's RLS-scoped client so
+  // the policy `chat_messages_insert_user` enforces ownership.
+  let userMsg: ChatMessagesRow;
+  try {
+    userMsg = await insertMessage(supabase, {
+      sessionId: session.id,
+      senderType: "user",
+      senderUserId: auth.userId,
+      content: body.message,
+    });
+  } catch (e) {
+    console.error("user message insert failed:", e);
+    return NextResponse.json(
+      { error: "Could not save your message" },
+      { status: 500 },
+    );
+  }
+
+  // Post-handoff: the AI is closed. Drop the message into the
+  // transcript as a note for the account manager and return.
+  if (session.status === "in_handoff") {
+    return NextResponse.json({
+      reply: "",
+      user_message: userMsg,
+      agent_message: null,
+      profile: null,
+      profile_complete: true,
+      review_requested: true,
+      ai_skipped: true,
+    });
+  }
+
+  // AI turn: load history + rfq, hand off to FastAPI, persist reply.
+  const [historyRows, rfqRow] = await Promise.all([
+    listMessages(supabase, session.id),
+    getRfq(supabase, session.id),
+  ]);
+  if (!rfqRow) {
+    return NextResponse.json({ error: "Missing rfq for session" }, { status: 500 });
+  }
+
+  const backendBody = {
+    session_id: session.id,
+    message: body.message,
+    history: toBackendHistory(historyRows),
+    profile: rfqRowToProfile(rfqRow),
+  };
+
+  let backendData: {
+    reply: string;
+    profile: ReturnType<typeof rfqRowToProfile>;
+    profile_complete: boolean;
+  };
   try {
     const res = await fetch(`${BACKEND_URL}/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      body: JSON.stringify(backendBody),
     });
-    const data = await res.json();
-    return Response.json(data, { status: res.status });
-  } catch (err) {
-    return Response.json(
-      { reply: "Backend is unreachable. Please try again later." },
+    if (!res.ok) throw new Error(`backend ${res.status}`);
+    backendData = await res.json();
+  } catch (e) {
+    console.error("backend call failed:", e);
+    return NextResponse.json(
+      { error: "AI service unavailable", user_message: userMsg },
       { status: 502 },
     );
   }
+
+  const updatedRfq = await updateRfqFields(
+    supabase,
+    session.id,
+    profileToRfqUpdate(backendData.profile),
+  );
+
+  // AI messages bypass RLS (no auth.uid() match) — admin client.
+  const admin = getSupabaseAdmin();
+  let agentMsg: ChatMessagesRow;
+  try {
+    agentMsg = await insertMessage(admin, {
+      sessionId: session.id,
+      senderType: "ai",
+      content: backendData.reply,
+    });
+  } catch (e) {
+    console.error("ai message insert failed:", e);
+    return NextResponse.json(
+      { error: "Reply generated but could not be saved", user_message: userMsg },
+      { status: 500 },
+    );
+  }
+
+  return NextResponse.json({
+    reply: backendData.reply,
+    user_message: userMsg,
+    agent_message: agentMsg,
+    profile: rfqRowToProfile(updatedRfq),
+    profile_complete: updatedRfq.is_complete,
+    review_requested: false,
+    ai_skipped: false,
+  });
 }
