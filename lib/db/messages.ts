@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ChatMessagesRow, ChatSenderType } from "@/lib/supabase/types";
+import { broadcastToSession } from "@/lib/supabase/broadcast";
 
 // Untyped client until `supabase gen types` populates lib/supabase/types.ts
 // with the auto-generated schema. The hand-rolled Database type doesn't
@@ -60,7 +61,15 @@ export async function insertMessage(
 // user. RLS narrows the UPDATE to messages whose sender_type matches
 // the policy for the calling role (buyer marks non-user messages, AM
 // marks user messages). Returns the list of message ids that were
-// actually flipped so callers can broadcast / dedupe.
+// actually flipped.
+//
+// After the SQL UPDATE we also fire a `mark_read` broadcast on the
+// session channel. We don't trust postgres_changes UPDATE events to
+// reach every subscriber across distinct auth contexts — buyers were
+// not seeing the AM's mark-read in real time even though AMs received
+// the buyer's mark-read just fine. The broadcast is the canonical
+// signal for read-receipt updates; the UPDATE listener stays as a
+// secondary path.
 export async function markIncomingMessagesRead(
   supabase: Client,
   sessionId: string,
@@ -73,7 +82,18 @@ export async function markIncomingMessagesRead(
     .is("read_at", null)
     .select("id");
   if (error) throw error;
-  return (data ?? []).map((row: { id: string }) => row.id);
+  const ids = (data ?? []).map((row: { id: string }) => row.id);
+  if (ids.length > 0) {
+    try {
+      await broadcastToSession(sessionId, "mark_read", {
+        ids,
+        read_at: nowIso,
+      });
+    } catch (e) {
+      console.error("mark_read broadcast failed (UI may be stale):", e);
+    }
+  }
+  return ids;
 }
 
 // Bulk insert preserving caller-provided order. Used by the handoff flow

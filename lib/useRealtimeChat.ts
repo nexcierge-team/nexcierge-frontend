@@ -138,6 +138,23 @@ export function useRealtimeChat({
           setOtherIsTyping(false);
         }
       })
+      .on(
+        "broadcast",
+        { event: "mark_read" },
+        (payload: { payload?: { ids?: string[]; read_at?: string } }) => {
+          // Primary read-receipt delivery — postgres_changes UPDATE
+          // events on chat_messages don't reliably fan out across
+          // distinct auth contexts, so the server emits this broadcast
+          // alongside the SQL UPDATE. handleUpdate only reads `id` and
+          // `read_at`, so we fake a minimal row.
+          const data = payload.payload;
+          if (!data?.ids?.length || !data.read_at) return;
+          const readAt = data.read_at;
+          for (const id of data.ids) {
+            updateRef.current({ id, read_at: readAt } as ChatMessagesRow);
+          }
+        },
+      )
       .subscribe();
 
     return () => {
