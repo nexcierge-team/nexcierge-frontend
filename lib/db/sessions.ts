@@ -82,17 +82,48 @@ export async function setSessionLanguage(
   return data;
 }
 
-export async function markHandoff(
+// Atomically claim the handoff slot for this session. Flips status
+// from 'ai' → 'in_handoff' only if no concurrent caller has already
+// claimed it. Returns true when this caller won the race, false when
+// the row was already past 'ai' (another request beat us, or the
+// session was closed). Callers MUST gate the non-idempotent
+// downstream work (HubSpot deal creation, closing-message inserts)
+// on a true return — that's the only thing preventing duplicate
+// deals on a double-clicked Request human review button.
+export async function tryClaimHandoff(
+  supabase: Client,
+  sessionId: string,
+): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("chat_sessions")
+    .update({
+      status: "in_handoff",
+      handoff_requested_at: new Date().toISOString(),
+    })
+    .eq("id", sessionId)
+    .eq("status", "ai")
+    .select("id")
+    .maybeSingle();
+  if (error) throw error;
+  return data !== null;
+}
+
+// Roll back a tryClaimHandoff() that we couldn't complete (HubSpot
+// rejected a profile field as invalid). Restores status='ai' and
+// clears handoff_requested_at so the buyer can correct the field and
+// retry. Scoped to the row we just claimed via the status guard.
+export async function revertHandoff(
   supabase: Client,
   sessionId: string,
 ): Promise<void> {
   const { error } = await supabase
     .from("chat_sessions")
     .update({
-      status: "in_handoff",
-      handoff_requested_at: new Date().toISOString(),
+      status: "ai",
+      handoff_requested_at: null,
     })
-    .eq("id", sessionId);
+    .eq("id", sessionId)
+    .eq("status", "in_handoff");
   if (error) throw error;
 }
 

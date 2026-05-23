@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getOrCreateUser } from "@/lib/supabase/route";
 import { getSupabaseServer } from "@/lib/supabase/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
-import { getSession, markHandoff } from "@/lib/db/sessions";
+import { getSession, revertHandoff, tryClaimHandoff } from "@/lib/db/sessions";
 import { getRfq, markRfqSubmitted } from "@/lib/db/rfqs";
 import { insertMessages } from "@/lib/db/messages";
 import {
@@ -71,6 +71,19 @@ export async function POST(req: Request) {
 
   const admin = getSupabaseAdmin();
 
+  // Atomic claim — flip chat_sessions.status 'ai' → 'in_handoff' before
+  // doing any non-idempotent work. A second concurrent POST (double
+  // click, two tabs, retry) will lose this race and fall through to
+  // the idempotent-success branch, so HubSpot deal creation runs at
+  // most once per session.
+  const claimed = await tryClaimHandoff(supabase, session.id);
+  if (!claimed) {
+    return NextResponse.json({
+      already_handed_off: true,
+      session: { id: session.id, status: "in_handoff" },
+    });
+  }
+
   // HubSpot sync (idempotent — skipped if rfq already has hubspot_deal_id,
   // or if the feature flag / env vars are missing).
   if (hubspotEnabled() && !rfq.hubspot_deal_id) {
@@ -84,9 +97,10 @@ export async function POST(req: Request) {
       // Validation errors (e.g. typo'd email) are FATAL — the buyer
       // needs to correct the profile before the brief is usable, and
       // silently handing off would leave the AM with an unreachable
-      // contact. Return 422 with a clear message so the client can
-      // surface it and the buyer can fix it in chat.
+      // contact. Revert the atomic claim so the buyer can fix the
+      // field in chat and re-trigger handoff, then return 422.
       if (e instanceof HubspotValidationError) {
+        await revertHandoff(supabase, session.id);
         return NextResponse.json(
           {
             error: "invalid_profile_field",
@@ -106,8 +120,6 @@ export async function POST(req: Request) {
       );
     }
   }
-
-  await markHandoff(supabase, session.id);
 
   // Three closing messages, inserted server-side via admin client so
   // sender_type='ai' and 'system' bypass RLS cleanly.

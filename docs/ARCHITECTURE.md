@@ -78,7 +78,7 @@ lib/
 │   ├── role.ts             getCurrentUserRole / requireAccountManager
 │   └── types.ts            Hand-rolled DB types (replace with `supabase gen types`)
 ├── db/
-│   ├── sessions.ts         findActive / create / get / list / markHandoff
+│   ├── sessions.ts         findActive / create / get / list / tryClaimHandoff / revertHandoff
 │   ├── messages.ts         list / insert / insertMany
 │   └── rfqs.ts             get / create / update / mark submitted +
 │                             rfqRowToProfile / profileToRfqUpdate converters
@@ -143,8 +143,9 @@ Buyer clicks Request human review → POST /api/request-review
    │
    ▼
 POST /api/request-review (now non-anonymous):
-   - HubSpot sync (idempotent on rfqs.hubspot_deal_id)
-   - chat_sessions.status='in_handoff'
+   - Atomic claim: UPDATE chat_sessions SET status='in_handoff' WHERE id=$1 AND status='ai'
+     (concurrent double-click / second tab loses the race → idempotent success, no second HubSpot deal)
+   - HubSpot sync (idempotent on rfqs.hubspot_deal_id; on validation error revert claim → 422)
    - Insert AI close + divider + AM welcome (service-role client)
    - Return inserted_messages
    ▼
