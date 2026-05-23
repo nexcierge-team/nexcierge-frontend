@@ -348,7 +348,18 @@ export function useChat() {
       const data = await res.json();
       const inserted = (data.inserted_messages ?? []) as ChatMessagesRow[];
       inserted.forEach((m) => seenIds.current.add(m.id));
-      setMessages((prev) => [...prev, ...inserted.map(rowToMessage)]);
+      // Race-safe append. Supabase Realtime can beat this POST response
+      // for the non-AI inserts (divider, AM welcome) — useRealtimeChat
+      // filters sender_type='ai' but lets system + account_manager rows
+      // through, and our handleInsert appends them as soon as they
+      // arrive. If that happened, those ids are already in `prev`; we
+      // strip them out and re-append all three in DB-order so the AI
+      // close lands in the right slot.
+      const insertedIds = new Set(inserted.map((m) => m.id));
+      setMessages((prev) => [
+        ...prev.filter((m) => !insertedIds.has(m.id)),
+        ...inserted.map(rowToMessage),
+      ]);
       setBootstrap({ ...bootstrap, reviewRequested: true });
     } catch (e) {
       console.error("request review failed:", e);
