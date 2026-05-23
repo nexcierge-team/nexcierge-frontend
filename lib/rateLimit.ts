@@ -30,11 +30,17 @@ export async function checkRateLimit(
   windowSeconds: number,
 ): Promise<RateLimitResult> {
   const admin = getSupabaseAdmin();
+  // `as never` on the args: the admin client is created without the
+  // <Database> generic (see lib/supabase/admin.ts — the hand-rolled
+  // Database type can't satisfy GenericSchema cleanly without breaking
+  // .insert() typings on the lib/db helpers). Without a typed Functions
+  // map the RPC signature collapses to "no args" and rejects our object.
+  // The cast bypasses that; the response shape is asserted below.
   const { data, error } = await admin.rpc("check_rate_limit", {
     p_key: key,
     p_max: max,
     p_window_seconds: windowSeconds,
-  });
+  } as never);
   if (error) {
     // Fail OPEN. If the rate-limit table or RPC is broken, we'd rather
     // let traffic through than wedge the entire app. Log loudly so the

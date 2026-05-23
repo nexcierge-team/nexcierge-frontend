@@ -220,7 +220,22 @@ export type Database = {
       };
     };
     Views: { [_ in never]: never };
-    Functions: { [_ in never]: never };
+    Functions: {
+      // Atomic check-and-increment rate limiter. See migration
+      // 0008_rate_limits.sql and lib/rateLimit.ts.
+      check_rate_limit: {
+        Args: {
+          p_key: string;
+          p_max: number;
+          p_window_seconds: number;
+        };
+        Returns: {
+          allowed: boolean;
+          remaining: number;
+          reset_at: string;
+        }[];
+      };
+    };
     Enums: { [_ in never]: never };
     CompositeTypes: { [_ in never]: never };
   };
