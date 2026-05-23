@@ -10,6 +10,7 @@ import {
   rfqRowToProfile,
   updateRfqFields,
 } from "@/lib/db/rfqs";
+import { checkRateLimit, rateLimited429 } from "@/lib/rateLimit";
 import type { ChatMessagesRow } from "@/lib/supabase/types";
 
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8000";
@@ -49,6 +50,12 @@ export async function POST(req: Request) {
   if (!auth) {
     return NextResponse.json({ error: "Auth failure" }, { status: 500 });
   }
+
+  // Per-user cap on Gemini turns. 40/min ≈ one message every 1.5s,
+  // generous for a human typing but tight enough to bound automated
+  // amplification of model spend.
+  const chatLimit = await checkRateLimit(`chat:user:${auth.userId}`, 40, 60);
+  if (!chatLimit.allowed) return rateLimited429(chatLimit);
 
   const supabase = await getSupabaseServer();
   const session = await getSession(supabase, body.session_id);

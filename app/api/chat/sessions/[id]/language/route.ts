@@ -3,6 +3,7 @@ import { getOrCreateUser } from "@/lib/supabase/route";
 import { getSupabaseServer } from "@/lib/supabase/server";
 import { getSession, setSessionLanguage } from "@/lib/db/sessions";
 import { isSupportedLanguage } from "@/lib/languages";
+import { checkRateLimit, rateLimited429 } from "@/lib/rateLimit";
 
 interface PatchBody {
   language: string;
@@ -35,6 +36,11 @@ export async function PATCH(
   if (!auth) {
     return NextResponse.json({ error: "Auth failure" }, { status: 500 });
   }
+
+  // Cheap endpoint but no reason to leave it unbounded. 20/min per
+  // session is way more than any human picker interaction.
+  const langLimit = await checkRateLimit(`lang:session:${id}`, 20, 60);
+  if (!langLimit.allowed) return rateLimited429(langLimit);
 
   const supabase = await getSupabaseServer();
   const session = await getSession(supabase, id);

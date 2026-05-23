@@ -64,6 +64,7 @@ lib/
 ├── utils.ts
 ├── constants.ts            HANDOFF_REPLY, accountManagerWelcome, firstNameFromFull
 ├── languages.ts            SUPPORTED_LANGUAGES + isSupportedLanguage (mirror of backend/app/languages.py)
+├── rateLimit.ts            checkRateLimit / rateLimited429 / getClientIp — Postgres-backed fixed-window limiter
 ├── translate.ts            translateText() — thin wrapper over FastAPI /translate
 ├── useChat.ts              Hook: bootstraps from /api/chat/start, persists via POST /api/chat,
 │                             subscribes to Supabase Realtime, opens AuthModal on 401 from handoff,
@@ -87,7 +88,7 @@ lib/
     └── sync.ts             syncBriefToHubspot (upsert contact → create deal → associate)
 
 supabase/
-├── migrations/             0001..0007 — users + chat tables + rfqs + RLS + cleanup + read_at + language/translation columns
+├── migrations/             0001..0008 — users + chat tables + rfqs + RLS + cleanup + read_at + language/translation + rate_limits
 └── README.md               Step-by-step setup the human operator does once
 
 types/
@@ -165,6 +166,35 @@ Buyers pick their output language from a dropdown in the chat header (mounted on
 **Buyer rendering.** `MessageBubble` only honours `translated_content` when `translated_to === sessionLanguage` (so a mid-session language switch doesn't show stale translations). It renders the translation as the primary text and the English original below as a small muted "Original" block separated by a hairline divider — this gives the buyer a way to sanity-check the translation without a click. No re-translation of past AM messages on language change.
 
 **Backwards compatibility.** Pre-migration rows have `language='en'` (default) and `translated_content=null`. Everything degrades to "English only, no dual display" automatically.
+
+## Rate limiting
+
+Defence in depth against (a) anonymous-signup spam filling `auth.users` and (b) Gemini cost amplification.
+
+**Layer 1 (Supabase dashboard).** Per-IP caps on `signInAnonymously` and signups are configured in Authentication → Rate Limits. Stops the worst case before traffic reaches our code. Operator-owned, no migration.
+
+**Layer 2 (app code).** Fixed-window rate limiting backed by Supabase Postgres. Schema in migration `0008_rate_limits.sql`:
+- `public.rate_limits(key text pk, count int, window_start timestamptz)` — one row per window-bucket
+- `public.check_rate_limit(p_key, p_max, p_window_seconds) returns (allowed, remaining, reset_at)` — `security definer` UPSERT-and-increment in a single statement so two concurrent callers can't both see "under the limit"
+- RLS on the table is closed; all access goes through the RPC
+
+`lib/rateLimit.ts` wraps the RPC and exposes `checkRateLimit(key, max, windowSeconds)`, `rateLimited429(result)`, and `getClientIp(req)`. Failure mode: **fails OPEN** on RPC error with a loud `console.error` — a broken rate-limit table should never wedge the app.
+
+**Per-route caps (the policy):**
+
+| Route | Key | Limit |
+|---|---|---|
+| `GET /api/chat/start` | IP | 60 / hour |
+| `POST /api/chat` | user_id | 40 / min |
+| `POST /api/request-review` | user_id | 5 / hour |
+| `POST /api/am/sessions/[id]/messages` | AM user_id | 120 / min |
+| `PATCH /api/chat/sessions/[id]/language` | session_id | 20 / min |
+
+`/api/chat/start` is the critical one — its check runs **before** `getOrCreateUser()` so we never create the anon `auth.users` row we're trying to prevent. All others run after auth resolution and key on the resolved user.
+
+429 responses carry `Retry-After`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`. Body is `{ error: "rate_limited", message, retry_after_seconds }`. Frontend hooks should surface a generic "slow down" toast and back off, not retry immediately.
+
+**Layer 3 (future, if Layers 1+2 prove insufficient).** Cloudflare Turnstile CAPTCHA on the anonymous-sign-in path. Not implemented.
 
 ## Realtime model
 

@@ -8,6 +8,7 @@ import {
 } from "@/lib/db/sessions";
 import { createRfq, getRfq, rfqRowToProfile } from "@/lib/db/rfqs";
 import { listMessages } from "@/lib/db/messages";
+import { checkRateLimit, getClientIp, rateLimited429 } from "@/lib/rateLimit";
 
 // Bootstrap the chat for the current user.
 //
@@ -18,6 +19,15 @@ import { listMessages } from "@/lib/db/messages";
 // session yet. From this point on the rest of the API can assume
 // `user_id` is always present.
 export async function GET(req: Request) {
+  // IP-based rate limit BEFORE getOrCreateUser — this is the bot
+  // surface where an unbounded loop creates auth.users rows. 60/hour
+  // per IP is generous for legit users (one bootstrap per first visit;
+  // returning visitors reuse the cookie) but bounds anonymous-signup
+  // spam to ~1500/day per source IP.
+  const ip = getClientIp(req);
+  const ipLimit = await checkRateLimit(`chat-start:ip:${ip}`, 60, 3600);
+  if (!ipLimit.allowed) return rateLimited429(ipLimit);
+
   const auth = await getOrCreateUser();
   if (!auth) {
     return NextResponse.json(

