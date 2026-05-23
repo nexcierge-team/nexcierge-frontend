@@ -86,6 +86,7 @@ lib/
 └── hubspot/
     ├── client.ts           getHubspotClient + hubspotEnabled feature flag
     └── sync.ts             syncBriefToHubspot (upsert contact → create deal → associate)
+                            + advanceDealStage(dealId, stageId) for pipeline transitions
 
 supabase/
 ├── migrations/             0001..0008 — users + chat tables + rfqs + RLS + cleanup + read_at + language/translation + rate_limits
@@ -154,6 +155,18 @@ Frontend appends → CTA replaced by "Transferring…" badge → composer mode s
    ▼
 Supabase Realtime channel pushes any subsequent AM reply (typed in /dashboard) into the buyer's chat
 ```
+
+## HubSpot pipeline auto-advancement
+
+The Nexcierge Sourcing pipeline progresses through stages as real work happens, not on a sales rep's manual drag:
+
+| Stage | App event | Code path |
+|---|---|---|
+| Human Review Requested | Buyer clicks Request human review | `syncBriefToHubspot()` in `/api/request-review` creates the deal in this stage (env: `HUBSPOT_DEALSTAGE_NEW`) |
+| Assigned to Account Manager | AM claims an unassigned brief | `advanceDealStage()` in `/api/am/sessions/[id]/claim` PATCHes the deal (env: `HUBSPOT_DEALSTAGE_ASSIGNED_TO_AM`) |
+| Supplier Contacted, Won, Lost | Off-platform | Manual moves in HubSpot — these events have no signal inside Nexcierge |
+
+Auto-advance is **non-fatal** by contract: every call site swallows HubSpot errors and logs them, because a CRM glitch must never fail the underlying user action (a claim succeeding in Supabase but failing in HubSpot is a reconciliation problem, not a user-visible failure). The advancement is also gated on the stage-id env var being set, so the code can ship before HubSpot is configured and degrades to "no auto-advance" cleanly.
 
 ## Buyer-selected output language
 

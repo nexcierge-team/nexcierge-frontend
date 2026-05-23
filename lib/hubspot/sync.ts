@@ -225,3 +225,24 @@ export async function syncBriefToHubspot(
 
   return { contactId, dealId: dealRes.id };
 }
+
+/**
+ * Move a HubSpot deal to a new pipeline stage. Used by the AM-claim
+ * route to advance "Human Review Requested" → "Assigned to Account
+ * Manager" the moment an AM picks up the brief, so the pipeline in
+ * HubSpot reflects ground truth without a sales rep having to drag the
+ * card across columns.
+ *
+ * Non-fatal contract: callers should swallow thrown errors. A failure
+ * here is a CRM-reconciliation problem, not a reason to fail the
+ * underlying user action (claim, status update, etc.).
+ */
+export async function advanceDealStage(
+  dealId: string,
+  stageId: string,
+): Promise<void> {
+  const hubspot = getHubspotClient();
+  await hubspot.crm.deals.basicApi.update(dealId, {
+    properties: { dealstage: stageId },
+  });
+}
