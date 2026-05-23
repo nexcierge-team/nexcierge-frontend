@@ -1,31 +1,39 @@
-import Link from "next/link";
+"use client";
 
-const COLUMNS = [
-  {
-    title: "Product",
-    links: [
-      { href: "/chat", label: "AI sourcing" },
-      { href: "/dashboard", label: "Dashboard" },
-      { href: "/about", label: "How it works" },
-    ],
-  },
-  {
-    title: "Company",
-    links: [
-      { href: "/about", label: "About" },
-      { href: "/contact", label: "Contact" },
-    ],
-  },
-  {
-    title: "Legal",
-    links: [
-      { href: "/contact", label: "Privacy" },
-      { href: "/contact", label: "Terms" },
-    ],
-  },
-];
+import Link from "next/link";
+import { useUserRole } from "@/lib/useUserRole";
 
 export function Footer() {
+  const { role } = useUserRole();
+  const isAccountManager = role === "account_manager";
+
+  const COLUMNS = [
+    {
+      title: "Product",
+      links: [
+        { href: "/chat", label: "AI sourcing" },
+        ...(isAccountManager
+          ? [{ href: "/dashboard", label: "Dashboard" }]
+          : []),
+        { href: "/about", label: "How it works" },
+      ],
+    },
+    {
+      title: "Company",
+      links: [
+        { href: "/about", label: "About" },
+        { href: "/contact", label: "Contact" },
+      ],
+    },
+    {
+      title: "Legal",
+      links: [
+        { href: "/contact", label: "Privacy" },
+        { href: "/contact", label: "Terms" },
+      ],
+    },
+  ];
+
   return (
     <footer className="border-t border-gray-200 bg-white">
       <div className="mx-auto grid max-w-6xl gap-12 px-6 py-16 md:grid-cols-[2fr_1fr_1fr_1fr]">

@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { AccountMenu } from "@/components/auth/AccountMenu";
+import { useUserRole } from "@/lib/useUserRole";
 
 const NAV = [
   { href: "/about", label: "About" },
@@ -14,6 +15,8 @@ const NAV = [
 export function Header() {
   const pathname = usePathname();
   const onChatPage = pathname?.startsWith("/chat");
+  const { role } = useUserRole();
+  const isAccountManager = role === "account_manager";
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-gray-200/70 bg-white/80 backdrop-blur-xl">
@@ -41,12 +44,14 @@ export function Header() {
               {item.label}
             </Link>
           ))}
-          <Link
-            href="/dashboard"
-            className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
-          >
-            Dashboard
-          </Link>
+          {isAccountManager && (
+            <Link
+              href="/dashboard"
+              className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              Dashboard
+            </Link>
+          )}
         </nav>
 
         <div className="flex items-center gap-3">
