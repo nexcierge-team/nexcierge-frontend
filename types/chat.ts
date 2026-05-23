@@ -13,6 +13,16 @@ export interface Message {
   role: ChatRole;
   content: string;
   from?: MessageFrom;
+  // Localised version of `content` produced at AM send time when the
+  // buyer's session language is non-English. Renders as the primary
+  // bubble text in the buyer view; the original English `content` is
+  // shown below it as a muted secondary line.
+  translatedContent?: string | null;
+  // ISO 639-1 code the translation was produced for. The buyer UI only
+  // honours translatedContent when this matches the current session
+  // language — guards against stale translations if the buyer switches
+  // language mid-session.
+  translatedTo?: string | null;
   // Snapshot of the buyer profile attached to an agent message whose
   // turn completed or updated the profile. Rendered as a summary card
   // below the bubble with a Request human review CTA.

@@ -38,6 +38,7 @@ export interface ChatSessionsRow {
   handoff_requested_at: string | null;
   assigned_am_user_id: string | null;
   title: string | null;
+  language: string;
   created_at: string;
   updated_at: string;
 }
@@ -48,6 +49,8 @@ export interface ChatMessagesRow {
   sender_type: ChatSenderType;
   sender_user_id: string | null;
   content: string;
+  translated_content: string | null;
+  translated_to: string | null;
   metadata: Record<string, unknown>;
   created_at: string;
   read_at: string | null;
@@ -114,6 +117,7 @@ export type Database = {
           handoff_requested_at?: string | null;
           assigned_am_user_id?: string | null;
           title?: string | null;
+          language?: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -124,6 +128,7 @@ export type Database = {
           handoff_requested_at?: string | null;
           assigned_am_user_id?: string | null;
           title?: string | null;
+          language?: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -137,6 +142,8 @@ export type Database = {
           sender_type: ChatSenderType;
           sender_user_id?: string | null;
           content: string;
+          translated_content?: string | null;
+          translated_to?: string | null;
           metadata?: Json;
           created_at?: string;
         };
@@ -146,6 +153,8 @@ export type Database = {
           sender_type?: ChatSenderType;
           sender_user_id?: string | null;
           content?: string;
+          translated_content?: string | null;
+          translated_to?: string | null;
           metadata?: Json;
           created_at?: string;
         };

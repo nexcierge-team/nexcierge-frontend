@@ -67,6 +67,7 @@ export async function GET(req: Request) {
       status: session.status,
       handoff_requested_at: session.handoff_requested_at,
       title: session.title,
+      language: session.language ?? "en",
     },
     messages,
     profile: rfqRowToProfile(rfq),

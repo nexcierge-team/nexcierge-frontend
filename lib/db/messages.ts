@@ -26,6 +26,12 @@ interface InsertMessageArgs {
   senderType: ChatSenderType;
   senderUserId?: string | null;
   content: string;
+  // Pre-computed translation of `content` into the buyer's chosen
+  // session language. Set on AM messages when session.language !== 'en'.
+  // Null otherwise (AI messages are generated directly in the target
+  // language; user messages are shown verbatim).
+  translatedContent?: string | null;
+  translatedTo?: string | null;
   metadata?: Record<string, unknown>;
   // Optional ISO timestamp. When omitted, Postgres assigns
   // `default now()` — fine for single-row inserts. For BULK inserts in
@@ -45,6 +51,8 @@ export async function insertMessage(
     sender_type: args.senderType,
     sender_user_id: args.senderUserId ?? null,
     content: args.content,
+    translated_content: args.translatedContent ?? null,
+    translated_to: args.translatedTo ?? null,
     metadata: args.metadata ?? {},
   };
   if (args.createdAt) row.created_at = args.createdAt;

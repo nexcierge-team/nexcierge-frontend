@@ -29,6 +29,11 @@ interface MessageBubbleProps {
   // right and buyer messages render on the left. Drives alignment +
   // bubble styling only — content + attribution labels stay the same.
   viewerRole?: "buyer" | "account_manager";
+  // Buyer's currently-selected session language. When this matches a
+  // message's translatedTo we render translatedContent as the primary
+  // text and the English original as a muted secondary line. Ignored
+  // for account_manager viewers (AM always sees the English original).
+  sessionLanguage?: string;
 }
 
 export function MessageBubble({
@@ -39,6 +44,7 @@ export function MessageBubble({
   onRetry,
   retryDisabled,
   viewerRole = "buyer",
+  sessionLanguage = "en",
 }: MessageBubbleProps) {
   if (message.role === "divider") {
     return <Divider label={message.content} />;
@@ -53,6 +59,21 @@ export function MessageBubble({
   // Keep the existing variable name to minimise downstream churn — the
   // semantics are now "render as outgoing/self bubble".
   const isUser = isSelf;
+
+  // Honour translation only on the buyer's side and only when the
+  // translation was produced for the language they currently have
+  // selected. If they switched mid-session, translatedTo on older
+  // messages won't match and we fall back to the English original.
+  const showTranslation =
+    viewerRole === "buyer" &&
+    isAccountManager &&
+    !!message.translatedContent &&
+    !!message.translatedTo &&
+    message.translatedTo === sessionLanguage &&
+    sessionLanguage !== "en";
+  const primaryText = showTranslation
+    ? (message.translatedContent as string)
+    : message.content;
   return (
     <motion.div
       initial={{ opacity: 0, y: 6 }}
@@ -103,7 +124,20 @@ export function MessageBubble({
                 )}
               </div>
             ) : (
-              <AgentMarkdown content={message.content} />
+              <>
+                <AgentMarkdown content={primaryText} />
+                {showTranslation && (
+                  <>
+                    <hr className="my-2.5 border-gray-100" />
+                    <div className="text-[12px] leading-relaxed text-gray-400">
+                      <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-300">
+                        Original
+                      </div>
+                      <AgentMarkdown content={message.content} />
+                    </div>
+                  </>
+                )}
+              </>
             )}
           </div>
         )}

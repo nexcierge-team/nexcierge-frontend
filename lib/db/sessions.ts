@@ -64,6 +64,24 @@ export async function listSessionsForUser(
   return data ?? [];
 }
 
+// Update the buyer-selected output language on a session. RLS narrows
+// this to the session owner (chat_sessions_update_own_or_assigned_am),
+// so a misconfigured client can't change someone else's language.
+export async function setSessionLanguage(
+  supabase: Client,
+  sessionId: string,
+  language: string,
+): Promise<ChatSessionsRow | null> {
+  const { data, error } = await supabase
+    .from("chat_sessions")
+    .update({ language })
+    .eq("id", sessionId)
+    .select()
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
 export async function markHandoff(
   supabase: Client,
   sessionId: string,

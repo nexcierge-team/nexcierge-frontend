@@ -102,6 +102,7 @@ export async function POST(req: Request) {
     message: body.message,
     history: toBackendHistory(historyRows),
     profile: rfqRowToProfile(rfqRow),
+    language: session.language ?? "en",
   };
 
   let backendData: {

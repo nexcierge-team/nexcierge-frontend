@@ -32,6 +32,8 @@ function rowToMessage(row: ChatMessagesRow): Message {
     role: senderRoleMap[row.sender_type],
     content: row.content,
     from,
+    translatedContent: row.translated_content,
+    translatedTo: row.translated_to,
     readAt: row.read_at,
   };
 }
@@ -43,6 +45,7 @@ interface BootstrapState {
   profile: BuyerProfile;
   profileComplete: boolean;
   reviewRequested: boolean;
+  language: string;
 }
 
 /**
@@ -133,6 +136,7 @@ export function useChat() {
           profile: data.profile,
           profileComplete: data.profile_complete,
           reviewRequested: data.review_requested,
+          language: data.session.language ?? "en",
         });
       } catch (e) {
         if (cancelled) return;
@@ -367,6 +371,31 @@ export function useChat() {
     setAuthPromptOpen(false);
   }
 
+  // Optimistically flip the local language so the picker chip updates
+  // before the PATCH returns; revert on failure. New AI replies pick up
+  // the language on the very next /api/chat turn (the route reads
+  // session.language fresh from the DB each call).
+  async function setLanguage(code: string): Promise<void> {
+    if (!sessionId || !bootstrap) return;
+    if (bootstrap.language === code) return;
+    const prev = bootstrap.language;
+    setBootstrap({ ...bootstrap, language: code });
+    try {
+      const res = await fetch(
+        `/api/chat/sessions/${encodeURIComponent(sessionId)}/language`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ language: code }),
+        },
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    } catch (e) {
+      console.error("language update failed:", e);
+      setBootstrap({ ...bootstrap, language: prev });
+    }
+  }
+
   // Realtime: deduped INSERT + UPDATE handlers + typing presence.
   // Delegated to useRealtimeChat so the same logic powers both buyer
   // and AM views.
@@ -460,5 +489,7 @@ export function useChat() {
     sendMessage,
     retry,
     requestReview,
+    language: bootstrap?.language ?? "en",
+    setLanguage,
   };
 }

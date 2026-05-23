@@ -13,8 +13,10 @@ The frontend never calls the FastAPI backend directly from the browser. All requ
 
 | Frontend route | Backend target | Purpose |
 |---|---|---|
-| `POST /api/chat` | `POST /chat` | Conversational turn — sends user message, returns agent reply + full buyer profile + flags |
+| `POST /api/chat` | `POST /chat` | Conversational turn — sends user message + session language, returns agent reply (in target language) + full buyer profile + flags |
 | `POST /api/request-review` | `POST /sessions/{id}/request_review` | Buyer-initiated handoff to the local account manager |
+| `PATCH /api/chat/sessions/[id]/language` | (none — direct DB) | Update `chat_sessions.language` to the buyer's chosen ISO 639-1 code |
+| `POST /api/am/sessions/[id]/messages` | `POST /translate` (conditional) | AM reply — when `session.language != 'en'`, translates English→target via FastAPI before persisting |
 
 ## Flow — chat turn
 
@@ -78,7 +80,33 @@ In Vercel deployment, set `BACKEND_URL` to the Render backend URL (e.g. `https:/
 { "session_id": "<crypto.randomUUID()>", "message": "<trimmed user input>" }
 ```
 
-**Response:** see `backend/docs/API.md` `POST /chat` — full `profile` dict always present, plus `profile_complete` and `review_requested` booleans.
+The route handler reads `chat_sessions.language` for the given session and forwards it to FastAPI as the `language` field. The browser never has to send it.
+
+**Response:** see `backend/docs/API.md` `POST /chat` — full `profile` dict always present, plus `profile_complete` and `review_requested` booleans. `reply` is in the buyer's selected language.
+
+### `PATCH /api/chat/sessions/[id]/language`
+
+**Request:**
+```json
+{ "language": "zh" }
+```
+
+`language` must be a code from `lib/languages.ts::SUPPORTED_LANGUAGES`. Owner-scoped (the chat_sessions RLS update policy restricts to `auth.uid() = user_id`).
+
+**Response (200):**
+```json
+{ "language": "zh" }
+```
+
+Buyer can change language any time; takes effect on the next AI turn and the next translated AM message. Past messages are not retroactively re-translated — the buyer view falls back to the English original for any old AM message whose `translated_to` no longer matches the new session language.
+
+### AM-message translation
+
+`POST /api/am/sessions/[id]/messages` is unchanged from the AM's perspective (`{ content }` in, `{ message }` out). Server-side, when `session.language !== 'en'`:
+1. Calls `lib/translate.ts::translateText()` → FastAPI `POST /translate` (Flash-Lite, 8s timeout)
+2. Persists `chat_messages` with `content` (English original), `translated_content` (target language), `translated_to` (the language code)
+
+On translation failure: posts with `translated_content=null`. Buyer renders the English original — degraded but not silent.
 
 ### `POST /api/request-review`
 

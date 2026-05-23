@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight, Sparkles, X } from "lucide-react";
 import { useChat } from "@/lib/useChat";
 import { ChatComposer } from "@/components/chat/ChatComposer";
+import { LanguagePicker } from "@/components/chat/LanguagePicker";
 import {
   MessageBubble,
   TypingIndicator,
@@ -25,6 +26,7 @@ export function HeroChatModal({
   onClose,
 }: HeroChatModalProps) {
   const {
+    sessionId,
     messages,
     loading,
     sendMessage,
@@ -36,6 +38,8 @@ export function HeroChatModal({
     dismissAuthPrompt,
     otherIsTyping,
     notifyTyping,
+    language,
+    setLanguage,
   } = useChat();
   const [input, setInput] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
@@ -117,6 +121,11 @@ export function HeroChatModal({
                 Sourcing concierge
               </div>
               <div className="flex items-center gap-3">
+                <LanguagePicker
+                  value={language}
+                  onChange={setLanguage}
+                  disabled={!sessionId}
+                />
                 <Link
                   href="/chat"
                   className="hidden items-center gap-1 text-xs text-gray-500 transition-colors hover:text-gray-900 sm:flex"
@@ -170,6 +179,7 @@ export function HeroChatModal({
                       onRequestReview={requestReview}
                       onRetry={retry}
                       retryDisabled={loading}
+                      sessionLanguage={language}
                     />
                   ))}
                   {(loading || otherIsTyping) && <TypingIndicator />}

@@ -31,10 +31,12 @@ app/
 │   └── callback/route.ts   Supabase OAuth + magic-link verify
 └── api/
     ├── chat/
-    │   ├── start/route.ts        GET — bootstrap on mount (creates anon session if needed)
-    │   ├── route.ts              POST — persist user msg, call FastAPI, persist ai reply
+    │   ├── start/route.ts                       GET — bootstrap on mount (creates anon session if needed)
+    │   ├── route.ts                             POST — persist user msg, call FastAPI, persist ai reply
     │   └── sessions/
-    │       └── route.ts          GET (list) + POST (create new)
+    │       ├── route.ts                         GET (list) + POST (create new)
+    │       └── [id]/
+    │           └── language/route.ts            PATCH — buyer-selected output language
     ├── request-review/route.ts   POST — auth-gated handoff: HubSpot + DB + closing messages
     └── am/
         ├── inbox/route.ts                   GET — AM-only brief inbox
@@ -52,16 +54,21 @@ components/
 ├── chat/
 │   ├── ChatSidebar.tsx     Real session list from /api/chat/sessions
 │   ├── ChatComposer.tsx
-│   ├── MessageBubble.tsx   `viewerRole` prop flips alignment for AM view
+│   ├── LanguagePicker.tsx  Header dropdown — buyer's output-language selector
+│   ├── MessageBubble.tsx   `viewerRole` prop flips alignment for AM view;
+│   │                         `sessionLanguage` prop drives translated/original dual render for AM bubbles
 │   └── ProfileSummaryCard.tsx
 └── dashboard/              (legacy mock components — kept for reference, not used by /dashboard)
 
 lib/
 ├── utils.ts
 ├── constants.ts            HANDOFF_REPLY, accountManagerWelcome, firstNameFromFull
+├── languages.ts            SUPPORTED_LANGUAGES + isSupportedLanguage (mirror of backend/app/languages.py)
+├── translate.ts            translateText() — thin wrapper over FastAPI /translate
 ├── useChat.ts              Hook: bootstraps from /api/chat/start, persists via POST /api/chat,
 │                             subscribes to Supabase Realtime, opens AuthModal on 401 from handoff,
-│                             auto-resumes handoff after OAuth round-trip via ?resume=handoff
+│                             auto-resumes handoff after OAuth round-trip via ?resume=handoff,
+│                             exposes language + setLanguage (PATCHes /api/chat/sessions/[id]/language)
 ├── supabase/
 │   ├── env.ts              Validated env var accessors
 │   ├── browser.ts          createBrowserClient (memoised per tab)
@@ -80,7 +87,7 @@ lib/
     └── sync.ts             syncBriefToHubspot (upsert contact → create deal → associate)
 
 supabase/
-├── migrations/             0001..0005 — users + chat tables + rfqs + RLS + optional pg_cron cleanup
+├── migrations/             0001..0007 — users + chat tables + rfqs + RLS + cleanup + read_at + language/translation columns
 └── README.md               Step-by-step setup the human operator does once
 
 types/
@@ -145,6 +152,18 @@ Frontend appends → CTA replaced by "Transferring…" badge → composer mode s
    ▼
 Supabase Realtime channel pushes any subsequent AM reply (typed in /dashboard) into the buyer's chat
 ```
+
+## Buyer-selected output language
+
+Buyers pick their output language from a dropdown in the chat header (mounted on both `/chat` and the `HeroChatModal` on `/`). The choice persists on `chat_sessions.language` (ISO 639-1, default `'en'`) via `PATCH /api/chat/sessions/[id]/language`.
+
+**AI replies.** Every `/api/chat` POST forwards `session.language` to FastAPI. When non-`en`, the backend appends an `# OUTPUT LANGUAGE (HARD OVERRIDE)` directive on top of `SYSTEM_PROMPT` so Gemini responds in the target language regardless of what the buyer types. Zero extra calls — language is baked into the same turn.
+
+**AM replies.** AMs always type in English. `POST /api/am/sessions/[id]/messages` reads `session.language`; when non-`en`, it calls FastAPI `/translate` (Flash-Lite, ~1s) and persists both the English `content` and the localised `translated_content` together with `translated_to` (the language code we translated to). On translation failure the AM message still posts in English — silence is worse than imperfect localisation.
+
+**Buyer rendering.** `MessageBubble` only honours `translated_content` when `translated_to === sessionLanguage` (so a mid-session language switch doesn't show stale translations). It renders the translation as the primary text and the English original below as a small muted "Original" block separated by a hairline divider — this gives the buyer a way to sanity-check the translation without a click. No re-translation of past AM messages on language change.
+
+**Backwards compatibility.** Pre-migration rows have `language='en'` (default) and `translated_content=null`. Everything degrades to "English only, no dual display" automatically.
 
 ## Realtime model
 

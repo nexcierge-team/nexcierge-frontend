@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles } from "lucide-react";
 import { ChatSidebar } from "@/components/chat/ChatSidebar";
 import { ChatComposer } from "@/components/chat/ChatComposer";
+import { LanguagePicker } from "@/components/chat/LanguagePicker";
 import {
   MessageBubble,
   TypingIndicator,
@@ -28,6 +29,8 @@ export default function ChatPage() {
     sendMessage,
     retry,
     requestReview,
+    language,
+    setLanguage,
   } = useChat();
   const [input, setInput] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
@@ -72,12 +75,19 @@ export default function ChatPage() {
             <Sparkles className="h-4 w-4 text-[#0F2747]" strokeWidth={1.75} />
             Sourcing concierge
           </div>
-          <a
-            href="/"
-            className="text-sm text-gray-500 hover:text-gray-900 transition-colors"
-          >
-            Exit
-          </a>
+          <div className="flex items-center gap-3">
+            <LanguagePicker
+              value={language}
+              onChange={setLanguage}
+              disabled={!sessionId}
+            />
+            <a
+              href="/"
+              className="text-sm text-gray-500 hover:text-gray-900 transition-colors"
+            >
+              Exit
+            </a>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto">
@@ -155,6 +165,7 @@ export default function ChatPage() {
                         onRequestReview={requestReview}
                         onRetry={retry}
                         retryDisabled={loading}
+                        sessionLanguage={language}
                       />
                     ))}
                     {(loading || otherIsTyping) && <TypingIndicator />}
