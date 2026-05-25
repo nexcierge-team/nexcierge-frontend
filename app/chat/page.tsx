@@ -19,6 +19,7 @@ export default function ChatPage() {
     sessionId,
     messages,
     loading,
+    bootstrapping,
     reviewRequested,
     reviewSubmitting,
     bootstrapError,
@@ -29,6 +30,7 @@ export default function ChatPage() {
     sendMessage,
     retry,
     requestReview,
+    switchSession,
     language,
     setLanguage,
   } = useChat();
@@ -46,26 +48,25 @@ export default function ChatPage() {
     await sendMessage(trimmed);
   }
 
-  // Both sidebar handlers do a full navigation — we let the next-page
-  // mount re-bootstrap via /api/chat/start?session_id=. Simpler than
-  // teaching useChat to swap sessions in place, and aligns with the
-  // browser-back behaviour users expect from a "conversations" list.
-  function openSession(id: string) {
-    window.location.href = `/chat?session_id=${encodeURIComponent(id)}`;
-  }
-
-  const isEmpty = messages.length === 0 && !bootstrapError;
+  // Sidebar swaps conversations in-place via useChat.switchSession —
+  // it updates the URL with history.pushState (so refresh + back-button
+  // still work) and re-runs the bootstrap effect against the new
+  // session_id. No full page reload, no welcome-state flash.
+  // Hide the welcome screen while bootstrapping so the initial load
+  // (and every subsequent switch) doesn't flash the empty-state UI
+  // before the real messages arrive.
+  const isEmpty = !bootstrapping && messages.length === 0 && !bootstrapError;
 
   return (
     <div className="flex h-screen bg-white">
       <ChatSidebar
         activeId={sessionId ?? undefined}
-        onNew={openSession}
-        onSelect={openSession}
+        onNew={(id) => switchSession(id)}
+        onSelect={(id) => switchSession(id)}
         onDeleteActive={() => {
-          // Active conversation was deleted — kick the user to a fresh
-          // /chat which will bootstrap a brand-new session.
-          window.location.href = "/chat";
+          // Active conversation was deleted — fall back to "newest
+          // active or create one" by switching with no session_id.
+          switchSession(null);
         }}
       />
 

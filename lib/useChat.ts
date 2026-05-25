@@ -66,6 +66,14 @@ interface BootstrapState {
 export function useChat() {
   const [bootstrap, setBootstrap] = useState<BootstrapState | null>(null);
   const [bootstrapError, setBootstrapError] = useState<string | null>(null);
+  const [bootstrapping, setBootstrapping] = useState(true);
+  // Drives which session we bootstrap. Initialised from ?session_id=<id>;
+  // mutated by switchSession() so the sidebar can swap conversations
+  // in-place (no full page reload, no empty-state flash).
+  const [targetSessionId, setTargetSessionId] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return new URLSearchParams(window.location.search).get("session_id");
+  });
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
@@ -85,25 +93,27 @@ export function useChat() {
   const sessionId = bootstrap?.sessionId ?? null;
   const reviewRequested = bootstrap?.reviewRequested ?? false;
 
-  // ── Bootstrap on mount ──────────────────────────────────────
+  // ── Bootstrap (initial mount + every in-place session switch) ──
+  // Re-fires whenever `targetSessionId` changes. We DON'T clear
+  // `messages` here — the previous session's bubbles stay on screen
+  // until the new fetch resolves, which avoids the empty-state flash
+  // when switching between conversations.
   useEffect(() => {
     let cancelled = false;
+    setBootstrapping(true);
+    setBootstrapError(null);
     (async () => {
       try {
-        // Honor /chat?session_id=<uuid> so the sidebar can switch
-        // between past chats. Without it, we load the most-recent
-        // active session for this user.
-        const sessionIdParam =
-          typeof window !== "undefined"
-            ? new URLSearchParams(window.location.search).get("session_id")
-            : null;
-        const url = sessionIdParam
-          ? `/api/chat/start?session_id=${encodeURIComponent(sessionIdParam)}`
+        const url = targetSessionId
+          ? `/api/chat/start?session_id=${encodeURIComponent(targetSessionId)}`
           : "/api/chat/start";
         const res = await fetch(url, { method: "GET" });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         if (cancelled) return;
+        // Fresh dedup tracker per session — Realtime ids from the old
+        // chat_session_id channel must not bleed into the new one.
+        seenIds.current = new Set<string>();
         const initialMessages = (data.messages as ChatMessagesRow[]).map(
           rowToMessage,
         );
@@ -125,9 +135,8 @@ export function useChat() {
             }
           }
         }
-        if (attached) {
-          setLastAttachedProfile(JSON.stringify(data.profile));
-        }
+        setLastAttachedProfile(attached ? JSON.stringify(data.profile) : null);
+        setLastUserMessage(null);
         setMessages(initialMessages);
         setBootstrap({
           sessionId: data.session.id,
@@ -144,11 +153,39 @@ export function useChat() {
         setBootstrapError(
           "Couldn't start a chat session. Refresh to try again, or check the backend is running.",
         );
+      } finally {
+        if (!cancelled) setBootstrapping(false);
       }
     })();
     return () => {
       cancelled = true;
     };
+  }, [targetSessionId]);
+
+  // Browser back/forward keeps the URL and our state in sync — popstate
+  // fires when the user navigates history without a page load. We mirror
+  // ?session_id=<id> into targetSessionId so the bootstrap effect re-runs.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    function onPop() {
+      const id = new URLSearchParams(window.location.search).get("session_id");
+      setTargetSessionId(id);
+    }
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+
+  // In-place session swap used by the sidebar. Updates the URL via
+  // pushState (so refresh + back-button still work) and triggers the
+  // bootstrap effect above. No full page reload, no welcome-screen flash.
+  const switchSession = useCallback((id: string | null) => {
+    if (typeof window !== "undefined") {
+      const url = id ? `/chat?session_id=${encodeURIComponent(id)}` : "/chat";
+      if (window.location.pathname + window.location.search !== url) {
+        window.history.pushState({}, "", url);
+      }
+    }
+    setTargetSessionId(id);
   }, []);
 
   const callApi = useCallback(
@@ -489,6 +526,7 @@ export function useChat() {
     sessionId,
     messages,
     loading,
+    bootstrapping,
     reviewRequested,
     reviewSubmitting,
     bootstrapError,
@@ -500,6 +538,7 @@ export function useChat() {
     sendMessage,
     retry,
     requestReview,
+    switchSession,
     language: bootstrap?.language ?? "en",
     setLanguage,
   };
