@@ -12,9 +12,10 @@ interface AccountMenuProps {
   // pathname so the header keeps the user where they were.
   redirectTo?: string;
   // Visual variant:
-  //   "button"  — pill button suitable for a marketing header
+  //   "button"  — pill button with email, suitable for a marketing header
+  //   "avatar"  — circular initial only (Google-style header avatar)
   //   "compact" — flat row suitable for a sidebar footer
-  variant?: "button" | "compact";
+  variant?: "button" | "avatar" | "compact";
 }
 
 export function AccountMenu({
@@ -48,11 +49,10 @@ export function AccountMenu({
   }
 
   if (loading) {
-    return variant === "compact" ? (
-      <div className="text-xs text-gray-400">…</div>
-    ) : (
-      <div className="h-9 w-20 animate-pulse rounded-full bg-gray-100" />
-    );
+    if (variant === "compact") return <div className="text-xs text-gray-400">…</div>;
+    if (variant === "avatar")
+      return <div className="h-8 w-8 animate-pulse rounded-full bg-gray-100" />;
+    return <div className="h-9 w-20 animate-pulse rounded-full bg-gray-100" />;
   }
 
   // Not signed in (or still anonymous) → Sign in CTA.
@@ -65,6 +65,25 @@ export function AccountMenu({
             className="text-xs font-medium text-[#0F2747] hover:underline"
           >
             Sign in
+          </button>
+          <AuthModal
+            open={authModalOpen}
+            onClose={() => setAuthModalOpen(false)}
+            redirectTo={redirectTo}
+          />
+        </>
+      );
+    }
+    if (variant === "avatar") {
+      return (
+        <>
+          <button
+            type="button"
+            onClick={() => setAuthModalOpen(true)}
+            aria-label="Sign in"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 transition-colors hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900"
+          >
+            <UserRound className="h-4 w-4" strokeWidth={1.75} />
           </button>
           <AuthModal
             open={authModalOpen}
@@ -104,33 +123,43 @@ export function AccountMenu({
         onClick={() => setMenuOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={menuOpen}
+        aria-label={variant === "avatar" ? `Account menu — ${email}` : undefined}
+        title={variant === "avatar" ? email : undefined}
         className={cn(
           "items-center gap-2 transition-colors",
           variant === "button"
             ? "inline-flex h-9 max-w-[260px] rounded-full border border-gray-200 bg-white px-3 hover:border-gray-300 hover:bg-gray-50"
-            : "flex w-full min-w-0 text-xs text-gray-700 hover:text-gray-900",
+            : variant === "avatar"
+              ? "inline-flex shrink-0 rounded-full ring-2 ring-transparent transition-shadow hover:ring-gray-200 focus-visible:ring-[#0F2747]"
+              : "flex w-full min-w-0 text-xs text-gray-700 hover:text-gray-900",
         )}
       >
         <span
           className={cn(
-            "inline-flex shrink-0 items-center justify-center rounded-full bg-[#0F2747] text-white",
-            variant === "button" ? "h-6 w-6 text-[11px]" : "h-5 w-5 text-[10px]",
+            "inline-flex shrink-0 items-center justify-center rounded-full bg-[#0F2747] font-medium text-white",
+            variant === "button"
+              ? "h-6 w-6 text-[11px]"
+              : variant === "avatar"
+                ? "h-9 w-9 text-sm"
+                : "h-5 w-5 text-[10px]",
           )}
           aria-hidden="true"
         >
           {initial}
         </span>
-        <span
-          className={cn(
-            "min-w-0 flex-1 truncate text-left",
-            variant === "button"
-              ? "text-sm font-medium text-gray-900"
-              : "text-xs text-gray-800",
-          )}
-          title={email}
-        >
-          {email}
-        </span>
+        {variant !== "avatar" && (
+          <span
+            className={cn(
+              "min-w-0 flex-1 truncate text-left",
+              variant === "button"
+                ? "text-sm font-medium text-gray-900"
+                : "text-xs text-gray-800",
+            )}
+            title={email}
+          >
+            {email}
+          </span>
+        )}
       </button>
 
       {menuOpen && (
@@ -138,7 +167,7 @@ export function AccountMenu({
           role="menu"
           className={cn(
             "absolute z-50 mt-1.5 w-48 overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-[0_10px_30px_-12px_rgba(0,0,0,0.18)]",
-            variant === "button" ? "right-0" : "left-0 bottom-full mb-1.5",
+            variant === "compact" ? "left-0 bottom-full mb-1.5" : "right-0",
           )}
         >
           {isAnonymous ? null : (

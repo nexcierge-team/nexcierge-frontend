@@ -3,13 +3,17 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AccountMenu } from "@/components/auth/AccountMenu";
 import { useUserRole } from "@/lib/useUserRole";
 
+// On the homepage, "How it works" scrolls to the section anchor.
+// Elsewhere it routes home and then jumps. "Contact us" goes to the
+// contact form, which composes a mailto: into nexcierge.ai@gmail.com.
 const NAV = [
-  { href: "/about", label: "About" },
-  { href: "/contact", label: "Contact" },
+  { href: "/#how-it-works", label: "How it works" },
+  { href: "/contact", label: "Contact us" },
 ];
 
 export function Header() {
@@ -35,7 +39,7 @@ export function Header() {
               key={item.href}
               href={item.href}
               className={cn(
-                "text-sm transition-colors",
+                "text-sm font-medium transition-colors",
                 pathname === item.href
                   ? "text-gray-900"
                   : "text-gray-600 hover:text-gray-900",
@@ -55,10 +59,17 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-3">
-          <AccountMenu redirectTo={pathname ?? "/"} />
+          <AccountMenu redirectTo={pathname ?? "/"} variant="avatar" />
           {!onChatPage && (
-            <Button asChild size="sm">
-              <Link href="/chat">Start sourcing</Link>
+            <Button
+              asChild
+              size="md"
+              className="shadow-[0_8px_24px_-8px_rgba(15,39,71,0.45)] hover:shadow-[0_10px_28px_-8px_rgba(15,39,71,0.55)]"
+            >
+              <Link href="/chat">
+                Start sourcing
+                <ArrowRight className="h-4 w-4" strokeWidth={2} />
+              </Link>
             </Button>
           )}
         </div>

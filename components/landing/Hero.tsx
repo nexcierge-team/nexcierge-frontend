@@ -26,13 +26,21 @@ export function Hero() {
             transition={{ duration: 0.7, delay: 0.05, ease: [0.22, 1, 0.36, 1] }}
             className="mt-6 text-[2.75rem] font-semibold leading-[1.05] tracking-[-0.02em] text-gray-900 sm:text-5xl lg:text-[3.5rem]"
           >
-            Source industrial machinery
+            Source machinery
             <br className="hidden sm:block" />
-            <span className="text-gray-500"> from China</span>
-            <span className="text-gray-900">
-              {" "}without brokers, trade fairs, or guesswork.
-            </span>
+            <span className="text-gray-500"> without</span>
+            <span className="text-gray-900"> guesswork.</span>
           </motion.h1>
+
+          <motion.p
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+            className="mt-5 max-w-xl text-xl font-medium leading-snug text-gray-800 sm:text-2xl"
+          >
+            From AI consultation to factory-floor validation, we handle every
+            step of your procurement.
+          </motion.p>
 
           <motion.p
             initial={{ opacity: 0, y: 12 }}

@@ -9,20 +9,13 @@ export function Footer() {
 
   const COLUMNS = [
     {
-      title: "Product",
-      links: [
-        { href: "/chat", label: "AI sourcing" },
-        ...(isAccountManager
-          ? [{ href: "/dashboard", label: "Dashboard" }]
-          : []),
-        { href: "/about", label: "How it works" },
-      ],
-    },
-    {
       title: "Company",
       links: [
         { href: "/about", label: "About" },
         { href: "/contact", label: "Contact" },
+        ...(isAccountManager
+          ? [{ href: "/dashboard", label: "Dashboard" }]
+          : []),
       ],
     },
     {
@@ -36,7 +29,7 @@ export function Footer() {
 
   return (
     <footer className="border-t border-gray-200 bg-white">
-      <div className="mx-auto grid max-w-6xl gap-12 px-6 py-16 md:grid-cols-[2fr_1fr_1fr_1fr]">
+      <div className="mx-auto grid max-w-6xl gap-12 px-6 py-16 md:grid-cols-[2fr_1fr_1fr]">
         <div className="max-w-sm">
           <div className="font-semibold tracking-[0.16em] text-[15px] text-gray-900">
             NEXCIERGE

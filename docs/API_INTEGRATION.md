@@ -73,6 +73,16 @@ In Vercel deployment, set `BACKEND_URL` to the Render backend URL (e.g. `https:/
 
 ## Request / response shapes
 
+### `GET /api/chat/start`
+
+Bootstraps the buyer's chat surface — anonymous Supabase sign-in if needed, then returns the active or requested `chat_sessions` row, its `rfqs` row, and full message history.
+
+**Query params (all optional):**
+- `session_id=<uuid>` — load a specific past session (must be owned by the caller).
+- `new=1` — skip the active-session lookup and always create a fresh `chat_sessions` row. Used by `HeroChatPreview` and `FloatingChatButton` so every click from the marketing site lands on a blank chat. The `useChat({ forceNew: true })` option toggles this from the client.
+
+`session_id` takes precedence over `new=1`.
+
 ### `POST /api/chat`
 
 **Request:**

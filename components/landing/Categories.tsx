@@ -9,7 +9,7 @@ import { SectionHeader } from "./SectionHeader";
 export function Categories() {
   return (
     <section className="border-b border-gray-200/70 bg-white">
-      <div className="mx-auto max-w-6xl px-6 py-24 sm:py-32">
+      <div className="mx-auto max-w-6xl px-6 pt-16 pb-24 sm:pt-24 sm:pb-32">
         <SectionHeader
           eyebrow="Categories"
           title="Industries we source for."

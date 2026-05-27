@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { Mail, MapPin, MessageSquare, CheckCircle2 } from "lucide-react";
+import { Mail, MessageSquare, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -9,12 +9,14 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { Reveal } from "@/components/landing/Reveal";
 
+const CONTACT_INBOX = "nexcierge.ai@gmail.com";
+
 const CHANNELS = [
   {
     icon: Mail,
     label: "Email",
-    value: "hello@nexcierge.com",
-    href: "mailto:hello@nexcierge.com",
+    value: CONTACT_INBOX,
+    href: `mailto:${CONTACT_INBOX}`,
   },
   {
     icon: MessageSquare,
@@ -22,26 +24,46 @@ const CHANNELS = [
     value: "Start a conversation",
     href: "/chat",
   },
-  {
-    icon: MapPin,
-    label: "Office",
-    value: "Shenzhen, China · Operations\nRemote-first elsewhere",
-  },
 ];
 
 export default function ContactPage() {
   const [submitted, setSubmitted] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  function onSubmit(e: FormEvent) {
+  function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (busy) return;
     setBusy(true);
-    // Mock submission delay
+
+    const form = e.currentTarget;
+    const data = new FormData(form);
+    const firstName = String(data.get("firstName") ?? "").trim();
+    const lastName = String(data.get("lastName") ?? "").trim();
+    const email = String(data.get("email") ?? "").trim();
+    const subject = String(data.get("subject") ?? "").trim();
+    const body = String(data.get("body") ?? "").trim();
+
+    const fullName = [firstName, lastName].filter(Boolean).join(" ");
+    const composedBody = [
+      `From: ${fullName || "(no name)"}${email ? ` <${email}>` : ""}`,
+      "",
+      body,
+    ].join("\n");
+
+    const href =
+      `mailto:${CONTACT_INBOX}` +
+      `?subject=${encodeURIComponent(subject || "Nexcierge contact form")}` +
+      `&body=${encodeURIComponent(composedBody)}`;
+
+    // Open the user's mail client. We do this in a microtask so React can
+    // commit the busy state first — feels snappier than blocking on the
+    // navigation.
+    window.location.href = href;
+
     setTimeout(() => {
       setSubmitted(true);
       setBusy(false);
-    }, 600);
+    }, 250);
   }
 
   return (
@@ -79,46 +101,70 @@ export default function ContactPage() {
                         strokeWidth={1.5}
                       />
                       <h3 className="mt-4 text-xl font-semibold text-gray-900">
-                        Message sent.
+                        Almost there.
                       </h3>
                       <p className="mt-2 max-w-sm text-sm leading-relaxed text-gray-600">
-                        We&apos;ll get back within one business day. For urgent
-                        sourcing needs, start a conversation with the AI agent.
+                        Your mail client should open with the message ready to
+                        send. If nothing happened, write to{" "}
+                        <a
+                          href={`mailto:${CONTACT_INBOX}`}
+                          className="font-medium text-[#0F2747] underline-offset-4 hover:underline"
+                        >
+                          {CONTACT_INBOX}
+                        </a>{" "}
+                        directly.
                       </p>
                     </div>
                   ) : (
                     <div className="space-y-5">
                       <div className="grid gap-5 sm:grid-cols-2">
-                        <Field label="Name" htmlFor="name">
-                          <Input id="name" name="name" required placeholder="Ravi Kumar" />
-                        </Field>
-                        <Field label="Email" htmlFor="email">
+                        <Field label="First name" htmlFor="firstName">
                           <Input
-                            id="email"
-                            name="email"
-                            type="email"
+                            id="firstName"
+                            name="firstName"
                             required
-                            placeholder="you@company.com"
+                            placeholder="John"
+                            autoComplete="given-name"
+                          />
+                        </Field>
+                        <Field label="Last name" htmlFor="lastName">
+                          <Input
+                            id="lastName"
+                            name="lastName"
+                            required
+                            placeholder="Doe"
+                            autoComplete="family-name"
                           />
                         </Field>
                       </div>
 
-                      <div className="grid gap-5 sm:grid-cols-2">
-                        <Field label="Company" htmlFor="company">
-                          <Input id="company" name="company" placeholder="Acme Industrial" />
-                        </Field>
-                        <Field label="Country" htmlFor="country">
-                          <Input id="country" name="country" placeholder="India" />
-                        </Field>
-                      </div>
-
-                      <Field label="What are you looking to source?" htmlFor="message">
-                        <Textarea
-                          id="message"
-                          name="message"
+                      <Field label="Email" htmlFor="email">
+                        <Input
+                          id="email"
+                          name="email"
+                          type="email"
                           required
-                          rows={5}
-                          placeholder="Brief description of the machinery, capacity, and timeline…"
+                          placeholder="you@company.com"
+                          autoComplete="email"
+                        />
+                      </Field>
+
+                      <Field label="Subject" htmlFor="subject">
+                        <Input
+                          id="subject"
+                          name="subject"
+                          required
+                          placeholder="What's this about?"
+                        />
+                      </Field>
+
+                      <Field label="Message" htmlFor="body">
+                        <Textarea
+                          id="body"
+                          name="body"
+                          required
+                          rows={6}
+                          placeholder="Tell us a little about what you're looking for…"
                         />
                       </Field>
 
@@ -127,7 +173,7 @@ export default function ContactPage() {
                           We reply within one business day.
                         </p>
                         <Button type="submit" disabled={busy}>
-                          {busy ? "Sending…" : "Send message"}
+                          {busy ? "Opening…" : "Send message"}
                         </Button>
                       </div>
                     </div>
@@ -139,8 +185,8 @@ export default function ContactPage() {
                 <div className="space-y-7">
                   <p className="text-sm leading-relaxed text-gray-500">
                     Working hours are 09:00–18:00 China Standard Time (UTC+8).
-                    Cross-border sourcing inquiries usually get a response within
-                    a few hours during these windows.
+                    Cross-border sourcing inquiries usually get a response
+                    within a few hours during these windows.
                   </p>
 
                   <div className="rounded-2xl border border-gray-200 bg-white">

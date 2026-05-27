@@ -18,41 +18,41 @@ export const QUICK_CATEGORIES = [
 
 export const TRUST_BADGES = [
   "Human-verified sourcing",
-  "Domestic Chinese market access",
-  "Factory audit available",
+  "Domestic Market Access",
+  "End to End Security",
   "Managed procurement support",
 ];
 
 export const HOW_IT_WORKS = [
   {
     step: "01",
-    title: "Describe your machinery needs",
+    title: "AI-Powered Intake",
     description:
-      "Tell us what you need in your own words — no jargon required. Our AI understands industrial machinery.",
+      "Tell us what you need in your own words — no forms or logins required. Our multilingual AI instantly captures your exact technical specifications, from voltages to custom mold geometries.",
   },
   {
     step: "02",
-    title: "AI refines requirements",
+    title: "Secure Engineering Blueprint",
     description:
-      "The sourcing agent qualifies specs, capacity, voltage, materials, and customizations.",
+      "The system instantly translates your requirements into a standardized engineering blueprint. Your corporate identity and custom modifications are locked in our secure database, guaranteeing absolute protection for your proprietary IP.",
   },
   {
     step: "03",
-    title: "Human sourcing review",
+    title: "In-House Technical Validation",
     description:
-      "Our local team in China verifies suppliers, checks credentials, and qualifies pricing.",
+      "Our engineering team takes over. We manually review your AI-generated blueprint to validate all technical feasibility, verify PLC interface requirements, and finalize your direct pricing.",
   },
   {
     step: "04",
-    title: "Receive supplier shortlist",
+    title: "The Direct Supplier Guarantee",
     description:
-      "Curated, vetted matches from manufacturers with audited factories and proven track records.",
+      "You receive a single, comprehensive technical quote directly from Nexcierge. Because we are your direct supplier, there is no middleman and no shifting blame. We own 100% of the liability and guarantee the machinery will perform exactly to your approved specifications.",
   },
   {
     step: "05",
-    title: "Execute securely",
+    title: "Fulfillment & Installation",
     description:
-      "Managed procurement, quality assurance, shipping, and installation support from a single partner.",
+      "Transact securely with zero international wire fraud risk. We manage the entire production cycle, cross-border freight, export compliance, and coordinate our 'Fly-In' technicians to execute your final on-site installation.",
   },
 ];
 
@@ -60,7 +60,7 @@ export const COMPARISON_ROWS = [
   {
     label: "Supplier discovery",
     traditional: "Trade shows, broker networks",
-    nexcierge: "AI + domestic Chinese market access",
+    nexcierge: "AI + Domestic Market Access",
   },
   {
     label: "Language barriers",
@@ -75,12 +75,14 @@ export const COMPARISON_ROWS = [
   {
     label: "Speed to shortlist",
     traditional: "Weeks to months",
-    nexcierge: "Days to a qualified shortlist",
+    nexcierge: "Days to a qualified quotation",
   },
   {
-    label: "Pricing visibility",
-    traditional: "Hidden, broker-marked-up",
-    nexcierge: "Domestic Chinese prices, transparent",
+    label: "Data Privacy & IP",
+    traditional:
+      "Custom machinery requirements are blasted across the open internet, exposing your corporate strategy and proprietary engineering tweaks to competitors.",
+    nexcierge:
+      "Strict UID Isolation. Your corporate identity remains completely hidden. AI translates your needs into a siloed blueprint, protecting your proprietary IP.",
   },
 ];
 
@@ -123,33 +125,90 @@ export const MACHINERY_CATEGORIES = [
   },
 ];
 
-export const FAQS = [
+export const FAQ_SECTIONS: {
+  title: string;
+  items: { question: string; answer: string }[];
+}[] = [
   {
-    question: "How do you verify suppliers?",
-    answer:
-      "Our local Chinese coordination team conducts on-the-ground verification — business registry checks via Qichacha and Tianyancha, factory visits, and export performance review. High-value matches receive a full audit before any quote is shared.",
+    title: "General Procurement & Sourcing",
+    items: [
+      {
+        question: "How does Nexcierge source machinery?",
+        answer:
+          "Nexcierge operates as a direct industrial supplier. We utilize an advanced AI-driven configuration engine to capture your technical requirements and then leverage our internal engineering and operational teams to supply, vet, and deliver the equipment directly to your facility.",
+      },
+      {
+        question: "Do I get to speak to the factory directly?",
+        answer:
+          "To ensure absolute quality control, data privacy, and price security, Nexcierge acts as your exclusive Vendor of Record. We handle all direct communication and negotiation with the manufacturers. This ensures your proprietary IP is protected and you have a single point of accountability for your entire order.",
+      },
+      {
+        question: "Can you source custom or modified machinery?",
+        answer:
+          "Yes. Our AI-driven configuration process is designed specifically for custom technical requirements. Whether you need specialized mold geometries, PLC integration changes (e.g., Siemens or Allen-Bradley), or specific production capacities, we manage these modifications as part of our direct supply service.",
+      },
+    ],
   },
   {
-    question: "Can you source custom machinery?",
-    answer:
-      "Yes. Describe customizations — voltage, control system, dimensions, materials — and our team coordinates directly with manufacturers for tailored builds. Most factories on our roster accept OEM and custom orders.",
+    title: "Security, Trust & Data Privacy",
+    items: [
+      {
+        question: "How do you protect my company's proprietary IP?",
+        answer:
+          "Nexcierge employs \"Strict UID Isolation\" in our backend systems. Your technical specifications and corporate identity are siloed. Manufacturers receive only the necessary engineering blueprints required to fulfill your order, ensuring your competitive advantage and proprietary tweaks remain confidential.",
+      },
+      {
+        question: "Is my payment secure?",
+        answer:
+          "We eliminate the risks of international wire fraud by acting as your principal partner. You transact directly with Nexcierge through institutional-grade financial gateways (Stripe/Airwallex). Your funds are managed securely, and we assume full liability for the fulfillment of your order.",
+      },
+      {
+        question:
+          "What if the machine I receive doesn't meet the specifications?",
+        answer:
+          "Because Nexcierge is your direct supplier and owner of the invoice, we are legally and contractually responsible for ensuring your machinery meets the approved engineering blueprints. If the machine does not perform to your approved technical specifications, we handle the resolution directly.",
+      },
+    ],
   },
   {
-    question: "Do you handle shipping?",
-    answer:
-      "We offer managed shipping including export documentation, freight forwarding, and customs clearance. You can opt into the full managed package or coordinate logistics independently after receiving the quote.",
+    title: "Logistics & Installation",
+    items: [
+      {
+        question: "Does Nexcierge handle shipping and export compliance?",
+        answer:
+          "Yes. As your end-to-end principal, we manage all cross-border logistics, including HS code classification, crating, export documentation, and international freight, delivering your equipment seamlessly to your destination.",
+      },
+      {
+        question: "How is the machine installed at my facility?",
+        answer:
+          "Installation anxiety is a major challenge in global trade. Nexcierge manages this by coordinating our \"Fly-In\" technical teams. Depending on your location and machine complexity, we organize for qualified technicians to arrive on-site to handle final calibration, setup, and operator training.",
+      },
+      {
+        question: "Do you provide translated technical manuals and interfaces?",
+        answer:
+          "Absolutely. Providing equipment with manuals or PLC interfaces in a language you cannot read is a non-starter. Our local engineering teams ensure all technical documentation and machine control interfaces are translated and standardized for your team.",
+      },
+    ],
   },
   {
-    question: "Is pricing from domestic Chinese suppliers?",
-    answer:
-      "Yes. We work directly with manufacturers in the Chinese domestic market, bypassing the international markup typically applied to overseas buyers at trade shows and B2B marketplaces.",
-  },
-  {
-    question: "What happens after AI qualification?",
-    answer:
-      "Once your requirements are clear, our local Chinese team takes over — verifying suppliers, requesting quotes, coordinating samples and audits, and managing the procurement to delivery.",
+    title: "Working with Nexcierge",
+    items: [
+      {
+        question: "Why is there a Sourcing Deposit?",
+        answer:
+          "The Sourcing Deposit is a fully refundable authorization hold. It serves two purposes: it filters for serious enterprise buyers, and it activates our \"Human-in-the-Loop\" coordination team to begin physically vetting the shortlisted facilities and negotiating your final quote.",
+      },
+      {
+        question: "Are you a trading company or a directory?",
+        answer:
+          "Neither. Nexcierge is a tech-enabled industrial supplier. Unlike directories that simply match you with a factory, we own the fulfillment process, the technical liability, and the shipping logistics. You are buying from a partner who guarantees the result.",
+      },
+    ],
   },
 ];
+
+// Kept for any legacy imports — flat fallback derived from FAQ_SECTIONS.
+export const FAQS = FAQ_SECTIONS.flatMap((s) => s.items);
 
 export const MOCK_CHAT_SESSIONS: ChatSession[] = [
   {

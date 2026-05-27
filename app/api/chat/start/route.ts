@@ -42,10 +42,16 @@ export async function GET(req: Request) {
   const supabase = await getSupabaseServer();
   const url = new URL(req.url);
   const requestedId = url.searchParams.get("session_id");
+  // ?new=1 forces a brand-new chat_session even if the user already has
+  // an active one. Used by the marketing-site chat preview / FAB so every
+  // entry from the homepage starts on a blank slate.
+  const forceNew = url.searchParams.get("new") === "1";
 
   let session = requestedId
     ? await getSession(supabase, requestedId)
-    : await findActiveSession(supabase, auth.userId);
+    : forceNew
+      ? null
+      : await findActiveSession(supabase, auth.userId);
 
   if (requestedId && (!session || session.user_id !== auth.userId)) {
     return NextResponse.json({ error: "Session not found" }, { status: 404 });

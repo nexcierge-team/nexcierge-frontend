@@ -40,7 +40,7 @@ export function HeroChatModal({
     notifyTyping,
     language,
     setLanguage,
-  } = useChat();
+  } = useChat({ forceNew: true });
   const [input, setInput] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
   const sentInitialRef = useRef(false);

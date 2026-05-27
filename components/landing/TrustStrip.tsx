@@ -1,10 +1,10 @@
-import { CheckCircle2, Globe2, ShieldCheck, Workflow } from "lucide-react";
+import { Globe2, Lock, ShieldCheck, Workflow } from "lucide-react";
 import { Reveal } from "./Reveal";
 
 const BADGES = [
   { icon: ShieldCheck, label: "Human-verified sourcing" },
-  { icon: Globe2, label: "Domestic Chinese market access" },
-  { icon: CheckCircle2, label: "Factory audit available" },
+  { icon: Globe2, label: "Domestic Market Access" },
+  { icon: Lock, label: "End to End Security" },
   { icon: Workflow, label: "Managed procurement support" },
 ];
 

@@ -5,10 +5,8 @@ import { TrustStrip } from "@/components/landing/TrustStrip";
 import { DirectSourcing } from "@/components/landing/DirectSourcing";
 import { HowItWorks } from "@/components/landing/HowItWorks";
 import { Comparison } from "@/components/landing/Comparison";
-import { ManufacturingNetwork } from "@/components/landing/ManufacturingNetwork";
 import { Categories } from "@/components/landing/Categories";
 import { FAQ } from "@/components/landing/FAQ";
-import { FinalCTA } from "@/components/landing/FinalCTA";
 
 export default function HomePage() {
   return (
@@ -20,10 +18,8 @@ export default function HomePage() {
         <DirectSourcing />
         <HowItWorks />
         <Comparison />
-        <ManufacturingNetwork />
         <Categories />
         <FAQ />
-        <FinalCTA />
       </main>
       <Footer />
     </>

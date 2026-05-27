@@ -63,7 +63,15 @@ interface BootstrapState {
  * in_handoff, inserts AI close + divider + AM welcome, returns them.
  * (Step 3 will add the AuthModal flow on 401.)
  */
-export function useChat() {
+interface UseChatOptions {
+  // Pass true to force /api/chat/start to create a brand-new chat_session
+  // (skipping the active-session lookup). Used by the marketing homepage
+  // chat preview / FAB so every open lands on a blank slate.
+  forceNew?: boolean;
+}
+
+export function useChat(options: UseChatOptions = {}) {
+  const { forceNew = false } = options;
   const [bootstrap, setBootstrap] = useState<BootstrapState | null>(null);
   const [bootstrapError, setBootstrapError] = useState<string | null>(null);
   const [bootstrapping, setBootstrapping] = useState(true);
@@ -106,7 +114,9 @@ export function useChat() {
       try {
         const url = targetSessionId
           ? `/api/chat/start?session_id=${encodeURIComponent(targetSessionId)}`
-          : "/api/chat/start";
+          : forceNew
+            ? "/api/chat/start?new=1"
+            : "/api/chat/start";
         const res = await fetch(url, { method: "GET" });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
@@ -160,7 +170,7 @@ export function useChat() {
     return () => {
       cancelled = true;
     };
-  }, [targetSessionId]);
+  }, [targetSessionId, forceNew]);
 
   // Browser back/forward keeps the URL and our state in sync — popstate
   // fires when the user navigates history without a page load. We mirror

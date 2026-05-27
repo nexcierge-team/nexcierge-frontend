@@ -11,9 +11,14 @@ export function HeroChatPreview() {
   const [initialMessage, setInitialMessage] = useState<string | undefined>(
     undefined,
   );
+  // Bumped on every open so HeroChatModal remounts and useChat re-fires
+  // with forceNew=true — guarantees a fresh chat_session per click rather
+  // than resuming the prior conversation.
+  const [openSeq, setOpenSeq] = useState(0);
 
   function openWith(message?: string) {
     setInitialMessage(message);
+    setOpenSeq((s) => s + 1);
     setModalOpen(true);
   }
 
@@ -28,14 +33,22 @@ export function HeroChatPreview() {
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.7, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
-        className="relative w-full max-w-md"
+        className="relative w-full max-w-md lg:max-w-lg"
       >
         <div
           aria-hidden
-          className="pointer-events-none absolute -inset-8 -z-10 rounded-[2.5rem] bg-gradient-to-b from-gray-100 to-transparent opacity-60 blur-2xl"
+          className="pointer-events-none absolute -inset-12 -z-10 rounded-[3rem] bg-gradient-to-br from-[#DCE8F8] via-white to-transparent opacity-90 blur-3xl"
+        />
+        <motion.div
+          aria-hidden
+          animate={{ opacity: [0.45, 0.8, 0.45] }}
+          transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+          className="pointer-events-none absolute -inset-8 -z-10 rounded-[2.75rem] bg-gradient-to-b from-[#0F2747]/10 to-transparent blur-2xl"
         />
 
-        <div
+        <motion.div
+          animate={{ y: [0, -6, 0] }}
+          transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
           role="button"
           tabIndex={0}
           aria-label="Open the sourcing concierge chat"
@@ -46,7 +59,7 @@ export function HeroChatPreview() {
               openWith();
             }
           }}
-          className="group block w-full cursor-pointer overflow-hidden rounded-3xl border border-gray-200 bg-white text-left shadow-[0_24px_80px_-24px_rgba(0,0,0,0.18)] transition-all duration-300 hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-[0_28px_96px_-24px_rgba(0,0,0,0.22)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0F2747] focus-visible:ring-offset-2"
+          className="group block w-full cursor-pointer overflow-hidden rounded-3xl border border-gray-200 bg-white text-left shadow-[0_40px_120px_-32px_rgba(15,39,71,0.35)] ring-1 ring-black/[0.03] transition-all duration-300 hover:-translate-y-1 hover:border-gray-300 hover:shadow-[0_48px_140px_-32px_rgba(15,39,71,0.45)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0F2747] focus-visible:ring-offset-2"
         >
           {/* Window chrome */}
           <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3.5">
@@ -109,14 +122,17 @@ export function HeroChatPreview() {
           <div className="border-t border-gray-100 bg-[#F7F8FA] px-5 py-2.5 text-center text-[11px] text-gray-500 transition-colors group-hover:bg-white group-hover:text-gray-700">
             Click anywhere to start chatting
           </div>
-        </div>
+        </motion.div>
       </motion.div>
 
-      <HeroChatModal
-        open={modalOpen}
-        initialMessage={initialMessage}
-        onClose={closeModal}
-      />
+      {openSeq > 0 && (
+        <HeroChatModal
+          key={openSeq}
+          open={modalOpen}
+          initialMessage={initialMessage}
+          onClose={closeModal}
+        />
+      )}
     </>
   );
 }
