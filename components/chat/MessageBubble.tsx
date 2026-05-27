@@ -106,7 +106,7 @@ export function MessageBubble({
             className={cn(
               "rounded-2xl px-4 py-3 text-[15px] leading-relaxed",
               isUser
-                ? "bg-gray-900 text-white whitespace-pre-wrap"
+                ? "bg-[#0F2747] text-white whitespace-pre-wrap"
                 : message.error
                   ? "bg-white border border-red-200 text-red-900 shadow-[0_1px_2px_rgba(0,0,0,0.03)]"
                   : "bg-white border border-gray-200 text-gray-900 shadow-[0_1px_2px_rgba(0,0,0,0.03)]",

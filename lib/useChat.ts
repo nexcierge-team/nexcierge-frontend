@@ -161,7 +161,7 @@ export function useChat(options: UseChatOptions = {}) {
         if (cancelled) return;
         console.error("chat bootstrap failed:", e);
         setBootstrapError(
-          "Couldn't start a chat session. Refresh to try again, or check the backend is running.",
+          "Couldn't start a chat session. Refresh to try again.",
         );
       } finally {
         if (!cancelled) setBootstrapping(false);
@@ -420,7 +420,7 @@ export function useChat(options: UseChatOptions = {}) {
           id: newMessageId(),
           role: "agent",
           content:
-            "Couldn't transfer to our account manager just now — please try again, or check the backend is running.",
+            "Couldn't transfer to our account manager just now — please try again.",
           error: true,
         },
       ]);

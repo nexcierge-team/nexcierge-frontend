@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Plus, MessageSquare, Loader2, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AccountMenu } from "@/components/auth/AccountMenu";
 import { useAuthUser } from "@/lib/useAuthUser";
+import { useRealtimeSessions } from "@/lib/useRealtimeSessions";
+import type { ChatSessionsRow } from "@/lib/supabase/types";
 
 interface ChatSidebarProps {
   // The currently-loaded chat_session id (drives the active-row highlight).
@@ -19,9 +21,6 @@ interface ChatSidebarProps {
   // navigate the user somewhere safe (e.g. /chat with no session_id
   // so a fresh one is created).
   onDeleteActive?: () => void;
-  // Used to refresh the list after navigation / handoff. Defaults to
-  // bootstrap-time only; passing a higher value forces a re-fetch.
-  refreshKey?: number;
 }
 
 interface SidebarSession {
@@ -31,12 +30,35 @@ interface SidebarSession {
   updated_at: string;
 }
 
+// Both the GET /api/chat/sessions response and a Realtime chat_sessions
+// row carry these four fields — narrow them to the sidebar's shape so
+// the fetch path and the live-update path produce identical entries.
+type SidebarSessionSource = Pick<
+  ChatSessionsRow,
+  "id" | "title" | "status" | "updated_at"
+>;
+
+function toSidebarSession(row: SidebarSessionSource): SidebarSession {
+  return {
+    id: row.id,
+    title: row.title,
+    status: row.status,
+    updated_at: row.updated_at,
+  };
+}
+
+// Most-recent first. Stable sort over a small (≤50) list.
+function sortByRecent(sessions: SidebarSession[]): SidebarSession[] {
+  return [...sessions].sort((a, b) =>
+    a.updated_at < b.updated_at ? 1 : a.updated_at > b.updated_at ? -1 : 0,
+  );
+}
+
 export function ChatSidebar({
   activeId,
   onNew,
   onSelect,
   onDeleteActive,
-  refreshKey,
 }: ChatSidebarProps) {
   const [sessions, setSessions] = useState<SidebarSession[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,6 +70,7 @@ export function ChatSidebar({
 
   // Re-fetch sessions whenever the auth identity changes (anonymous →
   // signed in, or vice versa). user.id flips on linkIdentity / signOut.
+  // Realtime takes over for incremental updates after this cold fetch.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -56,7 +79,8 @@ export function ChatSidebar({
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         if (cancelled) return;
-        setSessions(data.sessions ?? []);
+        const rows: SidebarSessionSource[] = data.sessions ?? [];
+        setSessions(sortByRecent(rows.map(toSidebarSession)));
       } catch (e) {
         console.error("sidebar fetch failed:", e);
       } finally {
@@ -66,7 +90,41 @@ export function ChatSidebar({
     return () => {
       cancelled = true;
     };
-  }, [refreshKey, user?.id]);
+  }, [user?.id]);
+
+  // Live deltas: new chat created anywhere (sidebar "+", seed flow,
+  // useChat bootstrap, or a second browser tab) → INSERT. Title /
+  // status / language change → UPDATE. Row deleted → DELETE.
+  const handleRealtimeInsert = useCallback((row: ChatSessionsRow) => {
+    const next = toSidebarSession(row);
+    setSessions((prev) => {
+      if (prev.some((s) => s.id === next.id)) return prev;
+      return sortByRecent([next, ...prev]);
+    });
+  }, []);
+
+  const handleRealtimeUpdate = useCallback((row: ChatSessionsRow) => {
+    const next = toSidebarSession(row);
+    setSessions((prev) => {
+      if (!prev.some((s) => s.id === next.id)) return prev;
+      return sortByRecent(prev.map((s) => (s.id === next.id ? next : s)));
+    });
+  }, []);
+
+  const handleRealtimeDelete = useCallback(
+    (id: string) => {
+      setSessions((prev) => prev.filter((s) => s.id !== id));
+      if (id === activeId) onDeleteActive?.();
+    },
+    [activeId, onDeleteActive],
+  );
+
+  useRealtimeSessions({
+    userId: user?.id ?? null,
+    onInsert: handleRealtimeInsert,
+    onUpdate: handleRealtimeUpdate,
+    onDelete: handleRealtimeDelete,
+  });
 
   async function handleNew() {
     if (creating) return;
@@ -75,8 +133,13 @@ export function ChatSidebar({
       const res = await fetch("/api/chat/sessions", { method: "POST" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      const id = data?.session?.id as string | undefined;
-      if (id) onNew(id);
+      const session = data?.session as SidebarSessionSource | undefined;
+      if (!session?.id) return;
+      // Optimistic same-tab update. The Realtime INSERT for this row
+      // dedups against the id check in handleRealtimeInsert, so this is
+      // a no-op for other tabs (they get the row via Realtime).
+      handleRealtimeInsert(session as ChatSessionsRow);
+      onNew(session.id);
     } catch (e) {
       console.error("create session failed:", e);
     } finally {
@@ -97,8 +160,10 @@ export function ChatSidebar({
       if (!res.ok && res.status !== 204) {
         throw new Error(`HTTP ${res.status}`);
       }
-      setSessions((prev) => prev.filter((s) => s.id !== sessionId));
-      if (sessionId === activeId) onDeleteActive?.();
+      // Optimistic same-tab removal. The Realtime DELETE filter on
+      // handleRealtimeDelete already dedups against missing ids, so the
+      // eventual cross-tab broadcast is a no-op locally.
+      handleRealtimeDelete(sessionId);
     } catch (e) {
       console.error("delete session failed:", e);
       window.alert("Couldn't delete that conversation. Please try again.");

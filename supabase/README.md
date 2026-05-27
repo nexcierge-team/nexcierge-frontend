@@ -87,7 +87,11 @@ Re-run after every migration. The generated `Database` type powers compile-time 
 
 ## 9. Realtime configuration
 
-Already handled by migration `0002` (`alter publication supabase_realtime add table public.chat_messages`). Confirm in the dashboard under **Database → Replication → supabase_realtime** that `public.chat_messages` is checked.
+Handled by two migrations:
+- `0002` adds `public.chat_messages` to the publication — powers the per-session live chat (`lib/useRealtimeChat.ts`).
+- `0009` adds `public.chat_sessions` to the publication and sets `replica identity full` — powers the live sidebar (`lib/useRealtimeSessions.ts`), so new chats, generated titles, and `ai → in_handoff → closed` status flips appear without a refresh.
+
+Confirm in the dashboard under **Database → Replication → supabase_realtime** that both `public.chat_messages` and `public.chat_sessions` are checked. If `chat_sessions` is missing, re-run migration `0009` (or check it manually in the dashboard).
 
 ## Manual AM promotion
 

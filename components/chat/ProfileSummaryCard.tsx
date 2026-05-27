@@ -124,11 +124,13 @@ export function ProfileSummaryCard({
         </p>
         {reviewRequested ? (
           <span
-            className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700"
             aria-live="polite"
           >
-            <Check className="h-3 w-3" strokeWidth={2.25} />
-            Transferring to our account manager…
+            <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-white">
+              <Check className="h-2.5 w-2.5" strokeWidth={3} />
+            </span>
+            Transferred
           </span>
         ) : (
           <Button

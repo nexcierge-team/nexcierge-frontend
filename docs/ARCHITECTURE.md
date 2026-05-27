@@ -52,7 +52,7 @@ components/
 ├── auth/
 │   └── AuthModal.tsx       Google + magic-link, opens on 401 from /api/request-review
 ├── chat/
-│   ├── ChatSidebar.tsx     Real session list from /api/chat/sessions
+│   ├── ChatSidebar.tsx     Real session list from /api/chat/sessions, kept live via useRealtimeSessions
 │   ├── ChatComposer.tsx
 │   ├── LanguagePicker.tsx  Header dropdown — buyer's output-language selector
 │   ├── MessageBubble.tsx   `viewerRole` prop flips alignment for AM view;
@@ -211,9 +211,13 @@ Defence in depth against (a) anonymous-signup spam filling `auth.users` and (b) 
 
 ## Realtime model
 
-Both buyer and AM clients subscribe to `chat_messages` filtered by `chat_session_id`. Inserts are broadcast and rendered. Dedup is handled with a `seenIds` `Set`:
+Two tables are published to `supabase_realtime`: `chat_messages` (per-session live chat) and `chat_sessions` (per-user live sidebar). RLS scopes each subscription naturally — buyers only receive events on rows they own; AMs receive events on sessions they're assigned to (or unclaimed handoffs).
+
+**Per-session channel — `chat_messages`** (`lib/useRealtimeChat.ts`). Both buyer and AM clients subscribe filtered by `chat_session_id`. Inserts are broadcast and rendered. Dedup is handled with a `seenIds` `Set`:
 - POST responses add the returned message id to the set before the realtime event arrives.
 - The realtime handler checks `seenIds.has(row.id)` and skips if already rendered.
+
+**Per-user channel — `chat_sessions`** (`lib/useRealtimeSessions.ts`). The chat sidebar subscribes filtered by `user_id`. INSERT lights up new conversations the moment they're created (sidebar `+` button, homepage seed flow, or any other tab). UPDATE re-renders the row's title and subtitle live when the AI generates a title, when status flips `ai → in_handoff → closed`, or when language changes. DELETE removes the row across every tab and falls back to `onDeleteActive` if the deleted session was active. The sidebar does one cold GET on mount; everything after is event-driven, no polling, no `refreshKey` plumbing.
 
 No polling. No SSE. Tab-visibility-aware reconnect is not yet wired (Step 7 polish).
 

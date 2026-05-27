@@ -301,7 +301,7 @@ export default function DashboardPage() {
     return (
       <GateScreen
         title="Inbox couldn't load"
-        body="Refresh the page to try again. If this keeps happening, check the backend logs."
+        body="Refresh the page to try again."
       />
     );
   }

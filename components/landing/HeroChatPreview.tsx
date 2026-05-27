@@ -156,7 +156,7 @@ function Bubble({
       <div
         className={`max-w-[88%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
           role === "user"
-            ? "bg-gray-900 text-white"
+            ? "bg-[#0F2747] text-white"
             : "bg-gray-100 text-gray-900"
         }`}
       >
