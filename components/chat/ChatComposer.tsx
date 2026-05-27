@@ -55,7 +55,10 @@ export function ChatComposer({
         placeholder={placeholder ?? "Message Nexcierge…"}
         rows={rows}
         className={cn(
-          "w-full resize-none rounded-2xl border border-gray-200 bg-white px-5 py-3.5 pr-14 text-[15px] text-gray-900 placeholder:text-gray-400 shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-colors focus:border-gray-400 focus:outline-none",
+          // text-base (16px) below sm: prevents iOS Safari from auto-zooming
+          // when the textarea is focused — anything <16px triggers the zoom.
+          // Desktop keeps the original tighter 15px.
+          "w-full resize-none rounded-2xl border border-gray-200 bg-white px-5 py-3.5 pr-14 text-base text-gray-900 placeholder:text-gray-400 shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-colors focus:border-gray-400 focus:outline-none sm:text-[15px]",
           // Hide the textarea's scrollbar (auto-resize handles vertical growth up to max-height)
           "scrollbar-none [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]",
         )}

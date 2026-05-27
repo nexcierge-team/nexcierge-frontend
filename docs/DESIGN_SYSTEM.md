@@ -52,6 +52,12 @@ Focus ring: `ring-[#0F2747]` (midnight navy) on all variants.
 - Chat bubbles: `space-y-5` between messages, `rounded-2xl px-4 py-3`
 - Cards: `rounded-2xl border border-gray-200`, `p-5`–`p-7` content padding
 
+### Mobile-web safe areas
+
+- `app/layout.tsx` exports `viewport: Viewport` with `viewportFit: "cover"` so iOS extends content under the dynamic island and home indicator. The `pt-safe` / `pb-safe` / `pl-safe` / `pr-safe` utilities in `app/globals.css` (Tailwind v4 `@utility`) carve the unsafe regions back out. Use them on any fixed-position chrome that touches a viewport edge — the chat header (`pt-safe`), the composer footer (`pb-safe` on a wrapper, **not** on the same element as the base `py-*`, since `max(env(...), 0px)` collapses to 0 on non-iOS), the mobile drawer, and the AuthModal overlay.
+- Chat shell uses `h-[100dvh]` (dynamic viewport height) rather than `h-screen` / `100vh` so iOS Safari's collapsing URL bar doesn't push the composer behind the home indicator.
+- `ChatSidebar` is a mobile drawer below `md:` (fixed off-canvas + backdrop + Escape/select close) and reverts to an inline `md:static` column at `md:` and above. The hamburger trigger in the chat header is `md:hidden`.
+
 ## Component patterns
 
 ### Chat input

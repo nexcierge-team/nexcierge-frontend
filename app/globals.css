@@ -67,6 +67,11 @@ html {
   -moz-osx-font-smoothing: grayscale;
 }
 
+html,
+body {
+  overscroll-behavior-y: contain;
+}
+
 body {
   background: var(--color-canvas);
   color: var(--color-text);
@@ -75,6 +80,23 @@ body {
     "calt" 1,
     "ss01" 1;
   font-family: var(--font-sans);
+}
+
+/* Safe-area utilities — pair with viewport-fit=cover in app/layout.tsx.
+ * Use on the chat header (top), composer footer (bottom), sidebar
+ * (vertical), and AuthModal overlay so notches / home indicators / the
+ * dynamic island don't overlap interactive content on iOS Safari. */
+@utility pt-safe {
+  padding-top: max(env(safe-area-inset-top), 0px);
+}
+@utility pb-safe {
+  padding-bottom: max(env(safe-area-inset-bottom), 0px);
+}
+@utility pl-safe {
+  padding-left: max(env(safe-area-inset-left), 0px);
+}
+@utility pr-safe {
+  padding-right: max(env(safe-area-inset-right), 0px);
 }
 
 ::-webkit-scrollbar {

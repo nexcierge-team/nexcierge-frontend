@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 
@@ -7,6 +7,15 @@ const inter = Inter({
   subsets: ["latin"],
   display: "swap",
 });
+
+// viewport-fit=cover lets iOS extend the page into the dynamic island /
+// home-indicator area, then the `pt-safe` / `pb-safe` utilities defined
+// in globals.css carve the unsafe regions back out where it matters.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
 
 export const metadata: Metadata = {
   title: "Nexcierge — Source industrial machinery from China, intelligently.",

@@ -80,6 +80,11 @@ export function MessageBubble({
   const primaryText = showTranslation
     ? (message.translatedContent as string)
     : message.content;
+  // When the agent attaches the RFQ summary card, let it use the full
+  // chat-column width on mobile — capping at 88% squeezes the card and
+  // its "Request human review" CTA on narrow screens. Plain text bubbles
+  // keep the 88% cap so they read as messages, not full-width banners.
+  const hasProfileCard = !!message.profileCard;
   return (
     <motion.div
       initial={{ opacity: 0, y: 6 }}
@@ -89,7 +94,10 @@ export function MessageBubble({
     >
       <div
         className={cn(
-          "flex max-w-[88%] flex-col gap-3",
+          "flex flex-col gap-3",
+          hasProfileCard
+            ? "w-full max-w-full sm:max-w-[88%]"
+            : "max-w-[88%]",
           isUser ? "items-end" : "items-start",
         )}
       >

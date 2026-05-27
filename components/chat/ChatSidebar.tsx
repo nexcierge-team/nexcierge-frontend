@@ -21,6 +21,13 @@ interface ChatSidebarProps {
   // navigate the user somewhere safe (e.g. /chat with no session_id
   // so a fresh one is created).
   onDeleteActive?: () => void;
+  // Mobile drawer control. On desktop (md+) the sidebar is always
+  // visible and these props are ignored. On mobile the sidebar is
+  // off-canvas by default and slides in when `open` is true; selecting
+  // a chat, creating a new one, tapping the backdrop, or pressing
+  // Escape all call onClose.
+  open?: boolean;
+  onClose?: () => void;
 }
 
 interface SidebarSession {
@@ -59,6 +66,8 @@ export function ChatSidebar({
   onNew,
   onSelect,
   onDeleteActive,
+  open = false,
+  onClose,
 }: ChatSidebarProps) {
   const [sessions, setSessions] = useState<SidebarSession[]>([]);
   const [loading, setLoading] = useState(true);
@@ -126,6 +135,22 @@ export function ChatSidebar({
     onDelete: handleRealtimeDelete,
   });
 
+  // Mobile drawer: Escape closes. Desktop ignores (onClose is undefined
+  // when the parent doesn't wire drawer behavior).
+  useEffect(() => {
+    if (!open || !onClose) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose?.();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
+  function handleSelectAndClose(sessionId: string) {
+    onSelect(sessionId);
+    onClose?.();
+  }
+
   async function handleNew() {
     if (creating) return;
     setCreating(true);
@@ -140,6 +165,7 @@ export function ChatSidebar({
       // a no-op for other tabs (they get the row via Realtime).
       handleRealtimeInsert(session as ChatSessionsRow);
       onNew(session.id);
+      onClose?.();
     } catch (e) {
       console.error("create session failed:", e);
     } finally {
@@ -173,7 +199,25 @@ export function ChatSidebar({
   }
 
   return (
-    <aside className="hidden h-full w-72 shrink-0 flex-col border-r border-gray-200 bg-[#F7F8FA] md:flex">
+    <>
+      {/* Mobile-only backdrop. Desktop never renders it (md:hidden) and
+          the parent leaves `open` falsy when the sidebar is inline. */}
+      {open && (
+        <div
+          className="fixed inset-0 z-30 bg-gray-900/40 backdrop-blur-sm md:hidden"
+          onClick={onClose}
+          aria-hidden
+        />
+      )}
+      <aside
+        className={cn(
+          // Mobile: off-canvas fixed drawer that slides in from the left.
+          "fixed inset-y-0 left-0 z-40 flex h-full w-[85%] max-w-[18rem] shrink-0 flex-col border-r border-gray-200 bg-[#F7F8FA] pt-safe pb-safe transition-transform duration-200 ease-out",
+          // Desktop: inline flex child, always visible, no transform.
+          "md:static md:w-72 md:max-w-none md:translate-x-0 md:pt-0 md:pb-0",
+          open ? "translate-x-0" : "-translate-x-full",
+        )}
+      >
       <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
         <Link
           href="/"
@@ -222,7 +266,7 @@ export function ChatSidebar({
                   )}
                 >
                   <button
-                    onClick={() => onSelect(s.id)}
+                    onClick={() => handleSelectAndClose(s.id)}
                     disabled={isDeleting}
                     className="flex w-full items-start gap-3 rounded-lg px-3 py-2.5 pr-9 text-left disabled:cursor-not-allowed"
                   >
@@ -290,5 +334,6 @@ export function ChatSidebar({
         <AccountMenu variant="compact" redirectTo="/chat" />
       </div>
     </aside>
+    </>
   );
 }

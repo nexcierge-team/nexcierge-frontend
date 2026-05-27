@@ -3,7 +3,7 @@
 import { Suspense, useState, useRef, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles } from "lucide-react";
+import { Menu, Sparkles } from "lucide-react";
 import { ChatSidebar } from "@/components/chat/ChatSidebar";
 import { ChatComposer } from "@/components/chat/ChatComposer";
 import { LanguagePicker } from "@/components/chat/LanguagePicker";
@@ -62,6 +62,10 @@ function ChatPageInner() {
     setLanguage,
   } = useChat({ forceNew: entry.forceNew });
   const [input, setInput] = useState("");
+  // Mobile drawer state for ChatSidebar. Desktop ignores it (sidebar is
+  // always inline at md+). Reset to closed on session switch so the
+  // newly-loaded chat is the foreground after the drawer dismissal.
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   const seedSentRef = useRef(false);
 
@@ -110,7 +114,10 @@ function ChatPageInner() {
   const isEmpty = !bootstrapping && messages.length === 0 && !bootstrapError;
 
   return (
-    <div className="flex h-screen bg-white">
+    // h-[100dvh] tracks the iOS Safari dynamic viewport (collapsing URL
+    // bar) where h-screen / 100vh would over-extend behind the bottom
+    // chrome and push the composer behind the home indicator.
+    <div className="flex h-[100dvh] overflow-hidden bg-white">
       <ChatSidebar
         activeId={sessionId ?? undefined}
         onNew={(id) => switchSession(id)}
@@ -120,15 +127,25 @@ function ChatPageInner() {
           // active or create one" by switching with no session_id.
           switchSession(null);
         }}
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
       />
 
       <div className="flex h-full min-w-0 flex-1 flex-col">
-        <div className="flex items-center justify-between border-b border-gray-200 bg-white/80 px-6 py-4 backdrop-blur-xl">
-          <div className="flex items-center gap-2 text-sm font-medium text-gray-900">
-            <Sparkles className="h-4 w-4 text-[#0F2747]" strokeWidth={1.75} />
-            Sourcing concierge
+        <div className="flex items-center justify-between border-b border-gray-200 bg-white/80 px-4 pt-safe backdrop-blur-xl sm:px-6">
+          <div className="flex min-w-0 items-center gap-2 py-4 text-sm font-medium text-gray-900">
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(true)}
+              aria-label="Open chat history"
+              className="-ml-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 md:hidden"
+            >
+              <Menu className="h-5 w-5" strokeWidth={1.75} />
+            </button>
+            <Sparkles className="h-4 w-4 shrink-0 text-[#0F2747]" strokeWidth={1.75} />
+            <span className="truncate">Sourcing concierge</span>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex shrink-0 items-center gap-3 py-4">
             <LanguagePicker
               value={language}
               onChange={setLanguage}
@@ -159,7 +176,7 @@ function ChatPageInner() {
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.25 }}
-                  className="mx-auto flex h-full max-w-2xl flex-col items-center justify-center px-6"
+                  className="mx-auto flex h-full max-w-2xl flex-col items-center justify-center px-4 sm:px-6"
                 >
                   <div className="w-full">
                     <h1 className="text-center text-3xl font-semibold tracking-[-0.015em] text-gray-900 sm:text-4xl">
@@ -206,7 +223,7 @@ function ChatPageInner() {
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.2 }}
-                  className="mx-auto max-w-3xl px-6 py-10"
+                  className="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-10"
                 >
                   <div className="space-y-5">
                     {messages.map((m, i) => (
@@ -236,8 +253,11 @@ function ChatPageInner() {
         </div>
 
         {!isEmpty && !bootstrapError && (
-          <div className="border-t border-gray-200 bg-white px-6 py-4">
-            <div className="mx-auto max-w-3xl">
+          // pb-safe on the outer carves the home-indicator gap below the
+          // composer's normal py-* rhythm — without the wrapper the inset
+          // would override py-3 instead of adding to it.
+          <div className="border-t border-gray-200 bg-white pb-safe">
+            <div className="mx-auto max-w-3xl px-4 py-3 sm:px-6 sm:py-4">
               <ChatComposer
                 value={input}
                 onChange={setInput}

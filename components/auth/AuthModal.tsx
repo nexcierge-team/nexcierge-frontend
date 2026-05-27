@@ -143,7 +143,7 @@ export function AuthModal({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 p-4 pt-safe pb-safe pl-safe pr-safe backdrop-blur-sm"
           onClick={isLoading ? undefined : onClose}
           role="dialog"
           aria-modal="true"

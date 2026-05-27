@@ -118,7 +118,7 @@ export function ProfileSummaryCard({
         )}
       </div>
 
-      <div className="flex items-center justify-between gap-3 border-t border-gray-100 bg-[#F7F8FA] px-5 py-3">
+      <div className="flex flex-col items-stretch gap-3 border-t border-gray-100 bg-[#F7F8FA] px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-[11px] leading-relaxed text-gray-500">
           Our account manager will get back to you within 24 hours.
         </p>
@@ -138,6 +138,7 @@ export function ProfileSummaryCard({
             variant="accent"
             disabled={reviewSubmitting}
             onClick={onRequestReview}
+            className="w-full justify-center sm:w-auto"
           >
             {reviewSubmitting ? (
               <>
@@ -186,7 +187,9 @@ function Field({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-baseline gap-2 text-xs">
       <dt className="shrink-0 text-gray-400">{label}</dt>
-      <dd className="truncate font-medium text-gray-800">{value}</dd>
+      <dd className="min-w-0 break-words font-medium text-gray-800">
+        {value}
+      </dd>
     </div>
   );
 }
