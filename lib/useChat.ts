@@ -265,6 +265,9 @@ export function useChat(options: UseChatOptions = {}) {
           nowComplete &&
           profileSnapshot !== lastAttachedProfile;
         if (attachCard) setLastAttachedProfile(profileSnapshot);
+        const suggestions = Array.isArray(data.suggestions)
+          ? (data.suggestions as string[])
+          : undefined;
 
         // POST is now the sole source of truth for AI message rendering
         // (Realtime filters sender_type='ai'). Unconditionally append.
@@ -278,6 +281,7 @@ export function useChat(options: UseChatOptions = {}) {
             role: "agent",
             content: replyText,
             profileCard: attachCard ? profile : undefined,
+            suggestions: suggestions && suggestions.length > 0 ? suggestions : undefined,
           },
         ]);
 

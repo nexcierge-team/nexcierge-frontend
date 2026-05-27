@@ -92,36 +92,42 @@ export const MACHINERY_CATEGORIES = [
     description:
       "PET bottle blowers, form-fill-seal, carton sealing, labelling, wrapping.",
     examples: "PET · VFFS · Cartoners · Labelers",
+    seed: "I'm looking for packaging machinery.",
   },
   {
     title: "CNC / Metalworking",
     description:
       "Lathes, mills, press brakes, fiber laser cutters, machining centers.",
     examples: "Lathes · Mills · Brakes · Lasers",
+    seed: "I'm looking for CNC / metalworking machinery.",
   },
   {
     title: "Plastic Machinery",
     description:
       "Injection molding, extrusion, blow molding, granulators, mold tooling.",
     examples: "Injection · Extrusion · Blow",
+    seed: "I'm looking for plastic machinery.",
   },
   {
     title: "Food Processing",
     description:
       "Mixers, grinders, ovens, retorts, dryers, hygienic conveyors.",
     examples: "Mixers · Ovens · Conveyors",
+    seed: "I'm looking for food processing machinery.",
   },
   {
     title: "Textile Machinery",
     description:
       "Embroidery, weaving, dyeing, printing, cutting, garment production.",
     examples: "Embroidery · Dyeing · Cutting",
+    seed: "I'm looking for textile machinery.",
   },
   {
     title: "Industrial Automation",
     description:
       "PLCs, robotic arms, vision systems, conveyors, assembly cells.",
     examples: "PLCs · Robotics · Vision",
+    seed: "I'm looking for industrial automation equipment.",
   },
 ];
 

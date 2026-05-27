@@ -116,6 +116,7 @@ export async function POST(req: Request) {
     reply: string;
     profile: ReturnType<typeof rfqRowToProfile>;
     profile_complete: boolean;
+    suggestions?: string[];
   };
   try {
     const res = await fetch(`${BACKEND_URL}/chat`, {
@@ -175,5 +176,12 @@ export async function POST(req: Request) {
     profile_complete: updatedRfq.is_complete,
     review_requested: false,
     ai_skipped: false,
+    // Pass-through. Session-only — not persisted on chat_messages, so
+    // these pills only show in the same browser session that produced
+    // them. Adding a `suggestions jsonb` column to chat_messages would
+    // make them survive refresh.
+    suggestions: Array.isArray(backendData.suggestions)
+      ? backendData.suggestions
+      : [],
   });
 }

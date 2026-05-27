@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { Suspense, useState, useRef, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles } from "lucide-react";
 import { ChatSidebar } from "@/components/chat/ChatSidebar";
@@ -15,6 +16,32 @@ import { SUGGESTED_PROMPTS } from "@/lib/mockData";
 import { useChat } from "@/lib/useChat";
 
 export default function ChatPage() {
+  // useSearchParams forces client-side rendering for this route, so we
+  // wrap the inner component in Suspense to satisfy Next's CSR-bailout
+  // requirement during static prerendering. The fallback is intentionally
+  // empty — the page renders instantly on the client anyway.
+  return (
+    <Suspense fallback={null}>
+      <ChatPageInner />
+    </Suspense>
+  );
+}
+
+function ChatPageInner() {
+  // Category cards on the homepage send users here with
+  // `?seed=<prompt>&new=1` to start a fresh chat pre-filled with the
+  // category they picked. We use next/navigation's useSearchParams so
+  // the values are correct on both SSR and client (window.location is
+  // only available on the client, and a useMemo guarded with
+  // `typeof window` returns stale nulls after hydration).
+  const searchParams = useSearchParams();
+  // Freeze entry on the first render so stripping the params later
+  // doesn't flip forceNew back to false and re-trigger bootstrap.
+  const [entry] = useState(() => ({
+    seed: searchParams.get("seed"),
+    forceNew: searchParams.get("new") === "1",
+  }));
+
   const {
     sessionId,
     messages,
@@ -33,13 +60,38 @@ export default function ChatPage() {
     switchSession,
     language,
     setLanguage,
-  } = useChat();
+  } = useChat({ forceNew: entry.forceNew });
   const [input, setInput] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
+  const seedSentRef = useRef(false);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
+
+  // Auto-send the seed once the session is bootstrapped and still empty.
+  // We strip the query params after sending so a refresh doesn't replay
+  // the seed into a new session.
+  useEffect(() => {
+    if (seedSentRef.current) return;
+    if (!entry.seed) return;
+    // Wait for bootstrap to fully resolve — sessionId becomes truthy
+    // partway through, but bootstrapping=false is the all-clear that
+    // sendMessage's internal `!sessionId` guard will pass.
+    if (bootstrapping || !sessionId) return;
+    if (messages.length > 0) return;
+    seedSentRef.current = true;
+    void sendMessage(entry.seed);
+    const url = new URL(window.location.href);
+    url.searchParams.delete("seed");
+    url.searchParams.delete("new");
+    const q = url.searchParams.toString();
+    window.history.replaceState(
+      {},
+      "",
+      url.pathname + (q ? `?${q}` : ""),
+    );
+  }, [entry.seed, bootstrapping, sessionId, messages.length, sendMessage]);
 
   async function send(text: string) {
     const trimmed = text.trim();
@@ -157,7 +209,7 @@ export default function ChatPage() {
                   className="mx-auto max-w-3xl px-6 py-10"
                 >
                   <div className="space-y-5">
-                    {messages.map((m) => (
+                    {messages.map((m, i) => (
                       <MessageBubble
                         key={m.id}
                         message={m}
@@ -167,6 +219,11 @@ export default function ChatPage() {
                         onRetry={retry}
                         retryDisabled={loading}
                         sessionLanguage={language}
+                        onSuggestion={
+                          i === messages.length - 1 && !loading
+                            ? send
+                            : undefined
+                        }
                       />
                     ))}
                     {(loading || otherIsTyping) && <TypingIndicator />}

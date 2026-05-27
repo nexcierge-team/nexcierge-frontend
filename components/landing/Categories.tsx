@@ -30,7 +30,7 @@ export function Categories() {
               }}
             >
               <Link
-                href="/chat"
+                href={`/chat?new=1&seed=${encodeURIComponent(c.seed)}`}
                 className="group relative flex h-full flex-col justify-between rounded-2xl border border-gray-200 bg-white p-7 transition-all duration-200 hover:border-gray-300 hover:shadow-[0_8px_30px_-12px_rgba(0,0,0,0.08)]"
               >
                 <div>

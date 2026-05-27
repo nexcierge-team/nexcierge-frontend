@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { FloatingChatButton } from "@/components/landing/FloatingChatButton";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -32,10 +31,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${inter.variable} h-full antialiased`}>
-      <body className="min-h-full bg-white text-gray-900">
-        {children}
-        <FloatingChatButton />
-      </body>
+      <body className="min-h-full bg-white text-gray-900">{children}</body>
     </html>
   );
 }

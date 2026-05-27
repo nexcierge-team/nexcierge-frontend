@@ -170,7 +170,7 @@ export function HeroChatModal({
                 </div>
               ) : (
                 <div className="space-y-5">
-                  {messages.map((m) => (
+                  {messages.map((m, i) => (
                     <MessageBubble
                       key={m.id}
                       message={m}
@@ -180,6 +180,11 @@ export function HeroChatModal({
                       onRetry={retry}
                       retryDisabled={loading}
                       sessionLanguage={language}
+                      onSuggestion={
+                        i === messages.length - 1 && !loading
+                          ? sendMessage
+                          : undefined
+                      }
                     />
                   ))}
                   {(loading || otherIsTyping) && <TypingIndicator />}

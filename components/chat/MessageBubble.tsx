@@ -34,6 +34,11 @@ interface MessageBubbleProps {
   // text and the English original as a muted secondary line. Ignored
   // for account_manager viewers (AM always sees the English original).
   sessionLanguage?: string;
+  // Quick-reply pill click handler. Only wired for the buyer viewer on
+  // the latest agent message — parent decides which bubble is "latest"
+  // and only passes the handler there. Sends the pill's text as a
+  // regular user message.
+  onSuggestion?: (text: string) => void;
 }
 
 export function MessageBubble({
@@ -45,6 +50,7 @@ export function MessageBubble({
   retryDisabled,
   viewerRole = "buyer",
   sessionLanguage = "en",
+  onSuggestion,
 }: MessageBubbleProps) {
   if (message.role === "divider") {
     return <Divider label={message.content} />;
@@ -150,6 +156,30 @@ export function MessageBubble({
             onRequestReview={onRequestReview}
           />
         )}
+
+        {/* Quick-reply pills — only rendered when the parent passes an
+            onSuggestion handler (which it only does for the latest
+            agent message). Clicking sends the pill text as a regular
+            user message. */}
+        {!isUser &&
+          !isAccountManager &&
+          !message.error &&
+          onSuggestion &&
+          message.suggestions &&
+          message.suggestions.length > 0 && (
+            <div className="flex flex-wrap gap-2 pt-1">
+              {message.suggestions.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => onSuggestion(s)}
+                  className="rounded-full border border-gray-200 bg-white px-3.5 py-1.5 text-[13px] text-gray-700 shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-all duration-150 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900 active:translate-y-px"
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
 
         {/* Read receipt under outgoing messages only — incoming bubbles
             don't need to tell the sender "I've read this". */}
