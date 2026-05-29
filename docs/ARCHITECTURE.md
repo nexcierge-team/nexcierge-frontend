@@ -36,7 +36,8 @@ app/
     │   └── sessions/
     │       ├── route.ts                         GET (list) + POST (create new)
     │       └── [id]/
-    │           └── language/route.ts            PATCH — buyer-selected output language
+    │           ├── route.ts                     DELETE — soft-delete a session
+    │           └── mark-read/route.ts           POST — buyer-side read receipts
     ├── request-review/route.ts   POST — auth-gated handoff: HubSpot + DB + closing messages
     └── am/
         ├── inbox/route.ts                   GET — AM-only brief inbox
@@ -54,7 +55,6 @@ components/
 ├── chat/
 │   ├── ChatSidebar.tsx     Real session list from /api/chat/sessions, kept live via useRealtimeSessions
 │   ├── ChatComposer.tsx
-│   ├── LanguagePicker.tsx  Header dropdown — buyer's output-language selector
 │   ├── MessageBubble.tsx   `viewerRole` prop flips alignment for AM view;
 │   │                         `sessionLanguage` prop drives translated/original dual render for AM bubbles
 │   └── ProfileSummaryCard.tsx
@@ -63,13 +63,12 @@ components/
 lib/
 ├── utils.ts
 ├── constants.ts            HANDOFF_REPLY, accountManagerWelcome, firstNameFromFull
-├── languages.ts            SUPPORTED_LANGUAGES + isSupportedLanguage (mirror of backend/app/languages.py)
 ├── rateLimit.ts            checkRateLimit / rateLimited429 / getClientIp — Postgres-backed fixed-window limiter
-├── translate.ts            translateText() — thin wrapper over FastAPI /translate
+├── translate.ts            translateText() + detectLanguage() — thin wrappers over FastAPI /translate + /detect-language
 ├── useChat.ts              Hook: bootstraps from /api/chat/start, persists via POST /api/chat,
 │                             subscribes to Supabase Realtime, opens AuthModal on 401 from handoff,
 │                             auto-resumes handoff after OAuth round-trip via ?resume=handoff,
-│                             exposes language + setLanguage (PATCHes /api/chat/sessions/[id]/language)
+│                             exposes language (read-only — populated server-side by first-turn detection)
 ├── supabase/
 │   ├── env.ts              Validated env var accessors
 │   ├── browser.ts          createBrowserClient (memoised per tab)
@@ -82,7 +81,8 @@ lib/
 │   ├── sessions.ts         findActive / create / get / list / tryClaimHandoff / revertHandoff
 │   ├── messages.ts         list / insert / insertMany
 │   └── rfqs.ts             get / create / update / mark submitted +
-│                             rfqRowToProfile / profileToRfqUpdate converters
+│                             rfqRowToProfile / profileToRfqUpdate converters +
+│                             getLatestBuyerIdentity (returning-buyer prefill)
 └── hubspot/
     ├── client.ts           getHubspotClient + hubspotEnabled feature flag
     └── sync.ts             syncBriefToHubspot (upsert contact → create deal → associate)
@@ -114,7 +114,7 @@ useChat → GET /api/chat/start
             │     ↓
             │     createSession() → new chat_sessions row owned by anon user
             │
-            └─ createRfq() → empty rfqs row
+            └─ createRfq() → new rfqs row, identity prefilled if any prior rfq for this user has a non-empty business_email (see "Returning-buyer identity reuse" below)
    │
    ▼
 Returns: user, session, [], empty profile, profile_complete=false
@@ -168,15 +168,27 @@ The Nexcierge Sourcing pipeline progresses through stages as real work happens, 
 
 Auto-advance is **non-fatal** by contract: every call site swallows HubSpot errors and logs them, because a CRM glitch must never fail the underlying user action (a claim succeeding in Supabase but failing in HubSpot is a reconciliation problem, not a user-visible failure). The advancement is also gated on the stage-id env var being set, so the code can ship before HubSpot is configured and degrades to "no auto-advance" cleanly.
 
-## Buyer-selected output language
+## Returning-buyer identity reuse
 
-Buyers pick their output language from a dropdown in the chat header (mounted on both `/chat` and the `HeroChatModal` on `/`). The choice persists on `chat_sessions.language` (ISO 639-1, default `'en'`) via `PATCH /api/chat/sessions/[id]/language`.
+A buyer's `auth.users.id` is stable across sessions (cookie-bound for anonymous users, preserved through `linkIdentity` / `updateUser` on promotion), and `transferRfqsOwnership` keeps prior RFQs attached to that same id after sign-in. So once a buyer has filled name / company / email in any past RFQ, that identity is reachable on every later visit.
 
-**AI replies.** Every `/api/chat` POST forwards `session.language` to FastAPI. When non-`en`, the backend appends an `# OUTPUT LANGUAGE (HARD OVERRIDE)` directive on top of `SYSTEM_PROMPT` so Gemini responds in the target language regardless of what the buyer types. Zero extra calls — language is baked into the same turn.
+`createRfq` (`lib/db/rfqs.ts`) calls `getLatestBuyerIdentity(supabase, userId)` before inserting and spreads any returned `{full_name, company_name, business_email, phone_number, job_role}` over the empty defaults. The query takes the newest RFQ row owned by this user with a non-empty `business_email` — using `business_email` rather than `is_complete` because a buyer who reached the identity step but bailed before completing logistics is still a valid identity source. Request-specific fields (`machine_type`, delivery, timeline, etc.) are deliberately NOT carried over — every request is its own brief.
+
+The backend recognises the returning-buyer case from existing signals: when `/chat` arrives with empty `history` and `buyer_info.business_email` non-empty, `_profile_state_note` appends a one-shot instruction telling Gemini to open with a brief acknowledgement of the prefilled identity and invite correction. No new request or DB field. If the buyer corrects an identity field mid-chat, `update_buyer_profile` overwrites the value in the current RFQ, and the next session's prefill reads the corrected value (newest-RFQ-wins ordering).
+
+`public.users` is intentionally NOT used as the identity source. It already mirrors `auth.users.email` + `full_name` via the `handle_auth_user` trigger, but the broader fields (`company_name`, `business_email`, `phone_number`, `job_role`) live only on `rfqs`. Treating the newest RFQ as the identity record keeps the source of truth singular and avoids a sync layer; revisit if a separate profile-management surface ever lands.
+
+## Output language (auto-detected)
+
+There is no language picker — Gemini mirrors the buyer's language naturally. The buyer types in their language, the agent detects from the first message and replies in kind. `chat_sessions.language` (ISO 639-1, default `'en'`) is still tracked, but it's now populated by a server-side classifier so AM-side translation has a target.
+
+**Detection.** On the buyer's first user message, `/api/chat` calls FastAPI `/detect-language` (Flash-Lite, ~1s) before forwarding to `/chat`. If the detected code differs from the stored `'en'` default we persist it to `chat_sessions.language`. Subsequent turns skip detection — Gemini handles language continuity from history. Short messages (< 4 chars) are skipped to avoid false positives on "hi"/"ok".
+
+**AI replies.** `/api/chat` forwards `session.language` to FastAPI on every turn. When non-`en`, the backend appends an `# OUTPUT LANGUAGE (LOCKED FOR THIS SESSION)` directive on top of `SYSTEM_PROMPT` so a single English-flecked buyer message can't flip Gemini back to English mid-conversation. When still `en`, the base prompt's "mirror the buyer's language" rule handles detection on its own.
 
 **AM replies.** AMs always type in English. `POST /api/am/sessions/[id]/messages` reads `session.language`; when non-`en`, it calls FastAPI `/translate` (Flash-Lite, ~1s) and persists both the English `content` and the localised `translated_content` together with `translated_to` (the language code we translated to). On translation failure the AM message still posts in English — silence is worse than imperfect localisation.
 
-**Buyer rendering.** `MessageBubble` only honours `translated_content` when `translated_to === sessionLanguage` (so a mid-session language switch doesn't show stale translations). It renders the translation as the primary text and the English original below as a small muted "Original" block separated by a hairline divider — this gives the buyer a way to sanity-check the translation without a click. No re-translation of past AM messages on language change.
+**Buyer rendering.** `MessageBubble` only honours `translated_content` when `translated_to === sessionLanguage` (so any later language change doesn't show stale translations). It renders the translation as the primary text and the English original below as a small muted "Original" block separated by a hairline divider — this gives the buyer a way to sanity-check the translation without a click.
 
 **Backwards compatibility.** Pre-migration rows have `language='en'` (default) and `translated_content=null`. Everything degrades to "English only, no dual display" automatically.
 
@@ -201,7 +213,6 @@ Defence in depth against (a) anonymous-signup spam filling `auth.users` and (b) 
 | `POST /api/chat` | user_id | 40 / min |
 | `POST /api/request-review` | user_id | 5 / hour |
 | `POST /api/am/sessions/[id]/messages` | AM user_id | 120 / min |
-| `PATCH /api/chat/sessions/[id]/language` | session_id | 20 / min |
 
 `/api/chat/start` is the critical one — its check runs **before** `getOrCreateUser()` so we never create the anon `auth.users` row we're trying to prevent. All others run after auth resolution and key on the resolved user.
 

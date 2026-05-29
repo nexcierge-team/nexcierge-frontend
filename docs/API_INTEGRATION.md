@@ -13,9 +13,8 @@ The frontend never calls the FastAPI backend directly from the browser. All requ
 
 | Frontend route | Backend target | Purpose |
 |---|---|---|
-| `POST /api/chat` | `POST /chat` | Conversational turn — sends user message + session language, returns agent reply (in target language) + full buyer profile + flags |
+| `POST /api/chat` | `POST /detect-language` (first turn) + `POST /chat` | Conversational turn — on the buyer's first message, detects the language and pins it on `chat_sessions.language`; every turn forwards `session.language` to FastAPI so the agent's prompt stays locked to it |
 | `POST /api/request-review` | `POST /sessions/{id}/request_review` | Buyer-initiated handoff to the local account manager |
-| `PATCH /api/chat/sessions/[id]/language` | (none — direct DB) | Update `chat_sessions.language` to the buyer's chosen ISO 639-1 code |
 | `POST /api/am/sessions/[id]/messages` | `POST /translate` (conditional) | AM reply — when `session.language != 'en'`, translates English→target via FastAPI before persisting |
 
 ## Flow — chat turn
@@ -92,23 +91,15 @@ Bootstraps the buyer's chat surface — anonymous Supabase sign-in if needed, th
 
 The route handler reads `chat_sessions.language` for the given session and forwards it to FastAPI as the `language` field. The browser never has to send it.
 
-**Response:** see `backend/docs/API.md` `POST /chat` — full `profile` dict always present, plus `profile_complete` and `review_requested` booleans. `reply` is in the buyer's selected language.
+**Response:** see `backend/docs/API.md` `POST /chat` — full `profile` dict always present, plus `profile_complete` and `review_requested` booleans. `reply` is in the language Gemini detected for this conversation. The response also includes `detected_language` (ISO 639-1 string, or `null` on non-first turns) so the client can update its local language state without a refetch.
 
-### `PATCH /api/chat/sessions/[id]/language`
+### First-message language detection
 
-**Request:**
-```json
-{ "language": "zh" }
-```
+`POST /api/chat` does extra work on the buyer's first user message of a session:
+1. Calls `lib/translate.ts::detectLanguage()` → FastAPI `POST /detect-language` (Flash-Lite, 5s timeout)
+2. If the result is a supported ISO 639-1 code other than the stored `'en'` default, persists it to `chat_sessions.language` via `setSessionLanguage()`
 
-`language` must be a code from `lib/languages.ts::SUPPORTED_LANGUAGES`. Owner-scoped (the chat_sessions RLS update policy restricts to `auth.uid() = user_id`).
-
-**Response (200):**
-```json
-{ "language": "zh" }
-```
-
-Buyer can change language any time; takes effect on the next AI turn and the next translated AM message. Past messages are not retroactively re-translated — the buyer view falls back to the English original for any old AM message whose `translated_to` no longer matches the new session language.
+Subsequent turns skip detection — Gemini handles language continuity from history, and the backend pins the system prompt to `session.language`. Detection silently falls back to `'en'` on timeout / classifier failure; the buyer can still chat, AM translation just stays in English until we get a confident signal later.
 
 ### AM-message translation
 

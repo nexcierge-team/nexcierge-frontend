@@ -11,6 +11,39 @@ const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8000";
 // shouldn't wait — we fall back to sending the original English.
 const TRANSLATE_TIMEOUT_MS = 8_000;
 
+// Detection runs on the same model as /translate and is similarly cheap.
+// A bit tighter cap because we don't want to block the chat turn on a
+// stalled classifier — falling back to 'en' is acceptable.
+const DETECT_TIMEOUT_MS = 5_000;
+
+// Classify `text` into one of the supported ISO 639-1 codes via the
+// FastAPI /detect-language endpoint. Returns 'en' on timeout / failure
+// — same default the backend uses for ambiguous inputs.
+export async function detectLanguage(text: string): Promise<string> {
+  if (!text.trim()) return "en";
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), DETECT_TIMEOUT_MS);
+  try {
+    const res = await fetch(`${BACKEND_URL}/detect-language`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      console.error("detect-language backend returned", res.status);
+      return "en";
+    }
+    const data = (await res.json()) as { language?: string };
+    return data.language ?? "en";
+  } catch (e) {
+    console.error("detect-language call failed:", e);
+    return "en";
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function translateText(
   text: string,
   targetLanguage: string,

@@ -6,7 +6,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Menu, Sparkles } from "lucide-react";
 import { ChatSidebar } from "@/components/chat/ChatSidebar";
 import { ChatComposer } from "@/components/chat/ChatComposer";
-import { LanguagePicker } from "@/components/chat/LanguagePicker";
 import {
   MessageBubble,
   TypingIndicator,
@@ -59,7 +58,6 @@ function ChatPageInner() {
     requestReview,
     switchSession,
     language,
-    setLanguage,
   } = useChat({ forceNew: entry.forceNew });
   const [input, setInput] = useState("");
   // Mobile drawer state for ChatSidebar. Desktop ignores it (sidebar is
@@ -146,11 +144,6 @@ function ChatPageInner() {
             <span className="truncate">Sourcing concierge</span>
           </div>
           <div className="flex shrink-0 items-center gap-3 py-4">
-            <LanguagePicker
-              value={language}
-              onChange={setLanguage}
-              disabled={!sessionId}
-            />
             <a
               href="/"
               className="text-sm text-gray-500 hover:text-gray-900 transition-colors"

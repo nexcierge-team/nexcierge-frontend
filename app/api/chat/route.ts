@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getOrCreateUser } from "@/lib/supabase/route";
 import { getSupabaseServer } from "@/lib/supabase/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
-import { getSession } from "@/lib/db/sessions";
+import { getSession, setSessionLanguage } from "@/lib/db/sessions";
 import { insertMessage, listMessages } from "@/lib/db/messages";
 import {
   getRfq,
@@ -11,6 +11,7 @@ import {
   updateRfqFields,
 } from "@/lib/db/rfqs";
 import { checkRateLimit, rateLimited429 } from "@/lib/rateLimit";
+import { detectLanguage } from "@/lib/translate";
 import type { ChatMessagesRow } from "@/lib/supabase/types";
 
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8000";
@@ -104,12 +105,36 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Missing rfq for session" }, { status: 500 });
   }
 
+  // First-message language detection. We only run this once per session,
+  // on the buyer's first user message (one row in chat_messages with
+  // sender_type='user', which is the one we just inserted). The result
+  // is persisted to chat_sessions.language so AM-side translation has
+  // a target — Gemini itself handles mirroring the buyer's language for
+  // subsequent AI replies via the system prompt.
+  let sessionLanguage = session.language ?? "en";
+  const isFirstUserTurn =
+    historyRows.filter((r) => r.sender_type === "user").length === 1 &&
+    sessionLanguage === "en";
+  if (isFirstUserTurn) {
+    const detected = await detectLanguage(body.message);
+    if (detected && detected !== sessionLanguage) {
+      try {
+        await setSessionLanguage(supabase, session.id, detected);
+        sessionLanguage = detected;
+      } catch (e) {
+        // Persist failure shouldn't block the turn; AM translation will
+        // simply default to English until we can pin it later.
+        console.error("session language persist failed:", e);
+      }
+    }
+  }
+
   const backendBody = {
     session_id: session.id,
     message: body.message,
     history: toBackendHistory(historyRows),
     profile: rfqRowToProfile(rfqRow),
-    language: session.language ?? "en",
+    language: sessionLanguage,
   };
 
   let backendData: {
@@ -176,6 +201,10 @@ export async function POST(req: Request) {
     profile_complete: updatedRfq.is_complete,
     review_requested: false,
     ai_skipped: false,
+    // Surfaced so useChat can refresh its in-memory language state on
+    // the first turn without a separate round-trip. Null when we didn't
+    // detect (subsequent turns) or when detection left it on 'en'.
+    detected_language: isFirstUserTurn ? sessionLanguage : null,
     // Pass-through. Session-only — not persisted on chat_messages, so
     // these pills only show in the same browser session that produced
     // them. Adding a `suggestions jsonb` column to chat_messages would

@@ -285,12 +285,23 @@ export function useChat(options: UseChatOptions = {}) {
           },
         ]);
 
-        if (bootstrap && profile) {
-          setBootstrap({
-            ...bootstrap,
-            profile,
-            profileComplete: nowComplete,
-          });
+        if (bootstrap) {
+          const detected =
+            typeof data.detected_language === "string"
+              ? data.detected_language
+              : null;
+          const nextLanguage =
+            detected && detected !== bootstrap.language
+              ? detected
+              : bootstrap.language;
+          if (profile || nextLanguage !== bootstrap.language) {
+            setBootstrap({
+              ...bootstrap,
+              profile: profile ?? bootstrap.profile,
+              profileComplete: profile ? nowComplete : bootstrap.profileComplete,
+              language: nextLanguage,
+            });
+          }
         }
       } catch (e) {
         clearTimeout(timeoutHandle);
@@ -433,31 +444,6 @@ export function useChat(options: UseChatOptions = {}) {
     setAuthPromptOpen(false);
   }
 
-  // Optimistically flip the local language so the picker chip updates
-  // before the PATCH returns; revert on failure. New AI replies pick up
-  // the language on the very next /api/chat turn (the route reads
-  // session.language fresh from the DB each call).
-  async function setLanguage(code: string): Promise<void> {
-    if (!sessionId || !bootstrap) return;
-    if (bootstrap.language === code) return;
-    const prev = bootstrap.language;
-    setBootstrap({ ...bootstrap, language: code });
-    try {
-      const res = await fetch(
-        `/api/chat/sessions/${encodeURIComponent(sessionId)}/language`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ language: code }),
-        },
-      );
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    } catch (e) {
-      console.error("language update failed:", e);
-      setBootstrap({ ...bootstrap, language: prev });
-    }
-  }
-
   // Realtime: deduped INSERT + UPDATE handlers + typing presence.
   // Delegated to useRealtimeChat so the same logic powers both buyer
   // and AM views.
@@ -554,6 +540,5 @@ export function useChat(options: UseChatOptions = {}) {
     requestReview,
     switchSession,
     language: bootstrap?.language ?? "en",
-    setLanguage,
   };
 }

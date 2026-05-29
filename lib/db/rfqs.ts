@@ -41,16 +41,46 @@ export async function getRfq(
   return data;
 }
 
+// Identity columns we carry over from a returning buyer's previous RFQ.
+// Request-specific fields (machine_type, delivery_*, etc.) are always
+// re-collected — only the buyer themselves is stable across sessions.
+type BuyerIdentity = Pick<
+  RfqsRow,
+  "full_name" | "company_name" | "business_email" | "phone_number" | "job_role"
+>;
+
+// Returns the buyer_info subset of this user's most recent RFQ that
+// reached the identity step (business_email filled). Null on first-time
+// buyers. Used by createRfq to prefill a fresh row so the agent doesn't
+// re-ask name/company/email every session.
+export async function getLatestBuyerIdentity(
+  supabase: Client,
+  userId: string,
+): Promise<BuyerIdentity | null> {
+  const { data, error } = await supabase
+    .from("rfqs")
+    .select("full_name, company_name, business_email, phone_number, job_role")
+    .eq("user_id", userId)
+    .neq("business_email", "")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data as BuyerIdentity | null;
+}
+
 export async function createRfq(
   supabase: Client,
   args: { sessionId: string; userId: string },
 ): Promise<RfqsRow> {
+  const prior = await getLatestBuyerIdentity(supabase, args.userId);
   const { data, error } = await supabase
     .from("rfqs")
     .insert({
       chat_session_id: args.sessionId,
       user_id: args.userId,
       ...emptyRfqFields(),
+      ...(prior ?? {}),
     })
     .select()
     .single();
