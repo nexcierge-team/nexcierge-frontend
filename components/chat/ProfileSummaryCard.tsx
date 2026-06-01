@@ -98,7 +98,9 @@ export function ProfileSummaryCard({
 
         <Section title="Specs & compliance">
           {techSpecs.length > 0 ? (
-            techSpecs.map(([k, v]) => <Field key={k} label={k} value={v} />)
+            techSpecs.map(([k, v]) => (
+              <Field key={k} label={humanizeKey(k)} value={v} />
+            ))
           ) : (
             <EmptyHint>No technical specs captured yet</EmptyHint>
           )}
@@ -182,16 +184,35 @@ function Section({
 }
 
 
+// The label floats left so the value starts on the SAME line as it and wraps
+// to the full width BELOW the label when long (rather than into a narrow column
+// beside it). `overflow-hidden` on the row contains the float so it can't bleed
+// into the next row. Used for every field in the brief — short labels keep the
+// value on one line; long ones (e.g. "Film Width & Layer Configuration") let it
+// wrap underneath.
 function Field({ label, value }: { label: string; value: string }) {
   if (!value) return null;
   return (
-    <div className="flex items-baseline gap-2 text-xs">
-      <dt className="shrink-0 text-gray-400">{label}</dt>
-      <dd className="min-w-0 break-words font-medium text-gray-800">
-        {value}
-      </dd>
+    <div className="overflow-hidden text-xs">
+      <dt className="float-left mr-2 text-gray-400">{label}</dt>
+      <dd className="break-words font-medium text-gray-800">{value}</dd>
     </div>
   );
+}
+
+
+// Technical-spec keys come from two sources: curated CSV data points (already
+// nicely phrased, e.g. "Film Width & Layer Configuration") and the agent's own
+// snake_case keys (e.g. "target_output"). Normalise the latter to Title Case
+// for display; leave already-spaced labels untouched.
+function humanizeKey(key: string): string {
+  if (/[_-]/.test(key)) {
+    return key
+      .replace(/[_-]+/g, " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase())
+      .trim();
+  }
+  return key;
 }
 
 

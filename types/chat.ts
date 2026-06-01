@@ -34,11 +34,12 @@ export interface Message {
   // Only meaningful on messages SENT by the current viewer — drives
   // the "Read" indicator under outgoing bubbles.
   readAt?: string | null;
-  // Quick-reply pills offered by the agent for THIS turn. Populated
-  // when the backend's `suggest_replies` Gemini tool fires. Only the
-  // latest agent message renders them — past messages keep the data
-  // but the UI hides their pills (clicking an old pill would re-send
-  // stale context). Session-only — not persisted to chat_messages.
+  // Quick-reply pills offered by the agent for THIS turn. Produced by the
+  // backend's pill second pass (`chatbot.suggest_pills`) off the final reply
+  // text, returned as `suggestions` from /chat. Only the latest agent message
+  // renders them — past messages keep the data but the UI hides their pills
+  // (clicking an old pill would re-send stale context). Session-only — not
+  // persisted to chat_messages.
   suggestions?: string[];
 }
 

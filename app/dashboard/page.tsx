@@ -634,7 +634,7 @@ function BriefSummary({ rfq }: { rfq: RfqsRow }) {
           </p>
         ) : (
           Object.entries(rfq.technical_specifications).map(([k, v]) => (
-            <Field key={k} label={k} value={String(v)} />
+            <Field key={k} label={humanizeKey(k)} value={String(v)} />
           ))
         )}
         {rfq.compliance_requirements.length > 0 && (
@@ -688,14 +688,34 @@ function Section({
 }
 
 
+// The label floats left so the value starts on the SAME line as it and wraps to
+// the full width BELOW the label when long (rather than being clipped by
+// `truncate` in this narrow w-80 sidebar). `overflow-hidden` on the row contains
+// the float so it can't bleed into the next row. Used for every field in the
+// brief — short labels keep the value on one line; long ones wrap underneath.
 function Field({ label, value }: { label: string; value: string }) {
   if (!value) return null;
   return (
-    <div className="flex items-baseline gap-2 text-xs">
-      <span className="shrink-0 text-gray-400">{label}</span>
-      <span className="truncate font-medium text-gray-800">{value}</span>
+    <div className="overflow-hidden text-xs">
+      <span className="float-left mr-2 text-gray-400">{label}</span>
+      <span className="break-words font-medium text-gray-800">{value}</span>
     </div>
   );
+}
+
+
+// Technical-spec keys come from two sources: curated CSV data points (already
+// nicely phrased, e.g. "Film Width & Layer Configuration") and the agent's own
+// snake_case keys (e.g. "target_output"). Normalise the latter to Title Case
+// for display; leave already-spaced labels untouched.
+function humanizeKey(key: string): string {
+  if (/[_-]/.test(key)) {
+    return key
+      .replace(/[_-]+/g, " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase())
+      .trim();
+  }
+  return key;
 }
 
 
