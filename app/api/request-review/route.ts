@@ -14,6 +14,7 @@ import {
 import { hubspotEnabled } from "@/lib/hubspot/client";
 import { HubspotValidationError, syncBriefToHubspot } from "@/lib/hubspot/sync";
 import { checkRateLimit, rateLimited429 } from "@/lib/rateLimit";
+import { translateText } from "@/lib/translate";
 
 interface RequestReviewBody {
   session_id: string;
@@ -132,18 +133,40 @@ export async function POST(req: Request) {
     }
   }
 
+  // Localize the canonical handoff copy into the buyer's language. By the
+  // time the buyer hands off, the brief has completed — which pins
+  // session.language — so we have a target. We store these auto-messages
+  // directly in the buyer's language (like ai/user rows); the AM dashboard
+  // translates them into the AM's working language on demand. English buyer
+  // (or any translation failure) → the original English.
+  const targetLanguage = session.language ?? "en";
+  const welcomeEn = accountManagerWelcome(firstNameFromFull(rfq.full_name));
+  let handoffReply = HANDOFF_REPLY;
+  let welcome = welcomeEn;
+  let divider = DIVIDER_LABEL;
+  if (targetLanguage !== "en") {
+    const [hr, wl, dv] = await Promise.all([
+      translateText(HANDOFF_REPLY, targetLanguage),
+      translateText(welcomeEn, targetLanguage),
+      translateText(DIVIDER_LABEL, targetLanguage),
+    ]);
+    handoffReply = hr ?? HANDOFF_REPLY;
+    welcome = wl ?? welcomeEn;
+    divider = dv ?? DIVIDER_LABEL;
+  }
+
   // Three closing messages, inserted server-side via admin client so
   // sender_type='ai' and 'system' bypass RLS cleanly.
   const inserted = await insertMessages(admin, [
     {
       sessionId: session.id,
       senderType: "ai",
-      content: HANDOFF_REPLY,
+      content: handoffReply,
     },
     {
       sessionId: session.id,
       senderType: "system",
-      content: DIVIDER_LABEL,
+      content: divider,
       metadata: { kind: "divider" },
     },
     {
@@ -151,7 +174,7 @@ export async function POST(req: Request) {
       senderType: "account_manager",
       // We use admin client so the AM-role check doesn't apply; this is
       // the auto-generated welcome, not a real AM reply.
-      content: accountManagerWelcome(firstNameFromFull(rfq.full_name)),
+      content: welcome,
       metadata: { kind: "auto_welcome" },
     },
   ]);

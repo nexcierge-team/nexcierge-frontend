@@ -23,6 +23,14 @@ export interface Message {
   // language — guards against stale translations if the buyer switches
   // language mid-session.
   translatedTo?: string | null;
+  // AM-dashboard translations of `content` keyed by ISO 639-1 code,
+  // hydrated from `chat_messages.metadata.translations`. Used only in the
+  // account_manager view to render the thread in the AM's chosen working
+  // language. Semantics of a value: a non-empty string is shown as the
+  // translated secondary line; an empty string means "resolved, no
+  // translation needed" (source already in the target language); a
+  // missing key means "not fetched yet" and the dashboard requests it.
+  translations?: Record<string, string>;
   // Snapshot of the buyer profile attached to an agent message whose
   // turn completed or updated the profile. Rendered as a summary card
   // below the bubble with a Request human review CTA.

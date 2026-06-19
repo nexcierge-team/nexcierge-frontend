@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRealtimeChat } from "@/lib/useRealtimeChat";
+import { chatStrings } from "@/lib/chatStrings";
 import type {
   BuyerProfile,
   ChatRole,
@@ -249,8 +250,7 @@ export function useChat(options: UseChatOptions = {}) {
             {
               id: newMessageId(),
               role: "agent",
-              content:
-                "The AI didn't return a reply. Please try again.",
+              content: chatStrings(bootstrap?.language).errNoReply,
               error: true,
             },
           ]);
@@ -285,14 +285,20 @@ export function useChat(options: UseChatOptions = {}) {
           },
         ]);
 
+        // Adopt the reply's language (reported by the backend every turn) as
+        // the buyer's display language — this drives chat chrome + the
+        // summary card from the first turn. Only upgrade to a confident
+        // non-'en' code, then stick with it: don't flip back to 'en' on a
+        // later short/ambiguous reply. Post-handoff AM replies adopt the
+        // language via handleInsert instead.
+        const replyLanguage =
+          typeof data.reply_language === "string" ? data.reply_language : null;
         if (bootstrap) {
-          const detected =
-            typeof data.detected_language === "string"
-              ? data.detected_language
-              : null;
           const nextLanguage =
-            detected && detected !== bootstrap.language
-              ? detected
+            replyLanguage &&
+            replyLanguage !== "en" &&
+            replyLanguage !== bootstrap.language
+              ? replyLanguage
               : bootstrap.language;
           if (profile || nextLanguage !== bootstrap.language) {
             setBootstrap({
@@ -318,8 +324,8 @@ export function useChat(options: UseChatOptions = {}) {
             id: newMessageId(),
             role: "agent",
             content: aborted
-              ? "The AI took too long to respond. Please try again."
-              : "Connection error. Please try again, or check that the backend is running.",
+              ? chatStrings(bootstrap?.language).errTimeout
+              : chatStrings(bootstrap?.language).errConnection,
             error: true,
           },
         ]);
@@ -398,8 +404,7 @@ export function useChat(options: UseChatOptions = {}) {
             id: newMessageId(),
             role: "agent",
             content:
-              data?.message ??
-              "One of your details looks invalid. Please correct it in chat and try Request human review again.",
+              data?.message ?? chatStrings(bootstrap?.language).errInvalidField,
             error: true,
           },
         ]);
@@ -430,8 +435,7 @@ export function useChat(options: UseChatOptions = {}) {
         {
           id: newMessageId(),
           role: "agent",
-          content:
-            "Couldn't transfer to our account manager just now — please try again.",
+          content: chatStrings(bootstrap?.language).errTransfer,
           error: true,
         },
       ]);
@@ -453,6 +457,22 @@ export function useChat(options: UseChatOptions = {}) {
       if (seenIds.current.has(row.id)) return;
       seenIds.current.add(row.id);
       setMessages((prev) => [...prev, rowToMessage(row)]);
+      // The buyer's session language is resolved lazily on the AM side
+      // (the first AM reply detects it from the thread), so an incoming AM
+      // message may be the first time this client learns the real language.
+      // Adopt the message's `translated_to` so MessageBubble renders the
+      // localisation — it only shows translated_content when
+      // translated_to === sessionLanguage.
+      if (
+        row.sender_type === "account_manager" &&
+        row.translated_to &&
+        row.translated_to !== "en"
+      ) {
+        const lang = row.translated_to;
+        setBootstrap((prev) =>
+          prev && prev.language !== lang ? { ...prev, language: lang } : prev,
+        );
+      }
     },
     [],
   );

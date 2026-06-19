@@ -44,11 +44,27 @@ export async function detectLanguage(text: string): Promise<string> {
   }
 }
 
+// Translate `text` into `targetLanguage`. Returns null on empty input,
+// timeout, or backend failure (callers fall back to the original).
+//
+// `sourceLanguage` (optional ISO 639-1) makes English a real target: when
+// provided we forward it so the backend translates unless source ===
+// target — this is how the AM-send route delivers an English-speaking
+// buyer the AM's Chinese/Hindi reply in English. Without it we keep the
+// cheap short-circuit (English target = no-op, assumes English source).
 export async function translateText(
   text: string,
   targetLanguage: string,
+  sourceLanguage?: string,
 ): Promise<string | null> {
-  if (!text.trim() || !targetLanguage || targetLanguage === "en") return null;
+  if (!text.trim() || !targetLanguage) return null;
+  // Short-circuit only in legacy mode. With an explicit source we let the
+  // backend decide (so en targets are honoured when source !== "en").
+  if (sourceLanguage === undefined) {
+    if (targetLanguage === "en") return null;
+  } else if (sourceLanguage === targetLanguage) {
+    return null;
+  }
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TRANSLATE_TIMEOUT_MS);
@@ -56,7 +72,11 @@ export async function translateText(
     const res = await fetch(`${BACKEND_URL}/translate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, target_language: targetLanguage }),
+      body: JSON.stringify({
+        text,
+        target_language: targetLanguage,
+        source_language: sourceLanguage ?? null,
+      }),
       signal: controller.signal,
     });
     if (!res.ok) {

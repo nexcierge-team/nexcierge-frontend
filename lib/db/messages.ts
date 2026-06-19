@@ -104,6 +104,37 @@ export async function markIncomingMessagesRead(
   return ids;
 }
 
+// Persist an AM-dashboard translation of a single message into
+// `metadata.translations[lang]`, merging into the row's existing
+// metadata (the caller passes it in so we skip a re-read). Requires the
+// service-role admin client — RLS won't let an AM update buyer/AI rows.
+//
+// Best-effort: logs and swallows on failure. A cache-write hiccup must
+// never block the AM's view; the worst case is we re-translate next time.
+export async function cacheMessageTranslation(
+  admin: Client,
+  messageId: string,
+  currentMetadata: Record<string, unknown> | null | undefined,
+  lang: string,
+  translated: string,
+): Promise<void> {
+  const base =
+    currentMetadata && typeof currentMetadata === "object"
+      ? currentMetadata
+      : {};
+  const existing =
+    (base as { translations?: Record<string, string> }).translations ?? {};
+  const metadata = {
+    ...base,
+    translations: { ...existing, [lang]: translated },
+  };
+  const { error } = await admin
+    .from("chat_messages")
+    .update({ metadata })
+    .eq("id", messageId);
+  if (error) console.error("cacheMessageTranslation failed:", error);
+}
+
 // Bulk insert preserving caller-provided order. Used by the handoff flow
 // to insert AI close + divider + AM welcome in one shot.
 //

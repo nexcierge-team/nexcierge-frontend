@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { AccountMenu } from "@/components/auth/AccountMenu";
 import { useAuthUser } from "@/lib/useAuthUser";
 import { useRealtimeSessions } from "@/lib/useRealtimeSessions";
+import { chatStrings } from "@/lib/chatStrings";
 import type { ChatSessionsRow } from "@/lib/supabase/types";
 
 interface ChatSidebarProps {
@@ -28,6 +29,8 @@ interface ChatSidebarProps {
   // Escape all call onClose.
   open?: boolean;
   onClose?: () => void;
+  // Buyer's display language (ISO 639-1) for localizing sidebar chrome.
+  language?: string;
 }
 
 interface SidebarSession {
@@ -68,7 +71,9 @@ export function ChatSidebar({
   onDeleteActive,
   open = false,
   onClose,
+  language,
 }: ChatSidebarProps) {
+  const cs = chatStrings(language);
   const [sessions, setSessions] = useState<SidebarSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -192,7 +197,7 @@ export function ChatSidebar({
       handleRealtimeDelete(sessionId);
     } catch (e) {
       console.error("delete session failed:", e);
-      window.alert("Couldn't delete that conversation. Please try again.");
+      window.alert(cs.errDelete);
     } finally {
       setDeletingId(null);
     }
@@ -228,7 +233,7 @@ export function ChatSidebar({
         <button
           onClick={handleNew}
           disabled={creating}
-          aria-label="New conversation"
+          aria-label={cs.newChatAria}
           className="flex h-8 w-8 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 disabled:opacity-50"
         >
           {creating ? (

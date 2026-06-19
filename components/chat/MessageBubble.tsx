@@ -8,6 +8,13 @@ import { cn } from "@/lib/utils";
 import type { Message } from "@/types/chat";
 import { ProfileSummaryCard } from "./ProfileSummaryCard";
 
+// Native-script labels for the languages the AM can read the thread in.
+// Used as the heading on the translated secondary line in the AM view.
+const DISPLAY_LANGUAGE_LABELS: Record<string, string> = {
+  zh: "中文",
+  hi: "हिन्दी",
+};
+
 interface MessageBubbleProps {
   message: Message;
   // True once the buyer has clicked Request human review (sticky for the
@@ -31,9 +38,15 @@ interface MessageBubbleProps {
   viewerRole?: "buyer" | "account_manager";
   // Buyer's currently-selected session language. When this matches a
   // message's translatedTo we render translatedContent as the primary
-  // text and the English original as a muted secondary line. Ignored
-  // for account_manager viewers (AM always sees the English original).
+  // text and the original as a muted secondary line. Ignored for
+  // account_manager viewers (they use amDisplayLanguage instead).
   sessionLanguage?: string;
+  // AM dashboard only: the ISO 639-1 code the AM picked to read the
+  // thread in ("zh" / "hi"), or "" / undefined for "original only". When
+  // set and the message has a cached translation for it
+  // (message.translations[amDisplayLanguage]), the bubble shows the
+  // original as primary and the translation as a muted secondary line.
+  amDisplayLanguage?: string;
   // Quick-reply pill click handler. Only wired for the buyer viewer on
   // the latest agent message — parent decides which bubble is "latest"
   // and only passes the handler there. Sends the pill's text as a
@@ -50,6 +63,7 @@ export function MessageBubble({
   retryDisabled,
   viewerRole = "buyer",
   sessionLanguage = "en",
+  amDisplayLanguage,
   onSuggestion,
 }: MessageBubbleProps) {
   if (message.role === "divider") {
@@ -66,20 +80,40 @@ export function MessageBubble({
   // semantics are now "render as outgoing/self bubble".
   const isUser = isSelf;
 
-  // Honour translation only on the buyer's side and only when the
-  // translation was produced for the language they currently have
-  // selected. If they switched mid-session, translatedTo on older
-  // messages won't match and we fall back to the English original.
-  const showTranslation =
+  // Two independent translation modes decide what shows as the primary
+  // bubble text and what (if anything) sits below it as a muted line:
+  //
+  //  • Buyer viewer — the AM's reply localised into the buyer's language.
+  //    The buyer reads the localisation (primary); the AM's original sits
+  //    below. Honoured only when translatedTo matches the buyer's current
+  //    language, so a mid-session language switch falls back to original.
+  //  • AM viewer — any message rendered in the AM's chosen working
+  //    language. The AM sees the original (what was sent) as primary and
+  //    the translation below, per the dashboard's "original + translation"
+  //    requirement.
+  const buyerTranslation =
     viewerRole === "buyer" &&
     isAccountManager &&
     !!message.translatedContent &&
     !!message.translatedTo &&
-    message.translatedTo === sessionLanguage &&
-    sessionLanguage !== "en";
-  const primaryText = showTranslation
-    ? (message.translatedContent as string)
-    : message.content;
+    message.translatedTo === sessionLanguage;
+  const amTranslation =
+    viewerRole === "account_manager" && amDisplayLanguage
+      ? message.translations?.[amDisplayLanguage]
+      : undefined;
+
+  let primaryText = message.content;
+  let secondaryText: string | null = null;
+  let secondaryLabel = "Original";
+  if (buyerTranslation) {
+    primaryText = message.translatedContent as string;
+    secondaryText = message.content;
+  } else if (amTranslation) {
+    secondaryText = amTranslation;
+    secondaryLabel =
+      (amDisplayLanguage && DISPLAY_LANGUAGE_LABELS[amDisplayLanguage]) ||
+      "Translation";
+  }
   // When the agent attaches the RFQ summary card, let it use the full
   // chat-column width on mobile — capping at 88% squeezes the card and
   // its "Request human review" CTA on narrow screens. Plain text bubbles
@@ -121,7 +155,20 @@ export function MessageBubble({
             )}
           >
             {isUser ? (
-              message.content
+              <>
+                {primaryText}
+                {secondaryText && (
+                  <>
+                    <hr className="my-2.5 border-white/15" />
+                    <div className="text-[12px] leading-relaxed text-white/65">
+                      <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-white/45">
+                        {secondaryLabel}
+                      </div>
+                      {secondaryText}
+                    </div>
+                  </>
+                )}
+              </>
             ) : message.error ? (
               <div>
                 <div>{message.content}</div>
@@ -140,14 +187,14 @@ export function MessageBubble({
             ) : (
               <>
                 <AgentMarkdown content={primaryText} />
-                {showTranslation && (
+                {secondaryText && (
                   <>
                     <hr className="my-2.5 border-gray-100" />
                     <div className="text-[12px] leading-relaxed text-gray-400">
                       <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-300">
-                        Original
+                        {secondaryLabel}
                       </div>
-                      <AgentMarkdown content={message.content} />
+                      <AgentMarkdown content={secondaryText} />
                     </div>
                   </>
                 )}
@@ -162,6 +209,7 @@ export function MessageBubble({
             reviewRequested={reviewRequested}
             reviewSubmitting={reviewSubmitting}
             onRequestReview={onRequestReview}
+            language={sessionLanguage}
           />
         )}
 

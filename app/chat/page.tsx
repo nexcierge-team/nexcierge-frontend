@@ -13,6 +13,7 @@ import {
 import { AuthModal } from "@/components/auth/AuthModal";
 import { SUGGESTED_PROMPTS } from "@/lib/mockData";
 import { useChat } from "@/lib/useChat";
+import { chatStrings } from "@/lib/chatStrings";
 
 export default function ChatPage() {
   // useSearchParams forces client-side rendering for this route, so we
@@ -59,6 +60,9 @@ function ChatPageInner() {
     switchSession,
     language,
   } = useChat({ forceNew: entry.forceNew });
+  // Localized chat chrome, keyed off the buyer's display language (learned
+  // per-turn from the backend's reply_language).
+  const cs = chatStrings(language);
   const [input, setInput] = useState("");
   // Mobile drawer state for ChatSidebar. Desktop ignores it (sidebar is
   // always inline at md+). Reset to closed on session switch so the
@@ -118,6 +122,7 @@ function ChatPageInner() {
     <div className="flex h-[100dvh] overflow-hidden bg-white">
       <ChatSidebar
         activeId={sessionId ?? undefined}
+        language={language}
         onNew={(id) => switchSession(id)}
         onSelect={(id) => switchSession(id)}
         onDeleteActive={() => {
@@ -135,7 +140,7 @@ function ChatPageInner() {
             <button
               type="button"
               onClick={() => setSidebarOpen(true)}
-              aria-label="Open chat history"
+              aria-label={cs.historyAria}
               className="-ml-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 md:hidden"
             >
               <Menu className="h-5 w-5" strokeWidth={1.75} />
@@ -192,6 +197,7 @@ function ChatPageInner() {
                         disabled={loading}
                         autoFocus
                         rows={2}
+                        language={language}
                       />
                     </div>
 
@@ -256,14 +262,13 @@ function ChatPageInner() {
                 onChange={setInput}
                 onSubmit={() => send(input)}
                 disabled={loading}
+                language={language}
                 placeholder={
-                  reviewRequested
-                    ? "Message your account manager…"
-                    : "Reply…"
+                  reviewRequested ? cs.composerHandoff : cs.composerReply
                 }
               />
               <div className="mt-2 text-center text-[11px] text-gray-400">
-                Press Enter to send · Shift + Enter for a new line
+                {cs.composerHint}
               </div>
             </div>
           </div>

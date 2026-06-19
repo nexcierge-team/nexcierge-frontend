@@ -55,8 +55,9 @@ components/
 ├── chat/
 │   ├── ChatSidebar.tsx     Real session list from /api/chat/sessions, kept live via useRealtimeSessions
 │   ├── ChatComposer.tsx
-│   ├── MessageBubble.tsx   `viewerRole` prop flips alignment for AM view;
-│   │                         `sessionLanguage` prop drives translated/original dual render for AM bubbles
+│   ├── MessageBubble.tsx   `viewerRole` flips alignment for AM view; `sessionLanguage`
+│   │                         drives the buyer's translated/original dual render;
+│   │                         `amDisplayLanguage` drives the AM's original/translated dual render
 │   └── ProfileSummaryCard.tsx
 └── dashboard/              (legacy mock components — kept for reference, not used by /dashboard)
 
@@ -68,7 +69,7 @@ lib/
 ├── useChat.ts              Hook: bootstraps from /api/chat/start, persists via POST /api/chat,
 │                             subscribes to Supabase Realtime, opens AuthModal on 401 from handoff,
 │                             auto-resumes handoff after OAuth round-trip via ?resume=handoff,
-│                             exposes language (read-only — populated server-side by first-turn detection)
+│                             exposes language (display language — adopted per-turn from the backend's reply_language, or an AM reply's translated_to)
 ├── supabase/
 │   ├── env.ts              Validated env var accessors
 │   ├── browser.ts          createBrowserClient (memoised per tab)
@@ -148,7 +149,7 @@ POST /api/request-review (now non-anonymous):
    - Atomic claim: UPDATE chat_sessions SET status='in_handoff' WHERE id=$1 AND status='ai'
      (concurrent double-click / second tab loses the race → idempotent success, no second HubSpot deal)
    - HubSpot sync (idempotent on rfqs.hubspot_deal_id; on validation error revert claim → 422)
-   - Insert AI close + divider + AM welcome (service-role client)
+   - Insert AI close + divider + AM welcome (service-role client; each localized into session.language via translateText, English fallback)
    - Return inserted_messages
    ▼
 Frontend appends → CTA replaced by "Transferring…" badge → composer mode switches to "Message your account manager…"
@@ -178,19 +179,23 @@ The backend recognises the returning-buyer case from existing signals: when `/ch
 
 `public.users` is intentionally NOT used as the identity source. It already mirrors `auth.users.email` + `full_name` via the `handle_auth_user` trigger, but the broader fields (`company_name`, `business_email`, `phone_number`, `job_role`) live only on `rfqs`. Treating the newest RFQ as the identity record keeps the source of truth singular and avoids a sync layer; revisit if a separate profile-management surface ever lands.
 
-## Output language (auto-detected)
+## Output language (lazily detected)
 
-There is no language picker — Gemini mirrors the buyer's language naturally. The buyer types in their language, the agent detects from the first message and replies in kind. `chat_sessions.language` (ISO 639-1, default `'en'`) is still tracked, but it's now populated by a server-side classifier so AM-side translation has a target.
+There is no language picker — Gemini mirrors the buyer's language naturally. The buyer types in their language and the agent replies in kind. `chat_sessions.language` (ISO 639-1, default `'en'`) is tracked only so AM-side translation has a target; it is **not** read during the interview.
 
-**Detection.** On the buyer's first user message, `/api/chat` calls FastAPI `/detect-language` (Flash-Lite, ~1s) before forwarding to `/chat`. If the detected code differs from the stored `'en'` default we persist it to `chat_sessions.language`. Subsequent turns skip detection — Gemini handles language continuity from history. Short messages (< 4 chars) are skipped to avoid false positives on "hi"/"ok".
+**The language comes from the pills pass, not a separate detector.** The pills second pass already reads each agent reply, so it also reports that reply's language as `reply_language` (returned every turn). The frontend adopts it as the buyer's **display language** — stabilized (only upgrades to a confident non-`en`, never flips back) — so chat chrome (`lib/chatStrings.ts`) and the summary card localize from the first exchange. The **persisted** `chat_sessions.language` (the AM-translation + handoff-message target) is pinned **lazily**, reusing that same `reply_language`, at two points: (1) **brief-completion** — `/api/chat` pins it the turn `is_complete` first flips true; (2) **first AM reply** (fallback) — `POST /api/am/sessions/[id]/messages` runs `detectBuyerLanguage()` and caches a non-`en` result (service-role admin client) for any session that reached handoff still on `'en'`. Keying off the agent reply's language (not the buyer's possibly-one-word opener) is what fixes the old "`hi` freezes the session to `en`" bug. A genuinely English buyer simply stays `'en'`.
 
-**AI replies.** `/api/chat` forwards `session.language` to FastAPI on every turn. When non-`en`, the backend appends an `# OUTPUT LANGUAGE (LOCKED FOR THIS SESSION)` directive on top of `SYSTEM_PROMPT` so a single English-flecked buyer message can't flip Gemini back to English mid-conversation. When still `en`, the base prompt's "mirror the buyer's language" rule handles detection on its own.
+**AI replies.** `/api/chat` forwards `session.language` to FastAPI on every turn. During the interview that's `'en'`, so the base prompt's "reply in the buyer's language and stay consistent" rule does the work. Once the language has been pinned (post-handoff), non-`en` makes the backend append an `# OUTPUT LANGUAGE (LOCKED FOR THIS SESSION)` directive on top of `SYSTEM_PROMPT` so a single English-flecked buyer message can't flip Gemini back to English.
 
-**AM replies.** AMs always type in English. `POST /api/am/sessions/[id]/messages` reads `session.language`; when non-`en`, it calls FastAPI `/translate` (Flash-Lite, ~1s) and persists both the English `content` and the localised `translated_content` together with `translated_to` (the language code we translated to). On translation failure the AM message still posts in English — silence is worse than imperfect localisation.
+**AM replies (AM → buyer).** AMs pick a working language on the dashboard and may type in any language, so `POST /api/am/sessions/[id]/messages` always delivers the buyer **their** language. After resolving the language (above): non-`en` buyer → translate the reply into it; `en` buyer → detect the reply's language and, if it isn't English, translate into English (passing `source_language` so the `'en'` no-op is bypassed). Persists `content` (original), `translated_content`, `translated_to`. On failure the original still posts — silence is worse than imperfect localisation.
 
-**Buyer rendering.** `MessageBubble` only honours `translated_content` when `translated_to === sessionLanguage` (so any later language change doesn't show stale translations). It renders the translation as the primary text and the English original below as a small muted "Original" block separated by a hairline divider — this gives the buyer a way to sanity-check the translation without a click.
+**Buyer rendering.** `MessageBubble` honours `translated_content` when `translated_to === sessionLanguage`. Because the language is detected lazily, the buyer client may still be on `'en'` when the first AM reply lands — so `useChat`'s `handleInsert` adopts the incoming message's `translated_to` as the in-memory session language, which makes the gate pass and the localisation render without a refresh. Translation is primary, original is the muted "Original" block under a hairline divider, giving the buyer a way to sanity-check without a click. (English buyers likewise see an English translation of a foreign-language AM reply with the original below.)
 
-**Backwards compatibility.** Pre-migration rows have `language='en'` (default) and `translated_content=null`. Everything degrades to "English only, no dual display" automatically.
+**Static-string i18n (`lib/cardStrings.ts`, `lib/chatStrings.ts`).** The buyer-facing UI with hard-coded copy — the summary card (`ProfileSummaryCard`: section titles, field labels, enum value labels, footer) and the chat chrome (composer placeholders, the keyboard hint, error bubbles, aria-labels) — is localized via static dictionaries in all 11 supported languages (zero runtime cost, no flash-of-English), keyed off the buyer's **display language** (the per-turn `reply_language`). The card sets `dir="rtl"` for RTL languages; the composer uses `dir="auto"`. Deliberately **not** localized: the technical-spec keys on the card (e.g. "Clamping Force"), which come from Gemini-stored data and stay English for the Chinese AM team's consistency — so the card is a mix of localized chrome + English spec keys + buyer-language values. The handoff close + AM welcome are localized separately, at insert time, via `translateText` (see API_INTEGRATION.md).
+
+**AM display language (buyer/AI/AM → AM).** Separately, the AM dashboard lets the AM read the whole thread in a chosen working language (`zh`/`hi`, or "Original only"). `POST /api/am/sessions/[id]/translate` translates each message into that language on demand and caches the result in `chat_messages.metadata.translations[lang]` (admin client; never re-translated). `MessageBubble` in the AM view shows the original as primary and the translation below. The selector sits in the brief header and persists in `localStorage`. Cost control: cache forever, skip when source == target, Flash-Lite only, per-AM rate limit — see API_INTEGRATION.md.
+
+**Backwards compatibility.** Pre-migration rows have `language='en'` (default), `translated_content=null`, and empty `metadata`. Everything degrades to "original only, no dual display" automatically.
 
 ## Rate limiting
 

@@ -13,9 +13,10 @@ The frontend never calls the FastAPI backend directly from the browser. All requ
 
 | Frontend route | Backend target | Purpose |
 |---|---|---|
-| `POST /api/chat` | `POST /detect-language` (first turn) + `POST /chat` | Conversational turn — on the buyer's first message, detects the language and pins it on `chat_sessions.language`; every turn forwards `session.language` to FastAPI so the agent's prompt stays locked to it |
+| `POST /api/chat` | `POST /chat` | Conversational turn — forwards `session.language` to FastAPI (the `'en'` default during the interview, so Gemini mirrors the buyer; a non-`en` code once pinned, so the prompt locks to it). Returns `reply_language` (the agent reply's language, from the pills pass) every turn; the client adopts it to localize chat chrome + the summary card. When the brief first completes, pins that same `reply_language` to `chat_sessions.language` — no separate detector call. |
 | `POST /api/request-review` | `POST /sessions/{id}/request_review` | Buyer-initiated handoff to the local account manager |
-| `POST /api/am/sessions/[id]/messages` | `POST /translate` (conditional) | AM reply — when `session.language != 'en'`, translates English→target via FastAPI before persisting |
+| `POST /api/am/sessions/[id]/messages` | `POST /detect-language` + `POST /translate` (conditional) | AM reply — delivers the buyer their language whatever the AM typed. The first reply on an `'en'` session lazily detects the buyer's language from their thread and caches it. Non-`en` buyer: translate reply→target. `en` buyer: detect the reply's language and translate→English if it isn't already |
+| `POST /api/am/sessions/[id]/translate` | `POST /translate` (per uncached message) | AM dashboard — render the thread in the AM's chosen working language (`zh`/`hi`), caching each result in `chat_messages.metadata.translations` so a string is translated at most once |
 
 ## Flow — chat turn
 
@@ -52,8 +53,9 @@ FastAPI Backend
 Returns {reply, profile, profile_complete: true, review_requested: true}
   │
   ▼
-Client appends three messages in order:
-  • the hard-coded AI close
+Client appends three messages in order (all localized into the buyer's
+session language at insert time via `translateText`, English fallback):
+  • the AI close ("Thank you! Your brief has been sent…")
   • a divider row labeled "Account manager"
   • a personalized welcome from the account manager
 flips local reviewRequested=true (sticky), swaps the card CTA for a
@@ -91,23 +93,34 @@ Bootstraps the buyer's chat surface — anonymous Supabase sign-in if needed, th
 
 The route handler reads `chat_sessions.language` for the given session and forwards it to FastAPI as the `language` field. The browser never has to send it.
 
-**Response:** see `backend/docs/API.md` `POST /chat` — full `profile` dict always present, plus `profile_complete` and `review_requested` booleans. `reply` is in the language Gemini detected for this conversation. The response also includes `detected_language` (ISO 639-1 string, or `null` on non-first turns) so the client can update its local language state without a refetch.
+**Response:** see `backend/docs/API.md` `POST /chat` — full `profile` dict always present, plus `profile_complete` and `review_requested` booleans. `reply` is in the buyer's language: Gemini mirrors whatever the buyer wrote, or follows the pinned `session.language` once it's been set. Per-turn quick-reply `suggestions` are included, plus `reply_language` (ISO 639-1) — the language of the agent's reply, classified by the pills pass — which `useChat` adopts as the buyer's **display language** to localize chat chrome (`lib/chatStrings.ts`) and the summary card from the first turn.
 
-### First-message language detection
+### Buyer-language: two signals
 
-`POST /api/chat` does extra work on the buyer's first user message of a session:
-1. Calls `lib/translate.ts::detectLanguage()` → FastAPI `POST /detect-language` (Flash-Lite, 5s timeout)
-2. If the result is a supported ISO 639-1 code other than the stored `'en'` default, persists it to `chat_sessions.language` via `setSessionLanguage()`
+`POST /api/chat` runs **no separate detector**. A turn yields two language signals:
 
-Subsequent turns skip detection — Gemini handles language continuity from history, and the backend pins the system prompt to `session.language`. Detection silently falls back to `'en'` on timeout / classifier failure; the buyer can still chat, AM translation just stays in English until we get a confident signal later.
+- **`reply_language`** — the agent reply's language, classified by the pills pass and returned every turn. The client adopts it as the buyer's **display language**, stabilized (only upgrades to a confident non-`en`, never flips back), so the UI localizes from the first exchange. Drives `chatStrings` + the summary card.
+- **`chat_sessions.language`** — the persisted target for AM-side translation + the localized handoff messages. Pinned **lazily**, reusing `reply_language` (no extra call), at two points:
+  1. **Brief-completion (primary).** The turn `is_complete` first flips true, `/api/chat` pins the turn's `reply_language` to `chat_sessions.language`. By then the client has localized the card/chrome via the per-turn `reply_language` already.
+  2. **First AM reply (fallback).** See below — covers any session that reaches handoff still on `'en'`.
 
-### AM-message translation
+Driving everything off the agent reply's language (not the buyer's possibly-one-word opener) is what avoids the old failure mode where a `"hi"` opener pinned the session to `'en'` forever.
 
-`POST /api/am/sessions/[id]/messages` is unchanged from the AM's perspective (`{ content }` in, `{ message }` out). Server-side, when `session.language !== 'en'`:
-1. Calls `lib/translate.ts::translateText()` → FastAPI `POST /translate` (Flash-Lite, 8s timeout)
-2. Persists `chat_messages` with `content` (English original), `translated_content` (target language), `translated_to` (the language code)
+### AM-message translation (AM → buyer)
 
-On translation failure: posts with `translated_content=null`. Buyer renders the English original — degraded but not silent.
+`POST /api/am/sessions/[id]/messages` is unchanged from the AM's perspective (`{ content }` in, `{ message }` out). AMs now work in Chinese/Hindi, so the reply may be in any language; server-side we always deliver the buyer **their** language.
+
+**Resolve the buyer's language first.** If `session.language` is still the `'en'` default, `detectBuyerLanguage()` classifies it from the buyer's accumulated thread text (`listMessages` → concat the buyer's turns, capped at 2k chars) via `POST /detect-language`, and caches a non-`en` result to `chat_sessions.language` using the **service-role admin client**. A genuinely English buyer resolves to `'en'` and is re-checked cheaply on each send until a non-`en` signal appears. Then translate:
+- **Non-`en` buyer**: `translateText(content, targetLanguage)` → FastAPI `POST /translate` (Flash-Lite). Gemini handles whatever source the AM typed.
+- **`en` buyer**: `detectLanguage(content)`; if it isn't English, `translateText(content, 'en', sourceLanguage)` — the `sourceLanguage` arg makes English a real translation target (the backend/wrapper otherwise treat `'en'` as a no-op).
+
+Either way the row stores `content` (original), `translated_content` (buyer's language), `translated_to` (the code). On translation failure: `translated_content=null`, buyer renders the original — degraded but not silent. On receipt the buyer client adopts `translated_to` as its in-memory session language (`useChat` `handleInsert`) so `MessageBubble` shows the localisation without a refresh.
+
+### AM display-language translation (buyer/AI/AM → AM)
+
+`POST /api/am/sessions/[id]/translate` body `{ language: "zh" | "hi" }` renders a brief's whole transcript in the AM's chosen working language. AM-gated (`requireAccountManager`) + rate-limited (`am-translate:user:<id>`, 60/min). For each message it returns a cached translation, translates an uncached one (Flash-Lite, bounded concurrency), or skips it when the source already equals the target (`user`/`ai` messages are in `session.language`). New translations are persisted to `chat_messages.metadata.translations[lang]` via the **service-role admin client** (RLS bars an AM from updating buyer/AI rows), so each `(message, language)` pair is translated **once, ever** — a reloaded thread costs zero Gemini calls.
+
+Response: `{ language, translations: { [messageId]: string } }` (non-empty only). The dashboard treats any loaded message id absent from the map as "resolved, show original only" so it never re-asks. The selector (`Original only` / 中文 / हिन्दी) lives in the brief header; the choice is persisted in `localStorage` and applies across briefs. `MessageBubble` (AM viewer) shows the original as primary and the translation as a muted line below.
 
 ### `POST /api/request-review`
 

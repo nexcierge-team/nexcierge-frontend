@@ -2,7 +2,14 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Inbox, MapPin, Loader2, ArrowLeft } from "lucide-react";
+import {
+  Inbox,
+  MapPin,
+  Loader2,
+  ArrowLeft,
+  Languages,
+  ChevronDown,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChatComposer } from "@/components/chat/ChatComposer";
 import { MessageBubble } from "@/components/chat/MessageBubble";
@@ -58,12 +65,20 @@ function rowToMessage(row: ChatMessagesRow): Message {
   };
   const from: MessageFrom | undefined =
     row.sender_type === "account_manager" ? "account_manager" : undefined;
+  // AM-dashboard translations cached on the row (metadata.translations),
+  // keyed by ISO 639-1 code. Hydrated so an already-translated thread
+  // renders in the AM's language with no extra backend calls on reload.
+  const cached = (
+    row.metadata as { translations?: Record<string, string> } | null
+  )?.translations;
   return {
     id: row.id,
     role: senderRoleMap[row.sender_type],
     content: row.content,
     from,
     readAt: row.read_at,
+    translations:
+      cached && typeof cached === "object" ? { ...cached } : undefined,
   };
 }
 
@@ -81,8 +96,33 @@ export default function DashboardPage() {
   const [sending, setSending] = useState(false);
   const [meId, setMeId] = useState<string | null>(null);
   const [authPromptOpen, setAuthPromptOpen] = useState(false);
+  // AM's chosen working language for reading the thread. "" = original
+  // only. Read straight from localStorage so it persists across briefs.
+  // Lazy init (not an effect) is safe from hydration mismatch because the
+  // selector only renders once a brief is open — never in the first paint.
+  const [amLanguage, setAmLanguageState] = useState<string>(() => {
+    if (typeof window === "undefined") return "";
+    try {
+      const saved = window.localStorage.getItem("nexcierge.am.displayLanguage");
+      return saved === "zh" || saved === "hi" ? saved : "";
+    } catch {
+      return "";
+    }
+  });
+  const [amTranslating, setAmTranslating] = useState(false);
+  const translatingRef = useRef(false);
   const seenIds = useRef<Set<string>>(new Set());
   const endRef = useRef<HTMLDivElement>(null);
+
+  const setAmLanguage = useCallback((lang: string) => {
+    setAmLanguageState(lang);
+    try {
+      if (lang) localStorage.setItem("nexcierge.am.displayLanguage", lang);
+      else localStorage.removeItem("nexcierge.am.displayLanguage");
+    } catch {
+      /* ignore persistence failures */
+    }
+  }, []);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -221,6 +261,73 @@ export default function DashboardPage() {
     return () => document.removeEventListener("visibilitychange", onVisibility);
   }, [open?.sessionId]);
 
+  // Fill in AM-side translations for the open brief whenever the AM has a
+  // working language selected and some loaded messages still lack a
+  // translation for it. One effect covers initial open, language
+  // switches, realtime buyer inserts, and the AM's own sent message —
+  // they all land in open.messages. The route is cached + idempotent, so
+  // redundant runs do no Gemini work; the in-flight ref avoids overlap.
+  useEffect(() => {
+    if (!open?.sessionId) return;
+    if (amLanguage !== "zh" && amLanguage !== "hi") return;
+    if (translatingRef.current) return;
+    const lang = amLanguage;
+    const sessionId = open.sessionId;
+    const pending = open.messages.some(
+      (m) =>
+        m.role !== "divider" &&
+        m.content &&
+        m.translations?.[lang] === undefined,
+    );
+    if (!pending) return;
+    // Snapshot which messages we're asking about so a message that
+    // arrives mid-flight isn't wrongly marked "resolved" by our merge.
+    const requestedIds = new Set(open.messages.map((m) => m.id));
+    translatingRef.current = true;
+    (async () => {
+      setAmTranslating(true);
+      try {
+        const res = await fetch(
+          `/api/am/sessions/${encodeURIComponent(sessionId)}/translate`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ language: lang }),
+          },
+        );
+        if (!res.ok) return;
+        const data = (await res.json()) as {
+          language: string;
+          translations: Record<string, string>;
+        };
+        const map = data.translations ?? {};
+        setOpen((prev) => {
+          if (!prev || prev.sessionId !== sessionId) return prev;
+          return {
+            ...prev,
+            messages: prev.messages.map((m) => {
+              if (!requestedIds.has(m.id)) return m; // arrived after we asked
+              if (m.translations?.[lang] !== undefined) return m;
+              return {
+                ...m,
+                translations: {
+                  ...(m.translations ?? {}),
+                  // Absent from the map → resolved, show original only.
+                  [lang]: map[m.id] ?? "",
+                },
+              };
+            }),
+          };
+        });
+      } catch (e) {
+        console.error("am translate fetch failed:", e);
+      } finally {
+        translatingRef.current = false;
+        setAmTranslating(false);
+      }
+    })();
+  }, [open?.sessionId, open?.messages, amLanguage]);
+
   async function claim() {
     if (!open) return;
     try {
@@ -328,6 +435,9 @@ export default function DashboardPage() {
             onSend={sendReply}
             onClose={() => setOpen(null)}
             endRef={endRef}
+            amLanguage={amLanguage}
+            onAmLanguageChange={setAmLanguage}
+            amTranslating={amTranslating}
           />
         ) : (
           <EmptyState loading={openLoading} />
@@ -503,6 +613,9 @@ function BriefPane({
   onSend,
   onClose,
   endRef,
+  amLanguage,
+  onAmLanguageChange,
+  amTranslating,
 }: {
   brief: OpenBrief;
   sending: boolean;
@@ -514,6 +627,9 @@ function BriefPane({
   onSend: () => void;
   onClose: () => void;
   endRef: React.RefObject<HTMLDivElement | null>;
+  amLanguage: string;
+  onAmLanguageChange: (lang: string) => void;
+  amTranslating: boolean;
 }) {
   const { rfq, messages, assignedToMe } = brief;
 
@@ -541,11 +657,18 @@ function BriefPane({
             </p>
           </div>
         </div>
-        {!assignedToMe && (
-          <Button size="sm" variant="primary" onClick={onClaim}>
-            Claim this brief
-          </Button>
-        )}
+        <div className="flex shrink-0 items-center gap-2">
+          <LanguageSelector
+            value={amLanguage}
+            onChange={onAmLanguageChange}
+            translating={amTranslating}
+          />
+          {!assignedToMe && (
+            <Button size="sm" variant="primary" onClick={onClaim}>
+              Claim this brief
+            </Button>
+          )}
+        </div>
       </header>
 
       <div className="flex flex-1 min-h-0">
@@ -557,6 +680,7 @@ function BriefPane({
                   key={m.id}
                   message={m}
                   viewerRole="account_manager"
+                  amDisplayLanguage={amLanguage}
                 />
               ))}
               {otherIsTyping && <TypingIndicator />}
@@ -594,6 +718,53 @@ function BriefPane({
         <BriefSummary rfq={rfq} />
       </div>
     </>
+  );
+}
+
+
+// Header control letting the AM read the whole thread in their working
+// language. "" = original only; "zh"/"hi" translate every message and
+// show the translation under each original. The choice is global (lifted
+// to DashboardPage + persisted), so it sticks across briefs.
+function LanguageSelector({
+  value,
+  onChange,
+  translating,
+}: {
+  value: string;
+  onChange: (lang: string) => void;
+  translating: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-1.5">
+      {translating && (
+        <Loader2
+          className="h-3.5 w-3.5 animate-spin text-gray-400"
+          strokeWidth={1.75}
+          aria-label="Translating…"
+        />
+      )}
+      <label className="relative inline-flex items-center">
+        <Languages
+          className="pointer-events-none absolute left-2.5 h-3.5 w-3.5 text-gray-400"
+          strokeWidth={1.75}
+        />
+        <select
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          aria-label="Read this thread in"
+          className="appearance-none rounded-full border border-gray-200 bg-white py-1.5 pl-8 pr-7 text-xs font-medium text-gray-700 shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-colors hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0F2747]/15"
+        >
+          <option value="">Original only</option>
+          <option value="zh">中文 (Chinese)</option>
+          <option value="hi">हिन्दी (Hindi)</option>
+        </select>
+        <ChevronDown
+          className="pointer-events-none absolute right-2.5 h-3.5 w-3.5 text-gray-400"
+          strokeWidth={1.75}
+        />
+      </label>
+    </div>
   );
 }
 

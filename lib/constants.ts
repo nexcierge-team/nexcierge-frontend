@@ -1,6 +1,9 @@
-// Hard-coded copy that must stay identical for every buyer regardless of
-// machine type, language, or prior conversation. Used by the request-review
-// flow so the handoff close + AM welcome never drift across sessions.
+// Canonical English copy for the handoff close + AM welcome, used by the
+// request-review flow so the wording never drifts across sessions or machine
+// types. These are deterministically localized into the buyer's session
+// language at insert time (request-review/route.ts) via `translateText`, with
+// English as the fallback — so the buyer reads them in their own language
+// while the wording stays fixed.
 
 export const HANDOFF_REPLY =
   "Thank you! Your brief has been sent to our account manager, " +

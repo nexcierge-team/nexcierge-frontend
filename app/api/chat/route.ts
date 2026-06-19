@@ -11,7 +11,6 @@ import {
   updateRfqFields,
 } from "@/lib/db/rfqs";
 import { checkRateLimit, rateLimited429 } from "@/lib/rateLimit";
-import { detectLanguage } from "@/lib/translate";
 import type { ChatMessagesRow } from "@/lib/supabase/types";
 
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8000";
@@ -105,29 +104,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Missing rfq for session" }, { status: 500 });
   }
 
-  // First-message language detection. We only run this once per session,
-  // on the buyer's first user message (one row in chat_messages with
-  // sender_type='user', which is the one we just inserted). The result
-  // is persisted to chat_sessions.language so AM-side translation has
-  // a target — Gemini itself handles mirroring the buyer's language for
-  // subsequent AI replies via the system prompt.
-  let sessionLanguage = session.language ?? "en";
-  const isFirstUserTurn =
-    historyRows.filter((r) => r.sender_type === "user").length === 1 &&
-    sessionLanguage === "en";
-  if (isFirstUserTurn) {
-    const detected = await detectLanguage(body.message);
-    if (detected && detected !== sessionLanguage) {
-      try {
-        await setSessionLanguage(supabase, session.id, detected);
-        sessionLanguage = detected;
-      } catch (e) {
-        // Persist failure shouldn't block the turn; AM translation will
-        // simply default to English until we can pin it later.
-        console.error("session language persist failed:", e);
-      }
-    }
-  }
+  // Language handling: we don't run a separate detector on the chat turn.
+  // The session stays on its 'en' default during the interview (Gemini
+  // mirrors the buyer); the frontend localizes chat chrome per-turn off the
+  // pills pass's `reply_language` (returned below). We pin
+  // chat_sessions.language once the brief completes (further down), reusing
+  // that same reply_language, so AM-side translation + the localized handoff
+  // messages have a target; the AM-send route keeps its own fallback. We
+  // forward whatever is stored so a pinned language drives the backend's
+  // OUTPUT LANGUAGE lock.
+  const sessionLanguage = session.language ?? "en";
 
   const backendBody = {
     session_id: session.id,
@@ -142,6 +128,7 @@ export async function POST(req: Request) {
     profile: ReturnType<typeof rfqRowToProfile>;
     profile_complete: boolean;
     suggestions?: string[];
+    reply_language?: string;
   };
   try {
     const res = await fetch(`${BACKEND_URL}/chat`, {
@@ -193,6 +180,22 @@ export async function POST(req: Request) {
     );
   }
 
+  // Pin the buyer's language once the brief first completes, so AM-side
+  // translation and the localized handoff messages have a target. We reuse
+  // the language the pills pass already classified for this reply — no extra
+  // classifier call. Skipped once a non-'en' language is pinned; an English
+  // (or undetected) reply leaves it 'en', and the AM-send route still has
+  // its own fallback.
+  const replyLanguage = backendData.reply_language ?? "en";
+  if (updatedRfq.is_complete && sessionLanguage === "en" && replyLanguage !== "en") {
+    try {
+      await setSessionLanguage(supabase, session.id, replyLanguage);
+    } catch (e) {
+      // Non-fatal: the AM-send fallback pins it later.
+      console.error("session language persist failed:", e);
+    }
+  }
+
   return NextResponse.json({
     reply: backendData.reply,
     user_message: userMsg,
@@ -201,10 +204,10 @@ export async function POST(req: Request) {
     profile_complete: updatedRfq.is_complete,
     review_requested: false,
     ai_skipped: false,
-    // Surfaced so useChat can refresh its in-memory language state on
-    // the first turn without a separate round-trip. Null when we didn't
-    // detect (subsequent turns) or when detection left it on 'en'.
-    detected_language: isFirstUserTurn ? sessionLanguage : null,
+    // ISO 639-1 language of the agent's reply (from the pills pass). The
+    // client adopts it as the buyer's display language to localize chat
+    // chrome + the summary card from the first turn.
+    reply_language: replyLanguage,
     // Pass-through. Session-only — not persisted on chat_messages, so
     // these pills only show in the same browser session that produced
     // them. Adding a `suggestions jsonb` column to chat_messages would

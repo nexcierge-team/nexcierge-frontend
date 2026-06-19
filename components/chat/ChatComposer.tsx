@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useRef } from "react";
 import { ArrowUp } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { chatStrings } from "@/lib/chatStrings";
 
 interface ChatComposerProps {
   value: string;
@@ -12,6 +13,9 @@ interface ChatComposerProps {
   placeholder?: string;
   autoFocus?: boolean;
   rows?: number;
+  // Buyer's display language (ISO 639-1). Localizes the default placeholder
+  // and the send button's aria-label. Defaults to English.
+  language?: string;
 }
 
 export function ChatComposer({
@@ -22,7 +26,9 @@ export function ChatComposer({
   placeholder,
   autoFocus,
   rows = 1,
+  language,
 }: ChatComposerProps) {
+  const cs = chatStrings(language);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Auto-resize
@@ -52,7 +58,10 @@ export function ChatComposer({
             if (!disabled && value.trim()) onSubmit();
           }
         }}
-        placeholder={placeholder ?? "Message Nexcierge…"}
+        placeholder={placeholder ?? cs.composerDefault}
+        // Auto direction so RTL languages (e.g. Arabic) align the placeholder
+        // and the buyer's typing to the right without a hard-coded dir.
+        dir="auto"
         rows={rows}
         className={cn(
           // text-base (16px) below sm: prevents iOS Safari from auto-zooming
@@ -66,7 +75,7 @@ export function ChatComposer({
       <button
         type="submit"
         disabled={disabled || !value.trim()}
-        aria-label="Send message"
+        aria-label={cs.sendAria}
         className="absolute right-2.5 bottom-2.5 flex h-9 w-9 items-center justify-center rounded-full bg-gray-900 text-white shadow-sm transition-all duration-200 hover:bg-gray-800 disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none"
       >
         <ArrowUp className="h-4 w-4" strokeWidth={2} />
