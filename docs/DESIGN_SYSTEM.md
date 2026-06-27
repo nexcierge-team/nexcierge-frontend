@@ -71,10 +71,11 @@ Focus ring: `ring-[#0F2747]` (midnight navy) on all variants.
 - Hover: subtle `bg-gray-50` + text darkens to `text-gray-900`
 
 ### Message bubbles
-- User: `bg-gray-900 text-white`
-- Agent: `bg-white border border-gray-200 text-gray-900 shadow-[0_1px_2px_rgba(0,0,0,0.03)]`
+- Self (outgoing — buyer's own / AM's own): `bg-[#0F2747] text-white`
+- Agent / incoming: `bg-white border border-gray-200 text-gray-900 shadow-[0_1px_2px_rgba(0,0,0,0.03)]`
+- **AM dashboard, AI messages:** the prior AI interview turns use the dark `bg-[#0F2747] text-white` "house" bubble (same colour as the AM's own replies) so they group with the Nexcierge side and stay distinct from the buyer's white bubbles. Alignment is unchanged — AI stays on the incoming (left) side; only the colour flips. The buyer's own view keeps AI messages white. Driven by `isAiInAmView` in `MessageBubble.tsx`; `AgentMarkdown` takes a `dark` prop that re-themes strong/links/code/headings/blockquote and the translation secondary line for white-on-navy contrast.
 - `max-w-[88%]` so long messages don't span full width
-- `whitespace-pre-wrap` to preserve linebreaks from the agent
+- `whitespace-pre-wrap` on plain (self) bubbles to preserve linebreaks; agent bubbles render markdown
 
 ### Status pills (dashboard)
 - AI-related: `bg-[#DCE8F8] text-[#0F2747] ring-[#BFD3F0]` (Supplier Matching uses this — it's the soft AI accent)

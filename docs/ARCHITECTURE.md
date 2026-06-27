@@ -55,7 +55,9 @@ components/
 ├── chat/
 │   ├── ChatSidebar.tsx     Real session list from /api/chat/sessions, kept live via useRealtimeSessions
 │   ├── ChatComposer.tsx
-│   ├── MessageBubble.tsx   `viewerRole` flips alignment for AM view; `sessionLanguage`
+│   ├── MessageBubble.tsx   `viewerRole` flips alignment for AM view (and gives AI
+│   │                         turns the dark "house" bubble there so they group with the
+│   │                         AM, distinct from the buyer's white bubbles); `sessionLanguage`
 │   │                         drives the buyer's translated/original dual render;
 │   │                         `amDisplayLanguage` drives the AM's original/translated dual render
 │   └── ProfileSummaryCard.tsx
