@@ -13,6 +13,7 @@ import type {
   ChatMessagesRow,
   ChatSenderType,
 } from "@/lib/supabase/types";
+import { attachmentsFromMetadata } from "@/lib/attachments";
 
 function newMessageId() {
   return Math.random().toString(36).slice(2);
@@ -36,6 +37,7 @@ function rowToMessage(row: ChatMessagesRow): Message {
     translatedContent: row.translated_content,
     translatedTo: row.translated_to,
     readAt: row.read_at,
+    attachments: attachmentsFromMetadata(row.metadata),
   };
 }
 

@@ -47,24 +47,22 @@ export async function detectLanguage(text: string): Promise<string> {
 // Translate `text` into `targetLanguage`. Returns null on empty input,
 // timeout, or backend failure (callers fall back to the original).
 //
-// `sourceLanguage` (optional ISO 639-1) makes English a real target: when
-// provided we forward it so the backend translates unless source ===
-// target — this is how the AM-send route delivers an English-speaking
-// buyer the AM's Chinese/Hindi reply in English. Without it we keep the
-// cheap short-circuit (English target = no-op, assumes English source).
+// `opts.force` makes English a real target: an `"en"` target is a cheap
+// no-op by default (callers deliver the English original as-is), but with
+// `force` the backend runs the model — this is how the AM-send route
+// delivers an English-speaking buyer the AM's Chinese/Hindi reply in
+// English, with no separate detection call. When the text is already in
+// the target language the backend echoes it verbatim, so the caller can
+// treat an unchanged result as "no translation needed".
 export async function translateText(
   text: string,
   targetLanguage: string,
-  sourceLanguage?: string,
+  opts?: { force?: boolean },
 ): Promise<string | null> {
   if (!text.trim() || !targetLanguage) return null;
-  // Short-circuit only in legacy mode. With an explicit source we let the
-  // backend decide (so en targets are honoured when source !== "en").
-  if (sourceLanguage === undefined) {
-    if (targetLanguage === "en") return null;
-  } else if (sourceLanguage === targetLanguage) {
-    return null;
-  }
+  // Cheap short-circuit: an English target is assumed already-English
+  // unless the caller forces a real pass.
+  if (!opts?.force && targetLanguage === "en") return null;
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TRANSLATE_TIMEOUT_MS);
@@ -75,7 +73,7 @@ export async function translateText(
       body: JSON.stringify({
         text,
         target_language: targetLanguage,
-        source_language: sourceLanguage ?? null,
+        force: opts?.force ?? false,
       }),
       signal: controller.signal,
     });

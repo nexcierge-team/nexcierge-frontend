@@ -6,9 +6,23 @@ import { insertMessage, listMessages } from "@/lib/db/messages";
 import { getSession, setSessionLanguage } from "@/lib/db/sessions";
 import { translateText, detectLanguage } from "@/lib/translate";
 import { checkRateLimit, rateLimited429 } from "@/lib/rateLimit";
+import { validateAttachments } from "@/lib/attachments";
+import type { Attachment } from "@/types/chat";
 
 interface PostBody {
-  content: string;
+  content?: string;
+  // Document / media metadata for files the AM already uploaded straight to
+  // Storage from the browser. Validated server-side against this session.
+  attachments?: unknown;
+}
+
+// Only attach the `attachments` key when there are files — text-only sends
+// keep the empty-object metadata default (and don't disturb the
+// metadata.translations cache the dashboard writes later).
+function attachmentsMetadata(
+  attachments: Attachment[],
+): Record<string, unknown> | undefined {
+  return attachments.length > 0 ? { attachments } : undefined;
 }
 
 // Detect the buyer's language from their OWN messages in this session.
@@ -37,14 +51,15 @@ async function detectBuyerLanguage(
 // So a misconfigured client can't post on someone else's brief.
 //
 // The AM may reply in any language (they pick a working language on the
-// dashboard). We always deliver the buyer their chosen language: for a
-// non-English buyer we translate the reply into it; for an English buyer
-// we detect the reply's language and translate into English only when it
-// isn't already English. Both the original (content) and the translation
-// (translated_content + translated_to) are stored; the buyer UI shows
-// translated_content when translated_to matches their language. On
-// translation failure we still send the original — silence is worse than
-// imperfect localisation.
+// dashboard). We always deliver the buyer their chosen language with a
+// SINGLE forced translation call into it: the backend echoes the text
+// verbatim when it's already in that language, so we store a translation
+// only when the result actually differs — no separate language-detection
+// round-trip (that halves the latency the AM feels on send). Both the
+// original (content) and the translation (translated_content +
+// translated_to) are stored; the buyer UI shows translated_content when
+// translated_to matches their language. On translation failure we still
+// send the original — silence is worse than imperfect localisation.
 export async function POST(
   req: Request,
   ctx: { params: Promise<{ id: string }> },
@@ -67,10 +82,17 @@ export async function POST(
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
-  const text = body.content?.trim();
-  if (!text) {
+  const text = body.content?.trim() ?? "";
+  // Attachment paths are checked to live under THIS session's folder, so a
+  // tampered request can't reference another session's files.
+  const attachments = validateAttachments(body.attachments, id);
+  if (attachments === null) {
+    return NextResponse.json({ error: "invalid attachments" }, { status: 400 });
+  }
+  // A message must carry something — text, files, or both.
+  if (!text && attachments.length === 0) {
     return NextResponse.json(
-      { error: "content required" },
+      { error: "content or attachments required" },
       { status: 400 },
     );
   }
@@ -106,22 +128,21 @@ export async function POST(
   }
 
   // The buyer must always read the reply in their own language, whatever
-  // language the AM typed in.
+  // language the AM typed in. One forced call into the buyer's language
+  // covers every buyer (English included): Gemini handles any source and
+  // echoes the input verbatim when it's already in the target language, so
+  // we store a translation only when it differs. Only the caption is
+  // translated — an attachment-only message has no text, so we skip the
+  // (paid) Gemini call entirely.
   let translatedContent: string | null = null;
   let translatedTo: string | null = null;
-  if (targetLanguage !== "en") {
-    // Non-English buyer: translate straight into their language. Gemini
-    // handles any source, so we don't need to detect what the AM typed.
-    translatedContent = await translateText(text, targetLanguage);
-    if (translatedContent) translatedTo = targetLanguage;
-  } else {
-    // English buyer: AMs now work in Chinese/Hindi, so the reply may not
-    // be English. Detect it and translate INTO English when it isn't —
-    // passing the source so translateText overrides its English no-op.
-    const sourceLanguage = await detectLanguage(text);
-    if (sourceLanguage !== "en") {
-      translatedContent = await translateText(text, "en", sourceLanguage);
-      if (translatedContent) translatedTo = "en";
+  if (text) {
+    const localized = await translateText(text, targetLanguage, {
+      force: true,
+    });
+    if (localized && localized.trim() !== text.trim()) {
+      translatedContent = localized;
+      translatedTo = targetLanguage;
     }
   }
 
@@ -133,6 +154,7 @@ export async function POST(
       content: text,
       translatedContent,
       translatedTo,
+      metadata: attachmentsMetadata(attachments),
     });
     return NextResponse.json({ message: msg });
   } catch (e) {

@@ -21,6 +21,11 @@ Easiest path — paste each `.sql` file's contents into the SQL editor in the Su
 0003_rfqs.sql
 0004_rls_policies.sql
 0005_optional_cleanup_cron.sql   (skip until pg_cron is enabled)
+0006_message_read_at.sql
+0007_session_language_and_translations.sql
+0008_rate_limits.sql
+0009_realtime_chat_sessions.sql
+0010_chat_attachments.sql        (Storage bucket + RLS for AM attachments)
 ```
 
 Or, with [supabase CLI](https://supabase.com/docs/guides/cli) (`brew install supabase/tap/supabase`):
@@ -92,6 +97,17 @@ Handled by two migrations:
 - `0009` adds `public.chat_sessions` to the publication and sets `replica identity full` — powers the live sidebar (`lib/useRealtimeSessions.ts`), so new chats, generated titles, and `ai → in_handoff → closed` status flips appear without a refresh.
 
 Confirm in the dashboard under **Database → Replication → supabase_realtime** that both `public.chat_messages` and `public.chat_sessions` are checked. If `chat_sessions` is missing, re-run migration `0009` (or check it manually in the dashboard).
+
+## 10. Chat attachments (Storage)
+
+Migration `0010_chat_attachments.sql` creates everything needed for account managers to send documents and media in chat — **no dashboard clicks required**, it runs as plain SQL like the others:
+
+- A **private** Storage bucket `chat-attachments` with a 25 MiB per-file limit.
+- RLS on `storage.objects` scoping the bucket: the assigned AM may **upload** into a session's folder (`"<chat_session_id>/<file>"`), and session members (that buyer + any AM) may **read** — which is what lets the browser mint signed URLs.
+
+Buyers' browsers upload nothing here; only AMs do. Files are never public — the app serves them via short-lived signed URLs. To confirm it applied, check **Storage → Buckets** for `chat-attachments` (private) and **Storage → Policies** for the two `chat_attach_*` policies.
+
+If you ever rename the bucket, update `ATTACHMENT_BUCKET` in `frontend/lib/attachments.ts` to match.
 
 ## Manual AM promotion
 

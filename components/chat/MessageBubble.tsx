@@ -7,6 +7,7 @@ import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
 import type { Message } from "@/types/chat";
 import { ProfileSummaryCard } from "./ProfileSummaryCard";
+import { MessageAttachments } from "./MessageAttachments";
 
 // Native-script labels for the languages the AM can read the thread in.
 // Used as the heading on the translated secondary line in the AM view.
@@ -80,6 +81,16 @@ export function MessageBubble({
   // semantics are now "render as outgoing/self bubble".
   const isUser = isSelf;
 
+  // AM dashboard only: give the prior AI interview messages the same dark
+  // "house" bubble as the AM's own replies so they read as one side
+  // (Nexcierge) and stay visually distinct from the buyer's white
+  // messages. Alignment is unchanged — AI stays on the incoming side; only
+  // the colour (and the matching dark markdown theme below) flips.
+  const isAiInAmView =
+    viewerRole === "account_manager" &&
+    message.role === "agent" &&
+    !isAccountManager;
+
   // Two independent translation modes decide what shows as the primary
   // bubble text and what (if anything) sits below it as a muted line:
   //
@@ -149,9 +160,11 @@ export function MessageBubble({
               "rounded-2xl px-4 py-3 text-[15px] leading-relaxed",
               isUser
                 ? "bg-[#0F2747] text-white whitespace-pre-wrap"
-                : message.error
-                  ? "bg-white border border-red-200 text-red-900 shadow-[0_1px_2px_rgba(0,0,0,0.03)]"
-                  : "bg-white border border-gray-200 text-gray-900 shadow-[0_1px_2px_rgba(0,0,0,0.03)]",
+                : isAiInAmView
+                  ? "bg-[#0F2747] text-white"
+                  : message.error
+                    ? "bg-white border border-red-200 text-red-900 shadow-[0_1px_2px_rgba(0,0,0,0.03)]"
+                    : "bg-white border border-gray-200 text-gray-900 shadow-[0_1px_2px_rgba(0,0,0,0.03)]",
             )}
           >
             {isUser ? (
@@ -186,21 +199,43 @@ export function MessageBubble({
               </div>
             ) : (
               <>
-                <AgentMarkdown content={primaryText} />
+                <AgentMarkdown content={primaryText} dark={isAiInAmView} />
                 {secondaryText && (
                   <>
-                    <hr className="my-2.5 border-gray-100" />
-                    <div className="text-[12px] leading-relaxed text-gray-400">
-                      <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-300">
+                    <hr
+                      className={cn(
+                        "my-2.5",
+                        isAiInAmView ? "border-white/15" : "border-gray-100",
+                      )}
+                    />
+                    <div
+                      className={cn(
+                        "text-[12px] leading-relaxed",
+                        isAiInAmView ? "text-white/65" : "text-gray-400",
+                      )}
+                    >
+                      <div
+                        className={cn(
+                          "mb-1 text-[10px] font-semibold uppercase tracking-wider",
+                          isAiInAmView ? "text-white/45" : "text-gray-300",
+                        )}
+                      >
                         {secondaryLabel}
                       </div>
-                      <AgentMarkdown content={secondaryText} />
+                      <AgentMarkdown content={secondaryText} dark={isAiInAmView} />
                     </div>
                   </>
                 )}
               </>
             )}
           </div>
+        )}
+
+        {message.attachments && message.attachments.length > 0 && (
+          <MessageAttachments
+            attachments={message.attachments}
+            align={isUser ? "end" : "start"}
+          />
         )}
 
         {message.profileCard && (
@@ -251,7 +286,17 @@ export function MessageBubble({
 }
 
 
-function AgentMarkdown({ content }: { content: string }) {
+// `dark` themes the colour-bearing elements (strong/links/code/headings/
+// blockquote) for rendering on the dark "house" bubble used by AI messages
+// in the AM dashboard. Base prose colour comes from the bubble's text-*
+// class, so only the elements that hard-code a colour need flipping.
+function AgentMarkdown({
+  content,
+  dark = false,
+}: {
+  content: string;
+  dark?: boolean;
+}) {
   return (
     <ReactMarkdown
       remarkPlugins={[remarkGfm]}
@@ -267,7 +312,14 @@ function AgentMarkdown({ content }: { content: string }) {
         ),
         li: ({ children }) => <li className="pl-1">{children}</li>,
         strong: ({ children }) => (
-          <strong className="font-semibold text-gray-900">{children}</strong>
+          <strong
+            className={cn(
+              "font-semibold",
+              dark ? "text-white" : "text-gray-900",
+            )}
+          >
+            {children}
+          </strong>
         ),
         em: ({ children }) => <em className="italic">{children}</em>,
         a: ({ href, children }) => {
@@ -283,7 +335,12 @@ function AgentMarkdown({ content }: { content: string }) {
               href={href}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[#0F2747] underline underline-offset-2 hover:text-[#1D4ED8] transition-colors"
+              className={cn(
+                "underline underline-offset-2 transition-colors",
+                dark
+                  ? "text-blue-200 hover:text-white"
+                  : "text-[#0F2747] hover:text-[#1D4ED8]",
+              )}
             >
               {children}
             </a>
@@ -295,33 +352,69 @@ function AgentMarkdown({ content }: { content: string }) {
         // exfiltrate data via the browser's automatic image fetch.
         img: () => null,
         code: ({ children }) => (
-          <code className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-[0.85em] text-gray-800">
+          <code
+            className={cn(
+              "rounded px-1.5 py-0.5 font-mono text-[0.85em]",
+              dark ? "bg-white/15 text-white" : "bg-gray-100 text-gray-800",
+            )}
+          >
             {children}
           </code>
         ),
         pre: ({ children }) => (
-          <pre className="my-2 overflow-x-auto rounded-lg bg-gray-100 p-3 font-mono text-[13px] text-gray-800">
+          <pre
+            className={cn(
+              "my-2 overflow-x-auto rounded-lg p-3 font-mono text-[13px]",
+              dark ? "bg-white/10 text-white" : "bg-gray-100 text-gray-800",
+            )}
+          >
             {children}
           </pre>
         ),
         h1: ({ children }) => (
-          <h1 className="mt-3 mb-2 text-base font-semibold text-gray-900">
+          <h1
+            className={cn(
+              "mt-3 mb-2 text-base font-semibold",
+              dark ? "text-white" : "text-gray-900",
+            )}
+          >
             {children}
           </h1>
         ),
         h2: ({ children }) => (
-          <h2 className="mt-3 mb-2 text-base font-semibold text-gray-900">
+          <h2
+            className={cn(
+              "mt-3 mb-2 text-base font-semibold",
+              dark ? "text-white" : "text-gray-900",
+            )}
+          >
             {children}
           </h2>
         ),
         h3: ({ children }) => (
-          <h3 className="mt-2 mb-1 text-[15px] font-semibold text-gray-900">
+          <h3
+            className={cn(
+              "mt-2 mb-1 text-[15px] font-semibold",
+              dark ? "text-white" : "text-gray-900",
+            )}
+          >
             {children}
           </h3>
         ),
-        hr: () => <hr className="my-3 border-gray-200" />,
+        hr: () => (
+          <hr
+            className={cn("my-3", dark ? "border-white/20" : "border-gray-200")}
+          />
+        ),
         blockquote: ({ children }) => (
-          <blockquote className="my-2 border-l-2 border-gray-300 pl-3 italic text-gray-700">
+          <blockquote
+            className={cn(
+              "my-2 border-l-2 pl-3 italic",
+              dark
+                ? "border-white/30 text-white/80"
+                : "border-gray-300 text-gray-700",
+            )}
+          >
             {children}
           </blockquote>
         ),
