@@ -8,6 +8,23 @@ export type ChatRole = "user" | "agent" | "divider";
 // Drives the small attribution label above the bubble.
 export type MessageFrom = "agent" | "account_manager";
 
+// "image" renders inline as a thumbnail; "file" renders as a downloadable
+// card. Derived from the MIME type at upload time (see lib/attachments.ts).
+export type AttachmentKind = "image" | "file";
+
+// A document or media file an account manager attached to a chat message.
+// Persisted in chat_messages.metadata.attachments. `path` is the object key
+// inside the private `chat-attachments` Storage bucket — never a URL; the
+// browser mints short-lived signed URLs on render via the buyer's / AM's own
+// session (RLS-gated), so a leaked row can't be replayed for file access.
+export interface Attachment {
+  path: string;
+  name: string;
+  size: number;
+  type: string;
+  kind: AttachmentKind;
+}
+
 export interface Message {
   id: string;
   role: ChatRole;
@@ -42,6 +59,10 @@ export interface Message {
   // Only meaningful on messages SENT by the current viewer — drives
   // the "Read" indicator under outgoing bubbles.
   readAt?: string | null;
+  // Documents / media attached to this message (account-manager replies
+  // only). Hydrated from chat_messages.metadata.attachments. Rendered
+  // below the bubble text by MessageAttachments, which signs each path.
+  attachments?: Attachment[];
   // Quick-reply pills offered by the agent for THIS turn. Produced by the
   // backend's pill second pass (`chatbot.suggest_pills`) off the final reply
   // text, returned as `suggestions` from /chat. Only the latest agent message

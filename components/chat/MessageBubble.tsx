@@ -7,6 +7,7 @@ import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
 import type { Message } from "@/types/chat";
 import { ProfileSummaryCard } from "./ProfileSummaryCard";
+import { MessageAttachments } from "./MessageAttachments";
 
 // Native-script labels for the languages the AM can read the thread in.
 // Used as the heading on the translated secondary line in the AM view.
@@ -228,6 +229,13 @@ export function MessageBubble({
               </>
             )}
           </div>
+        )}
+
+        {message.attachments && message.attachments.length > 0 && (
+          <MessageAttachments
+            attachments={message.attachments}
+            align={isUser ? "end" : "start"}
+          />
         )}
 
         {message.profileCard && (

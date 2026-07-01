@@ -25,6 +25,18 @@ import type {
   RfqStatus,
 } from "@/lib/supabase/types";
 import type { Message, MessageFrom, ChatRole } from "@/types/chat";
+import {
+  attachmentsFromMetadata,
+  isAllowedAttachment,
+  humanFileSize,
+  ATTACHMENT_ACCEPT,
+  MAX_ATTACHMENT_BYTES,
+  MAX_ATTACHMENTS_PER_MESSAGE,
+} from "@/lib/attachments";
+import {
+  uploadAttachment,
+  type PendingAttachment,
+} from "@/lib/storage/attachments";
 import { cn } from "@/lib/utils";
 
 interface InboxBrief {
@@ -79,6 +91,7 @@ function rowToMessage(row: ChatMessagesRow): Message {
     readAt: row.read_at,
     translations:
       cached && typeof cached === "object" ? { ...cached } : undefined,
+    attachments: attachmentsFromMetadata(row.metadata),
   };
 }
 
@@ -94,6 +107,12 @@ export default function DashboardPage() {
   const [openLoading, setOpenLoading] = useState(false);
   const [composer, setComposer] = useState("");
   const [sending, setSending] = useState(false);
+  // Documents / media the AM has queued for the current reply. Each is
+  // uploaded to Storage the moment it's picked; `uploaded` holds the
+  // resulting Attachment metadata we POST on send. Cleared on send and on
+  // brief switch so files never bleed into the wrong thread.
+  const [pending, setPending] = useState<PendingAttachment[]>([]);
+  const pendingRef = useRef<PendingAttachment[]>([]);
   const [meId, setMeId] = useState<string | null>(null);
   const [authPromptOpen, setAuthPromptOpen] = useState(false);
   // AM's chosen working language for reading the thread. "" = original
@@ -178,6 +197,9 @@ export default function DashboardPage() {
   const openBrief = useCallback(
     async (sessionId: string) => {
       setOpenLoading(true);
+      // Drop any files queued against the previously-open brief.
+      setPending([]);
+      setComposer("");
       try {
         const res = await fetch(
           `/api/am/sessions/${encodeURIComponent(sessionId)}`,
@@ -348,19 +370,126 @@ export default function DashboardPage() {
     }
   }
 
+  // Keep a ref copy so addFiles can compute remaining slots without
+  // depending on (and re-creating on) every pending change.
+  useEffect(() => {
+    pendingRef.current = pending;
+  }, [pending]);
+
+  // Upload one queued file to Storage, flipping its chip from "uploading"
+  // to ready (or error). The browser uploads straight to Supabase Storage,
+  // so big files don't hit the serverless body limit.
+  const runUpload = useCallback(
+    async (sessionId: string, entry: PendingAttachment) => {
+      try {
+        const uploaded = await uploadAttachment(sessionId, entry.file);
+        setPending((prev) =>
+          prev.map((p) =>
+            p.id === entry.id ? { ...p, uploading: false, uploaded } : p,
+          ),
+        );
+      } catch (e) {
+        console.error("attachment upload failed:", e);
+        setPending((prev) =>
+          prev.map((p) =>
+            p.id === entry.id
+              ? { ...p, uploading: false, error: "Upload failed" }
+              : p,
+          ),
+        );
+      }
+    },
+    [],
+  );
+
+  // Validate picked files against the per-message cap, size, and type, then
+  // start uploading the valid ones. Rejected files still show as error chips
+  // so the AM sees why.
+  const addFiles = useCallback(
+    (files: File[]) => {
+      const sessionId = open?.sessionId;
+      if (!sessionId) return;
+      const room = Math.max(
+        0,
+        MAX_ATTACHMENTS_PER_MESSAGE - pendingRef.current.length,
+      );
+      const accepted: PendingAttachment[] = [];
+      for (const file of files.slice(0, room)) {
+        let error: string | undefined;
+        if (file.size > MAX_ATTACHMENT_BYTES) {
+          error = `Too large (max ${humanFileSize(MAX_ATTACHMENT_BYTES)})`;
+        } else if (!isAllowedAttachment(file.name)) {
+          error = "Unsupported type";
+        }
+        accepted.push({
+          id: crypto.randomUUID(),
+          file,
+          name: file.name,
+          size: file.size,
+          uploading: !error,
+          error,
+        });
+      }
+      if (accepted.length === 0) return;
+      setPending((prev) => [...prev, ...accepted]);
+      for (const entry of accepted) {
+        if (!entry.error) void runUpload(sessionId, entry);
+      }
+    },
+    [open?.sessionId, runUpload],
+  );
+
+  const removeAttachment = useCallback((id: string) => {
+    setPending((prev) => prev.filter((p) => p.id !== id));
+  }, []);
+
   async function sendReply() {
-    if (!open || !composer.trim() || sending) return;
-    setSending(true);
+    if (!open || sending) return;
     const text = composer.trim();
+    // Don't send while an upload is still in flight (the composer also
+    // blocks this) and require something to send.
+    if (pending.some((p) => p.uploading)) return;
+    const ready = pending
+      .map((p) => p.uploaded)
+      .filter((a): a is NonNullable<typeof a> => Boolean(a));
+    if (!text && ready.length === 0) return;
+    const sessionId = open.sessionId;
+    // Snapshot composer state so a failed send can restore it (text + the
+    // already-uploaded files) for a one-click retry.
+    const snapshotPending = pending;
+    setSending(true);
     setComposer("");
+    setPending([]);
     notifyStoppedTyping();
+    // Render the AM's own message immediately instead of waiting on the
+    // server round-trip — that round-trip runs a Gemini translation for the
+    // BUYER, which the AM has no reason to block on. Realtime skips our own
+    // inserts, so there's nothing to dedupe; we just swap this optimistic
+    // bubble for the persisted row (real id + buyer-facing translation)
+    // once the POST returns.
+    const tempId = `optimistic-${crypto.randomUUID()}`;
+    const optimistic: Message = {
+      id: tempId,
+      role: "agent",
+      from: "account_manager",
+      content: text,
+      attachments: ready.length > 0 ? ready : undefined,
+    };
+    setOpen((prev) =>
+      prev && prev.sessionId === sessionId
+        ? { ...prev, messages: [...prev.messages, optimistic] }
+        : prev,
+    );
     try {
       const res = await fetch(
-        `/api/am/sessions/${encodeURIComponent(open.sessionId)}/messages`,
+        `/api/am/sessions/${encodeURIComponent(sessionId)}/messages`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ content: text }),
+          body: JSON.stringify({
+            content: text,
+            ...(ready.length > 0 ? { attachments: ready } : {}),
+          }),
         },
       );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -368,10 +497,29 @@ export default function DashboardPage() {
       const row = data.message as ChatMessagesRow;
       seenIds.current.add(row.id);
       setOpen((prev) =>
-        prev ? { ...prev, messages: [...prev.messages, rowToMessage(row)] } : prev,
+        prev && prev.sessionId === sessionId
+          ? {
+              ...prev,
+              messages: prev.messages.map((m) =>
+                m.id === tempId ? rowToMessage(row) : m,
+              ),
+            }
+          : prev,
       );
     } catch (e) {
       console.error("am send failed:", e);
+      // Drop the optimistic bubble and restore the composer so the AM can
+      // retry without redoing anything (the uploaded files are still valid).
+      setOpen((prev) =>
+        prev && prev.sessionId === sessionId
+          ? {
+              ...prev,
+              messages: prev.messages.filter((m) => m.id !== tempId),
+            }
+          : prev,
+      );
+      setComposer(text);
+      setPending(snapshotPending);
     } finally {
       setSending(false);
     }
@@ -433,11 +581,18 @@ export default function DashboardPage() {
             otherIsTyping={otherIsTyping}
             onClaim={claim}
             onSend={sendReply}
-            onClose={() => setOpen(null)}
+            onClose={() => {
+              setOpen(null);
+              setPending([]);
+              setComposer("");
+            }}
             endRef={endRef}
             amLanguage={amLanguage}
             onAmLanguageChange={setAmLanguage}
             amTranslating={amTranslating}
+            pending={pending}
+            onAttach={addFiles}
+            onRemoveAttachment={removeAttachment}
           />
         ) : (
           <EmptyState loading={openLoading} />
@@ -616,6 +771,9 @@ function BriefPane({
   amLanguage,
   onAmLanguageChange,
   amTranslating,
+  pending,
+  onAttach,
+  onRemoveAttachment,
 }: {
   brief: OpenBrief;
   sending: boolean;
@@ -630,8 +788,14 @@ function BriefPane({
   amLanguage: string;
   onAmLanguageChange: (lang: string) => void;
   amTranslating: boolean;
+  pending: PendingAttachment[];
+  onAttach: (files: File[]) => void;
+  onRemoveAttachment: (id: string) => void;
 }) {
   const { rfq, messages, assignedToMe } = brief;
+  const uploading = pending.some((p) => p.uploading);
+  const hasReadyAttachment = pending.some((p) => p.uploaded);
+  const atAttachmentCap = pending.length >= MAX_ATTACHMENTS_PER_MESSAGE;
 
   return (
     <>
@@ -702,9 +866,17 @@ function BriefPane({
                   placeholder={
                     sending ? "Sending…" : "Message the buyer…"
                   }
+                  onAttach={onAttach}
+                  attachAccept={ATTACHMENT_ACCEPT}
+                  pendingAttachments={pending}
+                  onRemoveAttachment={onRemoveAttachment}
+                  attachDisabled={atAttachmentCap}
+                  allowEmptySubmit={hasReadyAttachment}
+                  submitDisabled={uploading}
                 />
                 <div className="mt-2 text-center text-[11px] text-gray-400">
-                  Press Enter to send · Buyer sees your reply in realtime
+                  Press Enter to send · Attach documents or media · Buyer sees
+                  your reply in realtime
                 </div>
               </div>
             </div>
