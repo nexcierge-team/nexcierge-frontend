@@ -6,12 +6,7 @@ import { listMessages, cacheMessageTranslation } from "@/lib/db/messages";
 import { getSession } from "@/lib/db/sessions";
 import { translateText } from "@/lib/translate";
 import { checkRateLimit, rateLimited429 } from "@/lib/rateLimit";
-
-// Languages an AM can pick to read the thread in. Buyers can be in many
-// languages, but the AM team works in these two for now (see the selector
-// in app/dashboard/page.tsx). Anything else is rejected so a typo'd code
-// can't fan out into a pile of pointless Gemini calls.
-const AM_DISPLAY_LANGUAGES = new Set(["zh", "hi"]);
+import { AM_DISPLAY_LANGUAGES } from "@/lib/amLanguages";
 
 // Translate uncached messages a few at a time so a long thread's first
 // open doesn't open dozens of simultaneous backend calls.

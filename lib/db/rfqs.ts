@@ -24,6 +24,7 @@ export function emptyRfqFields(): Partial<RfqsRow> {
     compliance_requirements: [],
     new_or_used_preference: "",
     additional_notes: "",
+    translations: {},
     status: "in_progress",
   };
 }
@@ -243,4 +244,51 @@ export async function markRfqSubmitted(
     .single();
   if (error) throw error;
   return data;
+}
+
+// AM-dashboard translation cache for a brief's free-text fields, keyed by
+// ISO 639-1 language code. Only fields that actually needed translation
+// are present for a given language.
+export interface RfqTranslationUpdate {
+  machine_type?: string;
+  intended_application?: string;
+  additional_notes?: string;
+  technical_specifications?: Record<string, string>;
+}
+
+// Persist an AM-dashboard translation of a brief into `translations[lang]`,
+// merging into the row's existing translations (the caller passes it in so
+// we skip a re-read). Requires the service-role admin client: RLS only
+// lets the *assigned* AM update an rfq (see rfqs_update_assigned_am), but
+// an AM should be able to read a translated brief before claiming it.
+//
+// Best-effort: logs and swallows on failure, mirroring
+// cacheMessageTranslation in lib/db/messages.ts — a cache-write hiccup
+// must never block the AM's view; worst case we re-translate next time.
+export async function cacheRfqTranslation(
+  admin: Client,
+  rfqId: string,
+  currentTranslations: Record<string, unknown> | null | undefined,
+  lang: string,
+  updates: RfqTranslationUpdate,
+): Promise<void> {
+  const base =
+    currentTranslations && typeof currentTranslations === "object"
+      ? currentTranslations
+      : {};
+  const existing = (base as Record<string, RfqTranslationUpdate>)[lang] ?? {};
+  const merged: RfqTranslationUpdate = {
+    ...existing,
+    ...updates,
+    technical_specifications: {
+      ...(existing.technical_specifications ?? {}),
+      ...(updates.technical_specifications ?? {}),
+    },
+  };
+  const translations = { ...base, [lang]: merged };
+  const { error } = await admin
+    .from("rfqs")
+    .update({ translations })
+    .eq("id", rfqId);
+  if (error) console.error("cacheRfqTranslation failed:", error);
 }

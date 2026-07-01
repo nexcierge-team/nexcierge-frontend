@@ -9,9 +9,13 @@
 //
 // NOT translated here, by design: the technical-spec *keys* shown in the
 // "Specs & compliance" section (e.g. "Clamping Force") come from
-// Gemini-stored data and are intentionally kept English for the Chinese
-// account-manager team's consistency. The card is therefore a deliberate
-// mix: localized chrome + English spec keys + buyer-language values.
+// Gemini-stored `data_point` names and stay English on every view (buyer
+// and AM) — there's an unbounded, per-machine-type set of these, so
+// translating them would mean an uncached Gemini call per unique key. The
+// card is therefore a deliberate mix: localized chrome + English spec keys
+// + buyer-language values (the backend writes technical-spec values and
+// additional_notes in the buyer's own conversation language — see backend
+// docs/PROMPTS.md → "Output language").
 
 import type { NewOrUsedPreference, PurchaseTimeline } from "@/types/chat";
 
