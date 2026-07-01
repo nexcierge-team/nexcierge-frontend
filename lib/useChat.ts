@@ -19,6 +19,21 @@ function newMessageId() {
   return Math.random().toString(36).slice(2);
 }
 
+// Quick-reply pills, written into metadata.suggestions at insert time
+// (app/api/chat/route.ts) so they survive a session switch or refresh.
+// Rendering only ever shows pills on the LAST message in the array (see
+// app/chat/page.tsx), so restoring this on every agent message is safe —
+// once the buyer replies, a newer message becomes "last" and these stop
+// rendering with no extra invalidation needed.
+function suggestionsFromMetadata(
+  metadata: Record<string, unknown> | null | undefined,
+): string[] | undefined {
+  const raw = (metadata as { suggestions?: unknown } | null)?.suggestions;
+  if (!Array.isArray(raw) || raw.length === 0) return undefined;
+  const out = raw.filter((s): s is string => typeof s === "string");
+  return out.length > 0 ? out : undefined;
+}
+
 // Translate a DB chat_messages row into the UI's Message shape.
 function rowToMessage(row: ChatMessagesRow): Message {
   const senderRoleMap: Record<ChatSenderType, ChatRole> = {
@@ -38,6 +53,7 @@ function rowToMessage(row: ChatMessagesRow): Message {
     translatedTo: row.translated_to,
     readAt: row.read_at,
     attachments: attachmentsFromMetadata(row.metadata),
+    suggestions: suggestionsFromMetadata(row.metadata),
   };
 }
 

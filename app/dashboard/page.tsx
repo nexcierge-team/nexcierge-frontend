@@ -138,10 +138,6 @@ export default function DashboardPage() {
   });
   const [amTranslating, setAmTranslating] = useState(false);
   const translatingRef = useRef(false);
-  // Separate loading flag + in-flight ref for the "Brief details" sidebar
-  // translation, so it doesn't fight the chat-thread spinner above.
-  const [amBriefTranslating, setAmBriefTranslating] = useState(false);
-  const briefTranslatingRef = useRef(false);
   const seenIds = useRef<Set<string>>(new Set());
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -361,64 +357,6 @@ export default function DashboardPage() {
       }
     })();
   }, [open?.sessionId, open?.messages, amLanguage]);
-
-  // Fill in the AM-facing translation of the open brief's free-text fields
-  // (machine_type, intended_application, additional_notes,
-  // technical_specifications values) whenever the AM has a working
-  // language selected and it hasn't been requested yet for this rfq.
-  // Unlike messages, rfq fields don't change reactively within an open
-  // session (no realtime rfq updates), so "have we asked for this
-  // (rfq, language) yet" is enough — no per-field pending check needed.
-  useEffect(() => {
-    if (!open?.rfq) return;
-    if (amLanguage !== "zh" && amLanguage !== "hi") return;
-    if (briefTranslatingRef.current) return;
-    if (open.rfq.translations?.[amLanguage] !== undefined) return;
-    const lang = amLanguage;
-    const sessionId = open.sessionId;
-    const rfqId = open.rfq.id;
-    briefTranslatingRef.current = true;
-    (async () => {
-      setAmBriefTranslating(true);
-      try {
-        const res = await fetch(
-          `/api/am/sessions/${encodeURIComponent(sessionId)}/translate-brief`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ language: lang }),
-          },
-        );
-        if (!res.ok) return;
-        const data = (await res.json()) as {
-          language: string;
-          translations: Record<string, unknown>;
-        };
-        setOpen((prev) => {
-          if (!prev || prev.sessionId !== sessionId || prev.rfq.id !== rfqId) {
-            return prev;
-          }
-          const prevTranslations = prev.rfq.translations ?? {};
-          if (prevTranslations[lang] !== undefined) return prev; // arrived twice
-          return {
-            ...prev,
-            rfq: {
-              ...prev.rfq,
-              translations: {
-                ...prevTranslations,
-                [lang]: data.translations ?? {},
-              },
-            },
-          };
-        });
-      } catch (e) {
-        console.error("am brief-translate fetch failed:", e);
-      } finally {
-        briefTranslatingRef.current = false;
-        setAmBriefTranslating(false);
-      }
-    })();
-  }, [open?.sessionId, open?.rfq, amLanguage]);
 
   async function claim() {
     if (!open) return;
@@ -660,7 +598,6 @@ export default function DashboardPage() {
             amLanguage={amLanguage}
             onAmLanguageChange={setAmLanguage}
             amTranslating={amTranslating}
-            amBriefTranslating={amBriefTranslating}
             pending={pending}
             onAttach={addFiles}
             onRemoveAttachment={removeAttachment}
@@ -842,7 +779,6 @@ function BriefPane({
   amLanguage,
   onAmLanguageChange,
   amTranslating,
-  amBriefTranslating,
   pending,
   onAttach,
   onRemoveAttachment,
@@ -860,7 +796,6 @@ function BriefPane({
   amLanguage: string;
   onAmLanguageChange: (lang: string) => void;
   amTranslating: boolean;
-  amBriefTranslating: boolean;
   pending: PendingAttachment[];
   onAttach: (files: File[]) => void;
   onRemoveAttachment: (id: string) => void;
@@ -961,11 +896,7 @@ function BriefPane({
           )}
         </div>
 
-        <BriefSummary
-          rfq={rfq}
-          language={amLanguage}
-          translating={amBriefTranslating}
-        />
+        <BriefSummary rfq={rfq} language={amLanguage} />
       </div>
     </>
   );
@@ -1019,50 +950,31 @@ function LanguageSelector({
 }
 
 
-// Shape of a single language's entry in rfq.translations — mirrors
-// RfqTranslationUpdate in lib/db/rfqs.ts (not imported directly since that
-// module also pulls in server-only Supabase helpers).
-interface RfqTranslation {
-  machine_type?: string;
-  intended_application?: string;
-  additional_notes?: string;
-  technical_specifications?: Record<string, string>;
-}
-
 function BriefSummary({
   rfq,
   language,
-  translating,
 }: {
   rfq: RfqsRow;
   language: string;
-  translating: boolean;
 }) {
   // Section titles + field labels + the timeline/condition enum tables are
-  // shared with the buyer-facing ProfileSummaryCard (lib/cardStrings.ts).
+  // shared with the buyer-facing ProfileSummaryCard (lib/cardStrings.ts);
   // AM-only chrome (CRM section, status pill, HubSpot copy) comes from
-  // lib/amBriefStrings.ts. Free-text values are resolved from the cached
-  // Gemini translation for `language` when present, falling back to the
-  // original (buyer-language) value otherwise.
+  // lib/amBriefStrings.ts. Both localize to the AM's chosen `language`. The
+  // brief's free-text values are shown exactly as the buyer submitted them
+  // — we no longer translate the brief itself (a future "download in
+  // language X" export can translate on demand).
   const t = cardStrings(language || "en");
   const chrome = amBriefStrings(language);
-  const tr = rfq.translations?.[language] as RfqTranslation | undefined;
-  const machineType = tr?.machine_type || rfq.machine_type;
-  const application = tr?.intended_application || rfq.intended_application;
-  const notes = tr?.additional_notes || rfq.additional_notes;
+  const machineType = rfq.machine_type;
+  const application = rfq.intended_application;
+  const notes = rfq.additional_notes;
   const specs = Object.entries(rfq.technical_specifications ?? {});
 
   return (
     <aside className="hidden w-80 shrink-0 overflow-y-auto border-l border-gray-200 bg-[#F7F8FA] px-5 py-6 lg:block">
-      <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+      <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
         {chrome.briefDetailsTitle}
-        {translating && (
-          <Loader2
-            className="h-3 w-3 animate-spin text-gray-400"
-            strokeWidth={1.75}
-            aria-label="Translating…"
-          />
-        )}
       </div>
 
       <Section title={t.sectionBuyer}>
@@ -1111,7 +1023,7 @@ function BriefSummary({
             <Field
               key={k}
               label={humanizeKey(k)}
-              value={tr?.technical_specifications?.[k] || String(v)}
+              value={String(v)}
             />
           ))
         )}

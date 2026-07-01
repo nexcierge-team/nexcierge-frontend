@@ -65,10 +65,12 @@ export interface Message {
   attachments?: Attachment[];
   // Quick-reply pills offered by the agent for THIS turn. Produced by the
   // backend's pill second pass (`chatbot.suggest_pills`) off the final reply
-  // text, returned as `suggestions` from /chat. Only the latest agent message
-  // renders them — past messages keep the data but the UI hides their pills
-  // (clicking an old pill would re-send stale context). Session-only — not
-  // persisted to chat_messages.
+  // text, returned as `suggestions` from /chat and persisted to
+  // `chat_messages.metadata.suggestions` (app/api/chat/route.ts) so they
+  // survive a session switch or refresh. Only the LAST message in the
+  // array ever renders them (see app/chat/page.tsx's `onSuggestion` wiring)
+  // — past messages keep the data but the UI hides their pills once the
+  // buyer has moved on (clicking an old pill would re-send stale context).
   suggestions?: string[];
 }
 

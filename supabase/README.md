@@ -26,6 +26,8 @@ Easiest path — paste each `.sql` file's contents into the SQL editor in the Su
 0008_rate_limits.sql
 0009_realtime_chat_sessions.sql
 0010_chat_attachments.sql        (Storage bucket + RLS for AM attachments)
+0011_rfq_translations.sql        (adds rfqs.translations — dropped again by 0012)
+0012_drop_rfq_translations.sql   (removes the AM brief-translation cache; brief is no longer translated)
 ```
 
 Or, with [supabase CLI](https://supabase.com/docs/guides/cli) (`brew install supabase/tap/supabase`):

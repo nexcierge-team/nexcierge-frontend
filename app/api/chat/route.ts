@@ -152,6 +152,14 @@ export async function POST(req: Request) {
     profileToRfqUpdate(backendData.profile),
   );
 
+  // Quick-reply pills from the pills pass. Stored on the message row
+  // (not just returned in the response) so they survive a session
+  // switch or refresh — see the `suggestions` comment on the Message
+  // type in types/chat.ts for how the read side restores them.
+  const suggestions = Array.isArray(backendData.suggestions)
+    ? backendData.suggestions
+    : [];
+
   // AI messages bypass RLS (no auth.uid() match) — admin client.
   const admin = getSupabaseAdmin();
   let agentMsg: ChatMessagesRow;
@@ -160,6 +168,7 @@ export async function POST(req: Request) {
       sessionId: session.id,
       senderType: "ai",
       content: backendData.reply,
+      metadata: suggestions.length > 0 ? { suggestions } : undefined,
     });
   } catch (e) {
     // Gemini succeeded but persistence failed. Log the reply text so an
@@ -208,12 +217,10 @@ export async function POST(req: Request) {
     // client adopts it as the buyer's display language to localize chat
     // chrome + the summary card from the first turn.
     reply_language: replyLanguage,
-    // Pass-through. Session-only — not persisted on chat_messages, so
-    // these pills only show in the same browser session that produced
-    // them. Adding a `suggestions jsonb` column to chat_messages would
-    // make them survive refresh.
-    suggestions: Array.isArray(backendData.suggestions)
-      ? backendData.suggestions
-      : [],
+    // Also persisted on agent_message.metadata.suggestions (see above) so
+    // a session switch or refresh restores them via rowToMessage — this
+    // copy just saves the client a round-trip on the turn that produced
+    // them.
+    suggestions,
   });
 }
