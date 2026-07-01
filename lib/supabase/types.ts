@@ -76,6 +76,7 @@ export interface RfqsRow {
   compliance_requirements: string[];
   new_or_used_preference: string;
   additional_notes: string;
+  translations: Record<string, unknown>;
   status: RfqStatus;
   is_complete: boolean;
   hubspot_contact_id: string | null;
@@ -182,6 +183,7 @@ export type Database = {
           compliance_requirements?: string[];
           new_or_used_preference?: string;
           additional_notes?: string;
+          translations?: Json;
           status?: RfqStatus;
           hubspot_contact_id?: string | null;
           hubspot_deal_id?: string | null;
@@ -209,6 +211,7 @@ export type Database = {
           compliance_requirements?: string[];
           new_or_used_preference?: string;
           additional_notes?: string;
+          translations?: Json;
           status?: RfqStatus;
           hubspot_contact_id?: string | null;
           hubspot_deal_id?: string | null;

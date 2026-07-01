@@ -24,7 +24,13 @@ import type {
   RfqsRow,
   RfqStatus,
 } from "@/lib/supabase/types";
-import type { Message, MessageFrom, ChatRole } from "@/types/chat";
+import type {
+  Message,
+  MessageFrom,
+  ChatRole,
+  PurchaseTimeline,
+  NewOrUsedPreference,
+} from "@/types/chat";
 import {
   attachmentsFromMetadata,
   isAllowedAttachment,
@@ -38,6 +44,8 @@ import {
   type PendingAttachment,
 } from "@/lib/storage/attachments";
 import { cn } from "@/lib/utils";
+import { cardStrings } from "@/lib/cardStrings";
+import { amBriefStrings, type AmBriefStrings } from "@/lib/amBriefStrings";
 
 interface InboxBrief {
   id: string;
@@ -130,6 +138,10 @@ export default function DashboardPage() {
   });
   const [amTranslating, setAmTranslating] = useState(false);
   const translatingRef = useRef(false);
+  // Separate loading flag + in-flight ref for the "Brief details" sidebar
+  // translation, so it doesn't fight the chat-thread spinner above.
+  const [amBriefTranslating, setAmBriefTranslating] = useState(false);
+  const briefTranslatingRef = useRef(false);
   const seenIds = useRef<Set<string>>(new Set());
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -349,6 +361,64 @@ export default function DashboardPage() {
       }
     })();
   }, [open?.sessionId, open?.messages, amLanguage]);
+
+  // Fill in the AM-facing translation of the open brief's free-text fields
+  // (machine_type, intended_application, additional_notes,
+  // technical_specifications values) whenever the AM has a working
+  // language selected and it hasn't been requested yet for this rfq.
+  // Unlike messages, rfq fields don't change reactively within an open
+  // session (no realtime rfq updates), so "have we asked for this
+  // (rfq, language) yet" is enough — no per-field pending check needed.
+  useEffect(() => {
+    if (!open?.rfq) return;
+    if (amLanguage !== "zh" && amLanguage !== "hi") return;
+    if (briefTranslatingRef.current) return;
+    if (open.rfq.translations?.[amLanguage] !== undefined) return;
+    const lang = amLanguage;
+    const sessionId = open.sessionId;
+    const rfqId = open.rfq.id;
+    briefTranslatingRef.current = true;
+    (async () => {
+      setAmBriefTranslating(true);
+      try {
+        const res = await fetch(
+          `/api/am/sessions/${encodeURIComponent(sessionId)}/translate-brief`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ language: lang }),
+          },
+        );
+        if (!res.ok) return;
+        const data = (await res.json()) as {
+          language: string;
+          translations: Record<string, unknown>;
+        };
+        setOpen((prev) => {
+          if (!prev || prev.sessionId !== sessionId || prev.rfq.id !== rfqId) {
+            return prev;
+          }
+          const prevTranslations = prev.rfq.translations ?? {};
+          if (prevTranslations[lang] !== undefined) return prev; // arrived twice
+          return {
+            ...prev,
+            rfq: {
+              ...prev.rfq,
+              translations: {
+                ...prevTranslations,
+                [lang]: data.translations ?? {},
+              },
+            },
+          };
+        });
+      } catch (e) {
+        console.error("am brief-translate fetch failed:", e);
+      } finally {
+        briefTranslatingRef.current = false;
+        setAmBriefTranslating(false);
+      }
+    })();
+  }, [open?.sessionId, open?.rfq, amLanguage]);
 
   async function claim() {
     if (!open) return;
@@ -590,6 +660,7 @@ export default function DashboardPage() {
             amLanguage={amLanguage}
             onAmLanguageChange={setAmLanguage}
             amTranslating={amTranslating}
+            amBriefTranslating={amBriefTranslating}
             pending={pending}
             onAttach={addFiles}
             onRemoveAttachment={removeAttachment}
@@ -771,6 +842,7 @@ function BriefPane({
   amLanguage,
   onAmLanguageChange,
   amTranslating,
+  amBriefTranslating,
   pending,
   onAttach,
   onRemoveAttachment,
@@ -788,10 +860,12 @@ function BriefPane({
   amLanguage: string;
   onAmLanguageChange: (lang: string) => void;
   amTranslating: boolean;
+  amBriefTranslating: boolean;
   pending: PendingAttachment[];
   onAttach: (files: File[]) => void;
   onRemoveAttachment: (id: string) => void;
 }) {
+  const chrome = amBriefStrings(amLanguage);
   const { rfq, messages, assignedToMe } = brief;
   const uploading = pending.some((p) => p.uploading);
   const hasReadyAttachment = pending.some((p) => p.uploaded);
@@ -829,7 +903,7 @@ function BriefPane({
           />
           {!assignedToMe && (
             <Button size="sm" variant="primary" onClick={onClaim}>
-              Claim this brief
+              {chrome.claimBrief}
             </Button>
           )}
         </div>
@@ -887,7 +961,11 @@ function BriefPane({
           )}
         </div>
 
-        <BriefSummary rfq={rfq} />
+        <BriefSummary
+          rfq={rfq}
+          language={amLanguage}
+          translating={amBriefTranslating}
+        />
       </div>
     </>
   );
@@ -941,75 +1019,140 @@ function LanguageSelector({
 }
 
 
-function BriefSummary({ rfq }: { rfq: RfqsRow }) {
+// Shape of a single language's entry in rfq.translations — mirrors
+// RfqTranslationUpdate in lib/db/rfqs.ts (not imported directly since that
+// module also pulls in server-only Supabase helpers).
+interface RfqTranslation {
+  machine_type?: string;
+  intended_application?: string;
+  additional_notes?: string;
+  technical_specifications?: Record<string, string>;
+}
+
+function BriefSummary({
+  rfq,
+  language,
+  translating,
+}: {
+  rfq: RfqsRow;
+  language: string;
+  translating: boolean;
+}) {
+  // Section titles + field labels + the timeline/condition enum tables are
+  // shared with the buyer-facing ProfileSummaryCard (lib/cardStrings.ts).
+  // AM-only chrome (CRM section, status pill, HubSpot copy) comes from
+  // lib/amBriefStrings.ts. Free-text values are resolved from the cached
+  // Gemini translation for `language` when present, falling back to the
+  // original (buyer-language) value otherwise.
+  const t = cardStrings(language || "en");
+  const chrome = amBriefStrings(language);
+  const tr = rfq.translations?.[language] as RfqTranslation | undefined;
+  const machineType = tr?.machine_type || rfq.machine_type;
+  const application = tr?.intended_application || rfq.intended_application;
+  const notes = tr?.additional_notes || rfq.additional_notes;
+  const specs = Object.entries(rfq.technical_specifications ?? {});
+
   return (
     <aside className="hidden w-80 shrink-0 overflow-y-auto border-l border-gray-200 bg-[#F7F8FA] px-5 py-6 lg:block">
-      <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
-        Brief details
+      <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+        {chrome.briefDetailsTitle}
+        {translating && (
+          <Loader2
+            className="h-3 w-3 animate-spin text-gray-400"
+            strokeWidth={1.75}
+            aria-label="Translating…"
+          />
+        )}
       </div>
 
-      <Section title="Buyer">
-        <Field label="Name" value={rfq.full_name} />
-        <Field label="Company" value={rfq.company_name} />
-        <Field label="Email" value={rfq.business_email} />
-        <Field label="Phone" value={rfq.phone_number} />
-        <Field label="Role" value={rfq.job_role} />
+      <Section title={t.sectionBuyer}>
+        <Field label={t.labelName} value={rfq.full_name} />
+        <Field label={t.labelCompany} value={rfq.company_name} />
+        <Field label={t.labelEmail} value={rfq.business_email} />
+        <Field label={t.labelPhone} value={rfq.phone_number} />
+        <Field label={t.labelRole} value={rfq.job_role} />
       </Section>
 
-      <Section title="Machine">
-        <Field label="Type" value={rfq.machine_type} />
-        <Field label="Application" value={rfq.intended_application} />
-        <Field label="Quantity" value={rfq.quantity} />
-        <Field label="New / used" value={rfq.new_or_used_preference} />
+      <Section title={t.sectionMachine}>
+        <Field label={t.labelType} value={machineType} />
+        <Field label={t.labelApplication} value={application} />
+        <Field label={t.labelQuantity} value={rfq.quantity} />
+        <Field
+          label={t.labelNewUsed}
+          value={
+            isNewOrUsedPreference(rfq.new_or_used_preference)
+              ? t.condition[rfq.new_or_used_preference]
+              : rfq.new_or_used_preference
+          }
+        />
       </Section>
 
-      <Section title="Delivery">
-        <Field label="Country" value={rfq.delivery_country} />
-        <Field label="City / port" value={rfq.delivery_city_or_port} />
-        <Field label="Timeline" value={rfq.purchase_timeline} />
-        <Field label="Budget" value={rfq.budget_range} />
+      <Section title={t.sectionDelivery}>
+        <Field label={t.labelCountry} value={rfq.delivery_country} />
+        <Field label={t.labelCityPort} value={rfq.delivery_city_or_port} />
+        <Field
+          label={t.labelTimeline}
+          value={
+            isPurchaseTimeline(rfq.purchase_timeline)
+              ? t.timeline[rfq.purchase_timeline]
+              : rfq.purchase_timeline
+          }
+        />
+        <Field label={t.labelBudget} value={rfq.budget_range} />
       </Section>
 
-      <Section title="Specs">
-        {Object.entries(rfq.technical_specifications ?? {}).length === 0 ? (
+      <Section title={t.sectionSpecs}>
+        {specs.length === 0 ? (
           <p className="text-[11px] italic text-gray-400">
-            No technical specs captured.
+            {chrome.noSpecsCaptured}
           </p>
         ) : (
-          Object.entries(rfq.technical_specifications).map(([k, v]) => (
-            <Field key={k} label={humanizeKey(k)} value={String(v)} />
+          specs.map(([k, v]) => (
+            <Field
+              key={k}
+              label={humanizeKey(k)}
+              value={tr?.technical_specifications?.[k] || String(v)}
+            />
           ))
         )}
         {rfq.compliance_requirements.length > 0 && (
           <Field
-            label="Compliance"
+            label={t.labelCompliance}
             value={rfq.compliance_requirements.join(", ")}
           />
         )}
       </Section>
 
-      {rfq.additional_notes && (
-        <Section title="Additional notes">
-          <p className="text-xs leading-relaxed text-gray-700">
-            {rfq.additional_notes}
-          </p>
+      {notes && (
+        <Section title={t.sectionNotes}>
+          <p className="text-xs leading-relaxed text-gray-700">{notes}</p>
         </Section>
       )}
 
-      <Section title="CRM">
-        <StatusPill status={rfq.status} />
+      <Section title={chrome.sectionCrm}>
+        <StatusPill status={rfq.status} chrome={chrome} />
         {rfq.hubspot_deal_id ? (
           <p className="mt-2 text-[11px] text-gray-500">
-            HubSpot deal {rfq.hubspot_deal_id}
+            {chrome.hubspotDealPrefix} {rfq.hubspot_deal_id}
           </p>
         ) : (
           <p className="mt-2 text-[11px] italic text-gray-400">
-            Not yet pushed to HubSpot.
+            {chrome.notPushedToHubspot}
           </p>
         )}
       </Section>
     </aside>
   );
+}
+
+
+function isPurchaseTimeline(v: string): v is PurchaseTimeline {
+  return v === "urgent_less_than_30_days" || v === "1_to_3_months" || v === "3_to_6_months" || v === "just_researching";
+}
+
+
+function isNewOrUsedPreference(v: string): v is NewOrUsedPreference {
+  return v === "new" || v === "used" || v === "refurbished" || v === "no_preference";
 }
 
 
@@ -1062,18 +1205,24 @@ function humanizeKey(key: string): string {
 }
 
 
-function StatusPill({ status }: { status: RfqStatus }) {
+function StatusPill({
+  status,
+  chrome,
+}: {
+  status: RfqStatus;
+  chrome: AmBriefStrings;
+}) {
   const map: Record<RfqStatus, { label: string; className: string }> = {
     in_progress: {
-      label: "In progress",
+      label: chrome.statusInProgress,
       className: "bg-blue-100 text-blue-800",
     },
     submitted: {
-      label: "Submitted",
+      label: chrome.statusSubmitted,
       className: "bg-emerald-100 text-emerald-800",
     },
-    won: { label: "Won", className: "bg-emerald-100 text-emerald-800" },
-    lost: { label: "Lost", className: "bg-gray-200 text-gray-700" },
+    won: { label: chrome.statusWon, className: "bg-emerald-100 text-emerald-800" },
+    lost: { label: chrome.statusLost, className: "bg-gray-200 text-gray-700" },
   };
   const v = map[status];
   return (
