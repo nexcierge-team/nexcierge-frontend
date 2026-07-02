@@ -107,6 +107,8 @@ instrumentation-client.ts   PostHog bootstrap (Next.js convention — runs pre-h
 
 ## Analytics (PostHog)
 
+> Full onboarding — event catalog, dashboard links, Postgres sample queries — lives in [`docs/TRACKING.md`](TRACKING.md). This section is the engineer's summary.
+
 Three surfaces, one identity — everything keys on the Supabase `auth.users.id`:
 
 - **Browser** — `instrumentation-client.ts` (autocapture + SPA pageviews). `components/analytics/PostHogIdentify.tsx` (mounted in the root layout) calls `posthog.identify(user.id)` for **permanent** users only and `posthog.reset()` on sign-out; anonymous visitors stay anonymous.
@@ -291,6 +293,7 @@ The user-scoped client (`getSupabaseServer()`) respects RLS. The admin client (`
 - New chat-affecting state → update `lib/useChat.ts` AND, if the AM dashboard needs the same data, mirror in `app/dashboard/page.tsx`.
 - New profile field → update `types/chat.ts` BuyerProfile, `ProfileSummaryCard`, `app/dashboard/page.tsx` BriefSummary, the backend (`_empty_profile` + tool + prompt), the `rfqs` migration, `lib/db/rfqs.ts` converters, and the HubSpot mapping in `lib/hubspot/sync.ts`.
 - New AM-only route → put under `app/api/am/*`, gate with `requireAccountManager()` at the top of the handler.
+- **New feature → decide its tracking before shipping** (see § Analytics). Add a PostHog event when the feature is (a) a buyer funnel step (creation / completion / conversion), (b) an AM productivity action, or (c) an operational failure worth alarming on. Pure reads and internal refactors don't get events. Server-side: `captureServer(userId, "event_name", props)`; browser-only interactions: `posthog.capture(...)`. Conventions: snake_case past-tense names (`review_requested`, not `RequestReview`), distinct_id = Supabase user id, props limited to ids + enums/booleans — never emails or free text. Then add a row to the event table in § Analytics; an undocumented event is a future mystery.
 - **Always update `docs/ARCHITECTURE.md` when adding a route, changing the state machine, or changing the API integration pattern.**
 - **Always update `docs/DESIGN_SYSTEM.md` when introducing new visual primitives.**
 
