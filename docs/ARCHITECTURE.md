@@ -13,6 +13,7 @@
 | Fonts | Inter via `next/font/google` |
 | Auth + DB + Realtime | Supabase (`@supabase/ssr`, `@supabase/supabase-js`) |
 | CRM | HubSpot via `@hubspot/api-client` |
+| Analytics | PostHog Cloud US via `posthog-js`, initialised in `instrumentation-client.ts` |
 | Backend (LLM) | FastAPI (stateless transformer over Gemini) |
 | Deploy | Vercel (frontend), Render (backend) |
 
@@ -98,6 +99,10 @@ supabase/
 types/
 ├── chat.ts                 Message / BuyerProfile / ChatRole / MessageFrom (UI types)
 └── dashboard.ts            (legacy mock types)
+
+instrumentation-client.ts   PostHog bootstrap (Next.js convention — runs pre-hydration).
+                            Autocapture + SPA pageviews on by default; init is skipped
+                            entirely when NEXT_PUBLIC_POSTHOG_KEY is unset
 ```
 
 ## Auth flow — anonymous-first

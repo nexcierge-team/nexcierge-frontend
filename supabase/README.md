@@ -28,6 +28,9 @@ Easiest path — paste each `.sql` file's contents into the SQL editor in the Su
 0010_chat_attachments.sql        (Storage bucket + RLS for AM attachments)
 0011_rfq_translations.sql        (adds rfqs.translations — dropped again by 0012)
 0012_drop_rfq_translations.sql   (removes the AM brief-translation cache; brief is no longer translated)
+0013_llm_call_logs.sql           (Gemini call telemetry — written by the FastAPI backend over a direct
+                                  Postgres connection, so the backend's DATABASE_URL must point at this
+                                  project's connection string in prod; RLS-locked, invisible to PostgREST)
 ```
 
 Or, with [supabase CLI](https://supabase.com/docs/guides/cli) (`brew install supabase/tap/supabase`):

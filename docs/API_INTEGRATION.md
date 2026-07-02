@@ -25,7 +25,9 @@ Browser
   │  POST /api/chat  {session_id, message}
   ▼
 Next.js Route Handler  (app/api/chat/route.ts)
-  │  fetch(`${BACKEND_URL}/chat`, ...)
+  │  fetch(`${BACKEND_URL}/chat`, {session_id, user_id, message, history, profile, language})
+  │  session_id/user_id are telemetry context only — they land in the
+  │  backend's llm_call_logs rows + PostHog llm_call_completed events
   ▼
 FastAPI Backend
   │  Gemini call + update_buyer_profile tool execution

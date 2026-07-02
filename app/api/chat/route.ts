@@ -117,6 +117,9 @@ export async function POST(req: Request) {
 
   const backendBody = {
     session_id: session.id,
+    // Telemetry context only — lands in llm_call_logs.user_id and the
+    // PostHog llm_call_completed event's distinct_id.
+    user_id: auth.userId,
     message: body.message,
     history: toBackendHistory(historyRows),
     profile: rfqRowToProfile(rfqRow),
