@@ -9,6 +9,7 @@ import {
 import { createRfq, getRfq, rfqRowToProfile } from "@/lib/db/rfqs";
 import { listMessages } from "@/lib/db/messages";
 import { checkRateLimit, getClientIp, rateLimited429 } from "@/lib/rateLimit";
+import { captureServer } from "@/lib/analytics";
 
 // Bootstrap the chat for the current user.
 //
@@ -59,6 +60,10 @@ export async function GET(req: Request) {
 
   if (!session) {
     session = await createSession(supabase, auth.userId);
+    captureServer(auth.userId, "chat_session_started", {
+      session_id: session.id,
+      source: forceNew ? "homepage_new" : "bootstrap",
+    });
   }
 
   let rfq = await getRfq(supabase, session.id);

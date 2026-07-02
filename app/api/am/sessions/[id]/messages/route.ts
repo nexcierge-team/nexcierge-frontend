@@ -6,6 +6,7 @@ import { insertMessage, listMessages } from "@/lib/db/messages";
 import { getSession, setSessionLanguage } from "@/lib/db/sessions";
 import { translateText, detectLanguage } from "@/lib/translate";
 import { checkRateLimit, rateLimited429 } from "@/lib/rateLimit";
+import { captureServer } from "@/lib/analytics";
 import { validateAttachments } from "@/lib/attachments";
 import type { Attachment } from "@/types/chat";
 
@@ -155,6 +156,11 @@ export async function POST(
       translatedContent,
       translatedTo,
       metadata: attachmentsMetadata(attachments),
+    });
+    captureServer(gate.userId, "am_reply_sent", {
+      session_id: id,
+      translated: translatedTo !== null,
+      has_attachments: attachments.length > 0,
     });
     return NextResponse.json({ message: msg });
   } catch (e) {

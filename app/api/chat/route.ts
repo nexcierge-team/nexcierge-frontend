@@ -11,6 +11,7 @@ import {
   updateRfqFields,
 } from "@/lib/db/rfqs";
 import { checkRateLimit, rateLimited429 } from "@/lib/rateLimit";
+import { captureServer } from "@/lib/analytics";
 import type { ChatMessagesRow } from "@/lib/supabase/types";
 
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8000";
@@ -154,6 +155,14 @@ export async function POST(req: Request) {
     session.id,
     profileToRfqUpdate(backendData.profile),
   );
+
+  // The funnel step before review_requested: fires once per session, on the
+  // turn where the last required field lands (rfqRow is the pre-turn state).
+  if (!rfqRow.is_complete && updatedRfq.is_complete) {
+    captureServer(auth.userId, "profile_completed", {
+      session_id: session.id,
+    });
+  }
 
   // Quick-reply pills from the pills pass. Stored on the message row
   // (not just returned in the response) so they survive a session

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { captureServer } from "@/lib/analytics";
 
 // Fixed-window rate limiting backed by Supabase Postgres via the
 // public.check_rate_limit RPC. One round trip per check (~10-30ms in
@@ -63,6 +64,13 @@ export async function checkRateLimit(
       remaining: max,
       resetAt: new Date(Date.now() + windowSeconds * 1000),
     };
+  }
+  if (!row.allowed) {
+    // Operational alarm — a spike here means a bot, a stuck client, or a
+    // limit set too tight. The key's trailing segment is the user id / ip,
+    // so breakdowns by `key` show who's hitting which wall.
+    const id = key.split(":").pop() ?? "unknown";
+    captureServer(id, "rate_limited", { key, scope: key.split(":")[0] });
   }
   return {
     allowed: row.allowed,

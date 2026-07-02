@@ -3,6 +3,7 @@ import { getOrCreateUser } from "@/lib/supabase/route";
 import { getSupabaseServer } from "@/lib/supabase/server";
 import { createSession, listSessionsForUser } from "@/lib/db/sessions";
 import { createRfq } from "@/lib/db/rfqs";
+import { captureServer } from "@/lib/analytics";
 
 // GET  /api/chat/sessions  → list the user's chat_sessions (sidebar).
 // Anonymous users get only their own (which is at most their current one).
@@ -34,6 +35,10 @@ export async function POST() {
   const supabase = await getSupabaseServer();
   const session = await createSession(supabase, auth.userId);
   await createRfq(supabase, { sessionId: session.id, userId: auth.userId });
+  captureServer(auth.userId, "chat_session_started", {
+    session_id: session.id,
+    source: "sidebar_new",
+  });
   return NextResponse.json({
     session: {
       id: session.id,

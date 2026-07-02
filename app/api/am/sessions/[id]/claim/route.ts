@@ -4,6 +4,7 @@ import { getSupabaseServer } from "@/lib/supabase/server";
 import { getRfq } from "@/lib/db/rfqs";
 import { hubspotEnabled } from "@/lib/hubspot/client";
 import { advanceDealStage } from "@/lib/hubspot/sync";
+import { captureServer } from "@/lib/analytics";
 
 // Claim an unassigned brief. Only updates the row if it's still
 // unclaimed (cheap optimistic-concurrency check) — two AMs racing on
@@ -53,6 +54,8 @@ export async function POST(
       { status: 409 },
     );
   }
+
+  captureServer(gate.userId, "am_brief_claimed", { session_id: id });
 
   // Advance the HubSpot deal stage. Skipped silently when:
   //   - HubSpot is disabled or unconfigured

@@ -105,6 +105,29 @@ instrumentation-client.ts   PostHog bootstrap (Next.js convention — runs pre-h
                             entirely when NEXT_PUBLIC_POSTHOG_KEY is unset
 ```
 
+## Analytics (PostHog)
+
+Three surfaces, one identity — everything keys on the Supabase `auth.users.id`:
+
+- **Browser** — `instrumentation-client.ts` (autocapture + SPA pageviews). `components/analytics/PostHogIdentify.tsx` (mounted in the root layout) calls `posthog.identify(user.id)` for **permanent** users only and `posthog.reset()` on sign-out; anonymous visitors stay anonymous.
+- **Route handlers** — `lib/analytics.ts` `captureServer(distinctId, event, props)` (posthog-node, immediate flush, no-op without `NEXT_PUBLIC_POSTHOG_KEY`, never throws).
+- **FastAPI backend** — `llm_call_completed` per Gemini call (see `backend/docs/ARCHITECTURE.md` § LLM telemetry).
+
+Server-side events (funnel order):
+
+| Event | Where | Notes |
+|---|---|---|
+| `chat_session_started` | `/api/chat/start`, `/api/chat/sessions` POST | `source`: bootstrap / homepage_new / sidebar_new |
+| `profile_completed` | `/api/chat` | fires on the turn `rfqs.is_complete` flips false→true |
+| `auth_completed` | `/auth/callback` | `method`: google_oauth / magic_link |
+| `review_requested` | `/api/request-review` | **core conversion**; `language`, `hubspot_synced` |
+| `am_brief_claimed` | `/api/am/sessions/[id]/claim` | distinct_id = the AM |
+| `am_reply_sent` | `/api/am/sessions/[id]/messages` | `translated`, `has_attachments` |
+| `hubspot_sync_failed` | `/api/request-review` | `fatal` = validation error (422 path) |
+| `rate_limited` | `lib/rateLimit.ts` | any route; `key`, `scope` identify the wall |
+
+PostHog is for product analytics/dashboards only; exact LLM cost/latency auditing lives in Postgres `llm_call_logs` (migration 0013).
+
 ## Auth flow — anonymous-first
 
 ```

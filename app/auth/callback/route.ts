@@ -4,6 +4,7 @@ import { getSupabaseServer } from "@/lib/supabase/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { transferSessionsOwnership } from "@/lib/db/sessions";
 import { transferRfqsOwnership } from "@/lib/db/rfqs";
+import { captureServer } from "@/lib/analytics";
 
 const PRE_SIGNIN_COOKIE = "nx_pre_signin_uid";
 
@@ -58,6 +59,17 @@ export async function GET(request: Request) {
     // value doesn't haunt the next attempt.
     (await cookies()).delete(PRE_SIGNIN_COOKIE);
     return NextResponse.redirect(new URL("/chat?auth_error=1", url.origin));
+  }
+
+  // Anon → permanent promotion (or plain sign-in). PostHogIdentify ties the
+  // browser session to this same user id on the post-redirect page load.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (user) {
+    captureServer(user.id, "auth_completed", {
+      method: code ? "google_oauth" : "magic_link",
+    });
   }
 
   await migrateAnonOwnership();

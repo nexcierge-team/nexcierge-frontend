@@ -14,6 +14,7 @@ import {
 import { hubspotEnabled } from "@/lib/hubspot/client";
 import { HubspotValidationError, syncBriefToHubspot } from "@/lib/hubspot/sync";
 import { checkRateLimit, rateLimited429 } from "@/lib/rateLimit";
+import { captureServer } from "@/lib/analytics";
 import { translateText } from "@/lib/translate";
 
 interface RequestReviewBody {
@@ -98,6 +99,7 @@ export async function POST(req: Request) {
 
   // HubSpot sync (idempotent — skipped if rfq already has hubspot_deal_id,
   // or if the feature flag / env vars are missing).
+  let hubspotSynced = Boolean(rfq.hubspot_deal_id);
   if (hubspotEnabled() && !rfq.hubspot_deal_id) {
     try {
       const ids = await syncBriefToHubspot({ rfq });
@@ -105,7 +107,13 @@ export async function POST(req: Request) {
         contactId: ids.contactId,
         dealId: ids.dealId,
       });
+      hubspotSynced = true;
     } catch (e) {
+      captureServer(auth.userId, "hubspot_sync_failed", {
+        session_id: session.id,
+        fatal: e instanceof HubspotValidationError,
+        error: String(e).slice(0, 200),
+      });
       // Validation errors (e.g. typo'd email) are FATAL — the buyer
       // needs to correct the profile before the brief is usable, and
       // silently handing off would leave the AM with an unreachable
@@ -178,6 +186,13 @@ export async function POST(req: Request) {
       metadata: { kind: "auto_welcome" },
     },
   ]);
+
+  // The core conversion — a qualified lead handed to the human team.
+  captureServer(auth.userId, "review_requested", {
+    session_id: session.id,
+    language: targetLanguage,
+    hubspot_synced: hubspotSynced,
+  });
 
   return NextResponse.json({
     session: { id: session.id, status: "in_handoff" },
