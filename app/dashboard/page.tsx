@@ -1078,14 +1078,21 @@ function BriefSummary({
   onGenerateLessons: () => Promise<number | null>;
 }) {
   // Section titles + field labels + the timeline/condition enum tables are
-  // shared with the buyer-facing ProfileSummaryCard (lib/cardStrings.ts);
-  // AM-only chrome (CRM section, status pill, HubSpot copy) comes from
-  // lib/amBriefStrings.ts. Both localize to the AM's chosen `language`. The
+  // shared with the buyer-facing ProfileSummaryCard (lib/cardStrings.ts).
+  // The brief itself is ALWAYS rendered in English — titles, labels, and
+  // enum values stay canonical regardless of the AM's display language, so
+  // the brief matches HubSpot/CRM records and the buyer's submitted data.
+  // Only AM-only chrome (CRM section, status pill, rating card) from
+  // lib/amBriefStrings.ts localizes to the AM's chosen `language`. The
   // brief's free-text values are shown exactly as the buyer submitted them
   // — we no longer translate the brief itself (a future "download in
   // language X" export can translate on demand).
-  const t = cardStrings(language || "en");
+  const t = cardStrings("en");
   const chrome = amBriefStrings(language);
+  // English chrome for strings that live inside the brief reading surface
+  // (panel header, empty-specs placeholder) — they follow the brief, not
+  // the AM language.
+  const chromeEn = amBriefStrings("");
   const machineType = rfq.machine_type;
   const application = rfq.intended_application;
   const notes = rfq.additional_notes;
@@ -1094,7 +1101,7 @@ function BriefSummary({
   return (
     <aside className="hidden w-80 shrink-0 overflow-y-auto border-l border-gray-200 bg-[#F7F8FA] px-5 py-6 lg:block">
       <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
-        {chrome.briefDetailsTitle}
+        {chromeEn.briefDetailsTitle}
       </div>
 
       <Section title={t.sectionBuyer}>
@@ -1136,7 +1143,7 @@ function BriefSummary({
       <Section title={t.sectionSpecs}>
         {specs.length === 0 ? (
           <p className="text-[11px] italic text-gray-400">
-            {chrome.noSpecsCaptured}
+            {chromeEn.noSpecsCaptured}
           </p>
         ) : (
           specs.map(([k, v]) => (
