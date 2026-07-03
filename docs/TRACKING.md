@@ -21,6 +21,9 @@ In buyer funnel order:
 | `review_requested` | buyer clicks *Request human review* — **this is the conversion we get paid for** | `language`, `hubspot_synced` |
 | `am_brief_claimed` | an account manager claims a handed-off brief | `session_id` |
 | `am_reply_sent` | an AM replies to a buyer | `translated`, `has_attachments` |
+| `am_lead_rated` | an AM rates the AI interview's output on a claimed brief | `session_id`, `lead_quality` (`qualified`/`partial`/`junk`), `field_issues` |
+| `agent_lessons_proposed` | an AM clicks *Generate lessons* on a rated brief (Gemini drafts improvement lessons) | `session_id`, `lead_quality`, `lesson_count` |
+| `agent_lesson_reviewed` | an AM approves or rejects a proposed lesson in the Lessons view | `lesson_id`, `decision`, `edited` |
 | `llm_call_completed` | every Gemini API call the backend makes | `model`, `prompt_type`, `latency_ms`, `total_cost_usd`, `success` |
 | `hubspot_sync_failed` | CRM sync fails during handoff | `fatal`, `error` |
 | `rate_limited` | anyone hits a rate limit | `scope`, `key` |
@@ -31,7 +34,7 @@ In buyer funnel order:
 
 One row per Gemini call with the full detail PostHog doesn't get: exact input/output/**thinking** token counts, input/output/total cost in USD (computed from a pricing table at call time), latency, success/failure with the actual error code and message, and which conversation + user caused the call.
 
-`prompt_type` values: `interview` (the main chat turn), `interview_retry` (blank-reply retry), `pills` (quick-reply suggestions), `detect_language`, `translate`.
+`prompt_type` values: `interview` (the main chat turn), `interview_retry` (blank-reply retry), `pills` (quick-reply suggestions), `detect_language`, `translate`, `lesson_draft` (AM-triggered improvement-lesson drafting from a rated transcript).
 
 ## Where to look — PostHog
 

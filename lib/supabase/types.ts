@@ -13,6 +13,10 @@ export type UserRole = "buyer" | "account_manager";
 export type ChatSessionStatus = "ai" | "in_handoff" | "closed";
 export type ChatSenderType = "user" | "ai" | "account_manager" | "system";
 export type RfqStatus = "in_progress" | "submitted" | "won" | "lost";
+// AM's verdict on the AI interview's output, set from the dashboard
+// rating card after handoff. Distinct from RfqStatus (deal outcome).
+export type LeadQuality = "qualified" | "partial" | "junk";
+export type AgentLessonStatus = "proposed" | "approved" | "rejected";
 
 type Json =
   | string
@@ -81,6 +85,25 @@ export interface RfqsRow {
   hubspot_contact_id: string | null;
   hubspot_deal_id: string | null;
   submitted_at: string | null;
+  lead_quality: LeadQuality | null;
+  lead_quality_field_issues: string[];
+  lead_quality_notes: string;
+  lead_rated_by: string | null;
+  lead_rated_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AgentLessonsRow {
+  id: string;
+  chat_session_id: string | null;
+  rfq_id: string | null;
+  lesson_text: string;
+  rationale: string;
+  status: AgentLessonStatus;
+  created_by: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -213,6 +236,41 @@ export type Database = {
           hubspot_contact_id?: string | null;
           hubspot_deal_id?: string | null;
           submitted_at?: string | null;
+          lead_quality?: LeadQuality | null;
+          lead_quality_field_issues?: string[];
+          lead_quality_notes?: string;
+          lead_rated_by?: string | null;
+          lead_rated_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      agent_lessons: {
+        Row: AgentLessonsRow;
+        Insert: {
+          id?: string;
+          chat_session_id?: string | null;
+          rfq_id?: string | null;
+          lesson_text: string;
+          rationale?: string;
+          status?: AgentLessonStatus;
+          created_by?: string | null;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          chat_session_id?: string | null;
+          rfq_id?: string | null;
+          lesson_text?: string;
+          rationale?: string;
+          status?: AgentLessonStatus;
+          created_by?: string | null;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };

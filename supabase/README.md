@@ -31,6 +31,8 @@ Easiest path — paste each `.sql` file's contents into the SQL editor in the Su
 0013_llm_call_logs.sql           (Gemini call telemetry — written by the FastAPI backend over a direct
                                   Postgres connection, so the backend's DATABASE_URL must point at this
                                   project's connection string in prod; RLS-locked, invisible to PostgREST)
+0014_lead_rating_and_agent_lessons.sql  (AM lead-quality rating columns on rfqs + the agent_lessons
+                                  review queue; AM-only under RLS via is_account_manager())
 ```
 
 Or, with [supabase CLI](https://supabase.com/docs/guides/cli) (`brew install supabase/tap/supabase`):

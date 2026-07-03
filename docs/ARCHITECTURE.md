@@ -125,6 +125,9 @@ Server-side events (funnel order):
 | `review_requested` | `/api/request-review` | **core conversion**; `language`, `hubspot_synced` |
 | `am_brief_claimed` | `/api/am/sessions/[id]/claim` | distinct_id = the AM |
 | `am_reply_sent` | `/api/am/sessions/[id]/messages` | `translated`, `has_attachments` |
+| `am_lead_rated` | `/api/am/sessions/[id]/rating` | AM's verdict on the AI interview; `lead_quality`, `field_issues` |
+| `agent_lessons_proposed` | `/api/am/sessions/[id]/lessons` | one per Generate-lessons click; `lead_quality`, `lesson_count` |
+| `agent_lesson_reviewed` | `/api/am/lessons/[id]` | `decision`: approve / reject; `edited` |
 | `hubspot_sync_failed` | `/api/request-review` | `fatal` = validation error (422 path) |
 | `rate_limited` | `lib/rateLimit.ts` | any route; `key`, `scope` identify the wall |
 
@@ -286,6 +289,15 @@ The FastAPI backend has no auth, no DB, no session store. The Next.js `/api/chat
 6. Inserts the ai message via the service-role admin client (RLS would block `sender_type='ai'` from a normal client).
 
 The user-scoped client (`getSupabaseServer()`) respects RLS. The admin client (`getSupabaseAdmin()`) bypasses it — use only for AI/system writes the buyer can't legitimately make themselves.
+
+## Agent improvement loop (lead rating → lessons)
+
+The interview agent is prompt-driven and stateless, so it only "learns" through curated prompt changes. The dashboard feeds that loop with ground-truth labels and machine-drafted candidates:
+
+1. **Rate** — after claiming a handed-off brief, the AM rates the AI interview's output in the brief sidebar (`RatingSection` in `app/dashboard/page.tsx`): `lead_quality` (`qualified` / `partial` / `junk`), flagged-field checkboxes (enum slugs: `machine_type`, `specs`, `quantity`, `delivery`, `timeline`, `contact`), and an optional free-text note. `POST /api/am/sessions/[id]/rating` writes these onto the `rfqs` row (migration 0014). Only the assigned AM can rate (409 otherwise); re-rating overwrites. This label is deliberately distinct from `rfqs.status` (won/lost) — it judges the *interview*, not the deal.
+2. **Generate** — the rated card unlocks **Generate lessons**. `POST /api/am/sessions/[id]/lessons` loads the AI-interview transcript (user + ai messages only), sends it with the rating to FastAPI `POST /draft-lessons` (`prompt_type: lesson_draft` — see `backend/docs/API.md`), and inserts the 0-3 returned drafts into `agent_lessons` as `proposed`. Rate-limited (20/h per AM); requires claim + rating (409 otherwise).
+3. **Review** — the **Lessons** view (button in the inbox header → `LessonsPane`) lists proposed lessons with their rationale. The AM approves (optionally editing the text first), or rejects. `PATCH /api/am/lessons/[id]` records the decision + reviewer; `GET /api/am/lessons` feeds the list. `agent_lessons` is AM-only under RLS (`is_account_manager()`).
+4. **Apply** — *manual, by design.* Nothing consumes approved lessons automatically: they are the curated input for the next `backend/app/prompts.py` change (each applied lesson should also gain a few-shot + a `test_scope.py` case per the testing policy). If/when runtime lesson injection is built, only `approved` rows may ever reach the prompt, and never in a way that can touch the critical constraints.
 
 ## How to apply when extending
 

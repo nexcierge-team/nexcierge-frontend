@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { RfqsRow } from "@/lib/supabase/types";
+import type { LeadQuality, RfqsRow } from "@/lib/supabase/types";
 
 // See note in lib/db/messages.ts about the untyped client. Same applies here.
 type Client = SupabaseClient;
@@ -223,6 +223,35 @@ export async function transferRfqsOwnership(
     .update({ user_id: toUserId })
     .eq("user_id", fromUserId);
   if (error) throw error;
+}
+
+// AM's verdict on the AI interview's output (the Path-1/2 improvement
+// loop's ground-truth label). Re-rating overwrites — the latest verdict
+// wins; lead_rated_by/at record who judged last.
+export async function rateRfqLead(
+  supabase: Client,
+  sessionId: string,
+  args: {
+    quality: LeadQuality;
+    fieldIssues: string[];
+    notes: string;
+    ratedBy: string;
+  },
+): Promise<RfqsRow> {
+  const { data, error } = await supabase
+    .from("rfqs")
+    .update({
+      lead_quality: args.quality,
+      lead_quality_field_issues: args.fieldIssues,
+      lead_quality_notes: args.notes,
+      lead_rated_by: args.ratedBy,
+      lead_rated_at: new Date().toISOString(),
+    })
+    .eq("chat_session_id", sessionId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
 }
 
 export async function markRfqSubmitted(

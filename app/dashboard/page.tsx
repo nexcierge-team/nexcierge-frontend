@@ -9,6 +9,10 @@ import {
   ArrowLeft,
   Languages,
   ChevronDown,
+  GraduationCap,
+  Check,
+  X,
+  Pencil,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChatComposer } from "@/components/chat/ChatComposer";
@@ -19,8 +23,10 @@ import { TypingIndicator } from "@/components/chat/MessageBubble";
 import { getSupabaseBrowser } from "@/lib/supabase/browser";
 import { useRealtimeChat } from "@/lib/useRealtimeChat";
 import type {
+  AgentLessonsRow,
   ChatMessagesRow,
   ChatSenderType,
+  LeadQuality,
   RfqsRow,
   RfqStatus,
 } from "@/lib/supabase/types";
@@ -113,6 +119,8 @@ export default function DashboardPage() {
   >(null);
   const [open, setOpen] = useState<OpenBrief | null>(null);
   const [openLoading, setOpenLoading] = useState(false);
+  // Lessons review queue view — mutually exclusive with an open brief.
+  const [lessonsView, setLessonsView] = useState(false);
   const [composer, setComposer] = useState("");
   const [sending, setSending] = useState(false);
   // Documents / media the AM has queued for the current reply. Each is
@@ -205,6 +213,7 @@ export default function DashboardPage() {
   const openBrief = useCallback(
     async (sessionId: string) => {
       setOpenLoading(true);
+      setLessonsView(false);
       // Drop any files queued against the previously-open brief.
       setPending([]);
       setComposer("");
@@ -357,6 +366,66 @@ export default function DashboardPage() {
       }
     })();
   }, [open?.sessionId, open?.messages, amLanguage]);
+
+  // Persist the AM's verdict on the AI interview (rating card in the
+  // brief sidebar). Returns true on success; the updated rfq (with
+  // lead_quality set) replaces the open brief's copy so the card flips
+  // to its rated state and the Generate-lessons button unlocks.
+  const saveRating = useCallback(
+    async (input: {
+      quality: LeadQuality;
+      issues: string[];
+      notes: string;
+    }): Promise<boolean> => {
+      if (!open) return false;
+      const sessionId = open.sessionId;
+      try {
+        const res = await fetch(
+          `/api/am/sessions/${encodeURIComponent(sessionId)}/rating`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              lead_quality: input.quality,
+              field_issues: input.issues,
+              notes: input.notes,
+            }),
+          },
+        );
+        if (!res.ok) return false;
+        const data = (await res.json()) as { rfq: RfqsRow };
+        setOpen((prev) =>
+          prev && prev.sessionId === sessionId
+            ? { ...prev, rfq: data.rfq }
+            : prev,
+        );
+        return true;
+      } catch (e) {
+        console.error("rating save failed:", e);
+        return false;
+      }
+    },
+    [open],
+  );
+
+  // Run the rated transcript through Gemini (backend /draft-lessons via
+  // our lessons route). Returns the number of proposed lessons written
+  // to agent_lessons, or null on failure.
+  const generateLessons = useCallback(async (): Promise<number | null> => {
+    if (!open) return null;
+    try {
+      const res = await fetch(
+        `/api/am/sessions/${encodeURIComponent(open.sessionId)}/lessons`,
+        { method: "POST" },
+      );
+      if (!res.ok) return null;
+      const data = (await res.json()) as { lessons: AgentLessonsRow[] };
+      return data.lessons.length;
+    } catch (e) {
+      console.error("lesson generation failed:", e);
+      return null;
+    }
+  }, [open]);
 
   async function claim() {
     if (!open) return;
@@ -577,6 +646,13 @@ export default function DashboardPage() {
         activeId={open?.sessionId}
         meId={meId}
         onSelect={openBrief}
+        lessonsActive={lessonsView}
+        onOpenLessons={() => {
+          setLessonsView(true);
+          setOpen(null);
+          setPending([]);
+          setComposer("");
+        }}
       />
       <main className="flex h-full min-w-0 flex-1 flex-col">
         {open ? (
@@ -601,7 +677,11 @@ export default function DashboardPage() {
             pending={pending}
             onAttach={addFiles}
             onRemoveAttachment={removeAttachment}
+            onSaveRating={saveRating}
+            onGenerateLessons={generateLessons}
           />
+        ) : lessonsView ? (
+          <LessonsPane onBack={() => setLessonsView(false)} />
         ) : (
           <EmptyState loading={openLoading} />
         )}
@@ -658,12 +738,16 @@ function InboxPane({
   activeId,
   meId,
   onSelect,
+  lessonsActive,
+  onOpenLessons,
 }: {
   briefs: InboxBrief[];
   loading: boolean;
   activeId: string | undefined;
   meId: string | null;
   onSelect: (id: string) => void;
+  lessonsActive: boolean;
+  onOpenLessons: () => void;
 }) {
   return (
     <aside className="hidden h-full w-80 shrink-0 flex-col border-r border-gray-200 bg-[#F7F8FA] md:flex">
@@ -679,11 +763,23 @@ function InboxPane({
         </p>
       </div>
 
-      <div className="border-b border-gray-200 px-5 py-3 text-[11px] font-medium uppercase tracking-wider text-gray-500">
+      <div className="flex items-center justify-between border-b border-gray-200 px-5 py-3 text-[11px] font-medium uppercase tracking-wider text-gray-500">
         <span className="inline-flex items-center gap-1.5">
           <Inbox className="h-3.5 w-3.5" strokeWidth={1.75} />
           Inbox · {briefs.length}
         </span>
+        <button
+          onClick={onOpenLessons}
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium uppercase tracking-wider transition-colors",
+            lessonsActive
+              ? "bg-[#0F2747] text-white"
+              : "text-gray-500 hover:bg-white hover:text-gray-900",
+          )}
+        >
+          <GraduationCap className="h-3.5 w-3.5" strokeWidth={1.75} />
+          Lessons
+        </button>
       </div>
 
       <div className="flex-1 overflow-y-auto px-3 py-4">
@@ -782,6 +878,8 @@ function BriefPane({
   pending,
   onAttach,
   onRemoveAttachment,
+  onSaveRating,
+  onGenerateLessons,
 }: {
   brief: OpenBrief;
   sending: boolean;
@@ -799,6 +897,12 @@ function BriefPane({
   pending: PendingAttachment[];
   onAttach: (files: File[]) => void;
   onRemoveAttachment: (id: string) => void;
+  onSaveRating: (input: {
+    quality: LeadQuality;
+    issues: string[];
+    notes: string;
+  }) => Promise<boolean>;
+  onGenerateLessons: () => Promise<number | null>;
 }) {
   const chrome = amBriefStrings(amLanguage);
   const { rfq, messages, assignedToMe } = brief;
@@ -896,7 +1000,13 @@ function BriefPane({
           )}
         </div>
 
-        <BriefSummary rfq={rfq} language={amLanguage} />
+        <BriefSummary
+          rfq={rfq}
+          language={amLanguage}
+          canRate={assignedToMe}
+          onSaveRating={onSaveRating}
+          onGenerateLessons={onGenerateLessons}
+        />
       </div>
     </>
   );
@@ -953,9 +1063,19 @@ function LanguageSelector({
 function BriefSummary({
   rfq,
   language,
+  canRate,
+  onSaveRating,
+  onGenerateLessons,
 }: {
   rfq: RfqsRow;
   language: string;
+  canRate: boolean;
+  onSaveRating: (input: {
+    quality: LeadQuality;
+    issues: string[];
+    notes: string;
+  }) => Promise<boolean>;
+  onGenerateLessons: () => Promise<number | null>;
 }) {
   // Section titles + field labels + the timeline/condition enum tables are
   // shared with the buyer-facing ProfileSummaryCard (lib/cardStrings.ts);
@@ -1053,7 +1173,259 @@ function BriefSummary({
           </p>
         )}
       </Section>
+
+      <Section title={chrome.sectionRating}>
+        {canRate ? (
+          <RatingSection
+            key={rfq.id}
+            rfq={rfq}
+            chrome={chrome}
+            onSave={onSaveRating}
+            onGenerate={onGenerateLessons}
+          />
+        ) : (
+          <p className="text-[11px] italic text-gray-400">
+            {chrome.claimToRate}
+          </p>
+        )}
+      </Section>
     </aside>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────
+// Lead rating + lesson generation (sidebar card)
+// ──────────────────────────────────────────────────────────────
+
+// Which brief areas the AM can flag as wrong/missing. Slugs must stay in
+// sync with FIELD_ISSUES in app/api/am/sessions/[id]/rating/route.ts.
+function issueOptions(
+  chrome: AmBriefStrings,
+): { slug: string; label: string }[] {
+  return [
+    { slug: "machine_type", label: chrome.issueMachineType },
+    { slug: "specs", label: chrome.issueSpecs },
+    { slug: "quantity", label: chrome.issueQuantity },
+    { slug: "delivery", label: chrome.issueDelivery },
+    { slug: "timeline", label: chrome.issueTimeline },
+    { slug: "contact", label: chrome.issueContact },
+  ];
+}
+
+const QUALITY_CHIP: Record<LeadQuality, string> = {
+  qualified: "bg-emerald-100 text-emerald-800",
+  partial: "bg-amber-100 text-amber-800",
+  junk: "bg-red-100 text-red-800",
+};
+
+// Keyed by rfq.id in the parent so all state resets when the AM switches
+// briefs. Two modes: editing (fresh or via Edit) shows the full form;
+// rated shows the verdict chip + the Generate-lessons button.
+function RatingSection({
+  rfq,
+  chrome,
+  onSave,
+  onGenerate,
+}: {
+  rfq: RfqsRow;
+  chrome: AmBriefStrings;
+  onSave: (input: {
+    quality: LeadQuality;
+    issues: string[];
+    notes: string;
+  }) => Promise<boolean>;
+  onGenerate: () => Promise<number | null>;
+}) {
+  const [editing, setEditing] = useState(!rfq.lead_quality);
+  const [quality, setQuality] = useState<LeadQuality | null>(
+    rfq.lead_quality,
+  );
+  const [issues, setIssues] = useState<Set<string>>(
+    () => new Set(rfq.lead_quality_field_issues ?? []),
+  );
+  const [note, setNote] = useState(rfq.lead_quality_notes ?? "");
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState(false);
+  const [genState, setGenState] = useState<"idle" | "running" | "error">(
+    "idle",
+  );
+  const [genCount, setGenCount] = useState<number | null>(null);
+
+  const qualityLabel: Record<LeadQuality, string> = {
+    qualified: chrome.qualityQualified,
+    partial: chrome.qualityPartial,
+    junk: chrome.qualityJunk,
+  };
+
+  function toggleIssue(slug: string) {
+    setIssues((prev) => {
+      const next = new Set(prev);
+      if (next.has(slug)) next.delete(slug);
+      else next.add(slug);
+      return next;
+    });
+  }
+
+  async function save() {
+    if (!quality || saving) return;
+    setSaving(true);
+    setSaveError(false);
+    const ok = await onSave({
+      quality,
+      issues: [...issues],
+      notes: note.trim(),
+    });
+    setSaving(false);
+    if (ok) setEditing(false);
+    else setSaveError(true);
+  }
+
+  async function generate() {
+    if (genState === "running") return;
+    setGenState("running");
+    setGenCount(null);
+    const count = await onGenerate();
+    if (count === null) {
+      setGenState("error");
+    } else {
+      setGenState("idle");
+      setGenCount(count);
+    }
+  }
+
+  if (!editing && rfq.lead_quality) {
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <span
+            className={cn(
+              "inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium",
+              QUALITY_CHIP[rfq.lead_quality],
+            )}
+          >
+            {qualityLabel[rfq.lead_quality]}
+          </span>
+          <button
+            onClick={() => setEditing(true)}
+            className="inline-flex items-center gap-1 text-[11px] text-gray-500 hover:text-gray-900"
+          >
+            <Pencil className="h-3 w-3" strokeWidth={1.75} />
+            {chrome.editRating}
+          </button>
+        </div>
+        {rfq.lead_quality_field_issues.length > 0 && (
+          <p className="text-[11px] text-gray-500">
+            {issueOptions(chrome)
+              .filter((o) => rfq.lead_quality_field_issues.includes(o.slug))
+              .map((o) => o.label)
+              .join(", ")}
+          </p>
+        )}
+        {rfq.lead_quality_notes && (
+          <p className="text-[11px] italic text-gray-500">
+            {rfq.lead_quality_notes}
+          </p>
+        )}
+        <Button
+          size="sm"
+          variant="secondary"
+          className="w-full"
+          onClick={generate}
+          disabled={genState === "running"}
+        >
+          {genState === "running" ? (
+            <span className="inline-flex items-center gap-1.5">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} />
+              {chrome.generatingLessons}
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5">
+              <GraduationCap className="h-3.5 w-3.5" strokeWidth={1.75} />
+              {chrome.generateLessons}
+            </span>
+          )}
+        </Button>
+        {genState === "error" && (
+          <p className="text-[11px] text-red-600">{chrome.lessonsFailed}</p>
+        )}
+        {genCount !== null &&
+          (genCount > 0 ? (
+            <p className="text-[11px] text-emerald-700">
+              {genCount} {chrome.lessonsProposedSuffix}
+            </p>
+          ) : (
+            <p className="text-[11px] text-gray-500">
+              {chrome.noLessonsProposed}
+            </p>
+          ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="text-[11px] text-gray-500">{chrome.ratingQuestion}</p>
+      <div className="flex gap-1.5">
+        {(["qualified", "partial", "junk"] as LeadQuality[]).map((q) => (
+          <button
+            key={q}
+            onClick={() => setQuality(q)}
+            className={cn(
+              "flex-1 rounded-full border px-2 py-1 text-[11px] font-medium transition-colors",
+              quality === q
+                ? cn("border-transparent", QUALITY_CHIP[q])
+                : "border-gray-200 bg-white text-gray-600 hover:border-gray-300",
+            )}
+          >
+            {qualityLabel[q]}
+          </button>
+        ))}
+      </div>
+      <div>
+        <p className="mb-1.5 text-[11px] text-gray-500">
+          {chrome.issuesQuestion}
+        </p>
+        <div className="grid grid-cols-2 gap-x-2 gap-y-1">
+          {issueOptions(chrome).map((o) => (
+            <label
+              key={o.slug}
+              className="inline-flex cursor-pointer items-center gap-1.5 text-[11px] text-gray-700"
+            >
+              <input
+                type="checkbox"
+                checked={issues.has(o.slug)}
+                onChange={() => toggleIssue(o.slug)}
+                className="h-3 w-3 rounded border-gray-300 accent-[#0F2747]"
+              />
+              {o.label}
+            </label>
+          ))}
+        </div>
+      </div>
+      <div>
+        <p className="mb-1 text-[11px] text-gray-500">{chrome.noteLabel}</p>
+        <textarea
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder={chrome.notePlaceholder}
+          rows={2}
+          maxLength={2000}
+          className="w-full resize-none rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-[11px] text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0F2747]/15"
+        />
+      </div>
+      <Button
+        size="sm"
+        variant="primary"
+        className="w-full"
+        onClick={save}
+        disabled={!quality || saving}
+      >
+        {saving ? chrome.savingRating : chrome.saveRating}
+      </Button>
+      {saveError && (
+        <p className="text-[11px] text-red-600">{chrome.ratingFailed}</p>
+      )}
+    </div>
   );
 }
 
@@ -1146,6 +1518,250 @@ function StatusPill({
     >
       {v.label}
     </span>
+  );
+}
+
+
+// ──────────────────────────────────────────────────────────────
+// Lessons review queue (main pane)
+// ──────────────────────────────────────────────────────────────
+
+// Machine-drafted improvement lessons awaiting human review. Approve
+// (optionally after editing), or reject. English-only chrome, same as
+// the inbox — the AM language selector only localizes brief details.
+function LessonsPane({ onBack }: { onBack: () => void }) {
+  const [lessons, setLessons] = useState<AgentLessonsRow[] | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draft, setDraft] = useState("");
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/am/lessons");
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = (await res.json()) as { lessons: AgentLessonsRow[] };
+        setLessons(data.lessons ?? []);
+      } catch (e) {
+        console.error("lessons load failed:", e);
+        setLoadFailed(true);
+      }
+    })();
+  }, []);
+
+  async function review(
+    id: string,
+    action: "approve" | "reject",
+    editedText?: string,
+  ) {
+    if (busyId) return;
+    setBusyId(id);
+    try {
+      const res = await fetch(`/api/am/lessons/${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action,
+          ...(editedText !== undefined ? { lesson_text: editedText } : {}),
+        }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = (await res.json()) as { lesson: AgentLessonsRow };
+      setLessons((prev) =>
+        prev
+          ? prev.map((l) => (l.id === id ? data.lesson : l))
+          : prev,
+      );
+      if (editingId === id) setEditingId(null);
+    } catch (e) {
+      console.error("lesson review failed:", e);
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  const proposed = (lessons ?? []).filter((l) => l.status === "proposed");
+  const reviewed = (lessons ?? []).filter((l) => l.status !== "proposed");
+
+  return (
+    <div className="flex h-full flex-col">
+      <header className="flex items-center gap-3 border-b border-gray-200 bg-white/85 px-6 py-4 backdrop-blur-xl">
+        <button
+          onClick={onBack}
+          aria-label="Back to inbox"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 md:hidden"
+        >
+          <ArrowLeft className="h-4 w-4" strokeWidth={1.5} />
+        </button>
+        <div>
+          <h1 className="text-sm font-semibold text-gray-900">
+            Agent lessons
+          </h1>
+          <p className="text-xs text-gray-500">
+            Drafted from your brief ratings. Approved lessons feed the next
+            prompt update — nothing changes the agent until you approve.
+          </p>
+        </div>
+      </header>
+
+      <div className="flex-1 overflow-y-auto px-6 py-6">
+        <div className="mx-auto max-w-3xl">
+          {loadFailed ? (
+            <p className="text-sm text-gray-500">
+              Lessons couldn&apos;t load. Refresh the page to try again.
+            </p>
+          ) : lessons === null ? (
+            <p className="inline-flex items-center gap-2 text-sm text-gray-500">
+              <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.75} />
+              Loading lessons…
+            </p>
+          ) : lessons.length === 0 ? (
+            <p className="text-sm text-gray-500">
+              No lessons yet. Rate a brief, then hit Generate lessons.
+            </p>
+          ) : (
+            <>
+              <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+                Needs review · {proposed.length}
+              </div>
+              {proposed.length === 0 ? (
+                <p className="mb-6 text-xs text-gray-400">
+                  Nothing waiting on you.
+                </p>
+              ) : (
+                <ul className="mb-8 space-y-3">
+                  {proposed.map((l) => (
+                    <li
+                      key={l.id}
+                      className="rounded-xl border border-gray-200 bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.03)]"
+                    >
+                      {editingId === l.id ? (
+                        <textarea
+                          value={draft}
+                          onChange={(e) => setDraft(e.target.value)}
+                          rows={3}
+                          maxLength={1000}
+                          autoFocus
+                          className="w-full resize-none rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0F2747]/15"
+                        />
+                      ) : (
+                        <p className="text-sm font-medium text-gray-900">
+                          {l.lesson_text}
+                        </p>
+                      )}
+                      {l.rationale && (
+                        <p className="mt-1.5 text-xs leading-relaxed text-gray-500">
+                          {l.rationale}
+                        </p>
+                      )}
+                      <div className="mt-3 flex items-center gap-2">
+                        {editingId === l.id ? (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="primary"
+                              disabled={busyId === l.id || !draft.trim()}
+                              onClick={() => review(l.id, "approve", draft.trim())}
+                            >
+                              <Check className="h-3.5 w-3.5" strokeWidth={2} />
+                              Approve edited
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setEditingId(null)}
+                            >
+                              Cancel
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="primary"
+                              disabled={busyId === l.id}
+                              onClick={() => review(l.id, "approve")}
+                            >
+                              <Check className="h-3.5 w-3.5" strokeWidth={2} />
+                              Approve
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              disabled={busyId === l.id}
+                              onClick={() => {
+                                setEditingId(l.id);
+                                setDraft(l.lesson_text);
+                              }}
+                            >
+                              <Pencil className="h-3.5 w-3.5" strokeWidth={1.75} />
+                              Edit
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              disabled={busyId === l.id}
+                              onClick={() => review(l.id, "reject")}
+                            >
+                              <X className="h-3.5 w-3.5" strokeWidth={2} />
+                              Reject
+                            </Button>
+                          </>
+                        )}
+                        {busyId === l.id && (
+                          <Loader2
+                            className="h-3.5 w-3.5 animate-spin text-gray-400"
+                            strokeWidth={1.75}
+                          />
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {reviewed.length > 0 && (
+                <>
+                  <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+                    Reviewed · {reviewed.length}
+                  </div>
+                  <ul className="space-y-2">
+                    {reviewed.map((l) => (
+                      <li
+                        key={l.id}
+                        className="flex items-start gap-2.5 rounded-lg bg-gray-50 px-3.5 py-2.5"
+                      >
+                        <span
+                          className={cn(
+                            "mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium",
+                            l.status === "approved"
+                              ? "bg-emerald-100 text-emerald-800"
+                              : "bg-gray-200 text-gray-600",
+                          )}
+                        >
+                          {l.status === "approved" ? "Approved" : "Rejected"}
+                        </span>
+                        <p
+                          className={cn(
+                            "text-xs leading-relaxed",
+                            l.status === "approved"
+                              ? "text-gray-700"
+                              : "text-gray-400 line-through",
+                          )}
+                        >
+                          {l.lesson_text}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
