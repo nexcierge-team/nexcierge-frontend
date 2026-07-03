@@ -33,7 +33,15 @@ Easiest path — paste each `.sql` file's contents into the SQL editor in the Su
                                   project's connection string in prod; RLS-locked, invisible to PostgREST)
 0014_lead_rating_and_agent_lessons.sql  (AM lead-quality rating columns on rfqs + the agent_lessons
                                   review queue; AM-only under RLS via is_account_manager())
+0015_app_settings.sql            (singleton app_settings row holding the live Gemini model ids, set
+                                  from the dashboard Models pane; AM-only under RLS. Seed the three
+                                  values to match the backend's GEMINI_*_MODEL env before go-live so
+                                  switching to DB-driven config is a no-op)
+0016_app_settings_pills_thinking.sql  (adds app_settings.pills_thinking — the pills reasoning level
+                                  off/low/medium/high; default 'low' = prior behaviour, so a no-op)
 ```
+
+> **Model config is now DB-driven.** After `0015`, the live interview/pills/translate models are set from the AM dashboard (**Models** pane) and stored in `app_settings`; the backend's `GEMINI_*_MODEL` env vars are only the fallback. No operator step is required beyond running the migration — but confirm the seed values equal what Render currently runs so no buyer-facing model silently changes on deploy.
 
 Or, with [supabase CLI](https://supabase.com/docs/guides/cli) (`brew install supabase/tap/supabase`):
 

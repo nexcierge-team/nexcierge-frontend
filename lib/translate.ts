@@ -4,6 +4,8 @@
 // Gemini key on the backend (where it already lives) means we don't
 // need to add @google/genai or another secret to the Next.js side.
 
+import { getModelConfig } from "@/lib/modelConfig";
+
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8000";
 
 // Hard cap on the translation round-trip. Flash-Lite usually answers in
@@ -21,13 +23,15 @@ const DETECT_TIMEOUT_MS = 5_000;
 // — same default the backend uses for ambiguous inputs.
 export async function detectLanguage(text: string): Promise<string> {
   if (!text.trim()) return "en";
+  // Dashboard-driven translate model; null → backend uses its env default.
+  const { translateModel } = await getModelConfig();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), DETECT_TIMEOUT_MS);
   try {
     const res = await fetch(`${BACKEND_URL}/detect-language`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ text, ...(translateModel && { model: translateModel }) }),
       signal: controller.signal,
     });
     if (!res.ok) {
@@ -64,6 +68,8 @@ export async function translateText(
   // unless the caller forces a real pass.
   if (!opts?.force && targetLanguage === "en") return null;
 
+  // Dashboard-driven translate model; null → backend uses its env default.
+  const { translateModel } = await getModelConfig();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TRANSLATE_TIMEOUT_MS);
   try {
@@ -74,6 +80,7 @@ export async function translateText(
         text,
         target_language: targetLanguage,
         force: opts?.force ?? false,
+        ...(translateModel && { model: translateModel }),
       }),
       signal: controller.signal,
     });
