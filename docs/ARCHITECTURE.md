@@ -128,6 +128,7 @@ Server-side events (funnel order):
 | `am_lead_rated` | `/api/am/sessions/[id]/rating` | AM's verdict on the AI interview; `lead_quality`, `field_issues` |
 | `agent_lessons_proposed` | `/api/am/sessions/[id]/lessons` | one per Generate-lessons click; `lead_quality`, `lesson_count` |
 | `agent_lesson_reviewed` | `/api/am/lessons/[id]` | `decision`: approve / reject; `edited` |
+| `model_config_updated` | `/api/am/config` PUT | AM saves live model config; `interview_model`, `pills_model`, `translate_model`, `pills_thinking` |
 | `hubspot_sync_failed` | `/api/request-review` | `fatal` = validation error (422 path) |
 | `rate_limited` | `lib/rateLimit.ts` | any route; `key`, `scope` identify the wall |
 

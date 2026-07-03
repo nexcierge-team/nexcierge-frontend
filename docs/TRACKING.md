@@ -24,6 +24,7 @@ In buyer funnel order:
 | `am_lead_rated` | an AM rates the AI interview's output on a claimed brief | `session_id`, `lead_quality` (`qualified`/`partial`/`junk`), `field_issues` |
 | `agent_lessons_proposed` | an AM clicks *Generate lessons* on a rated brief (Gemini drafts improvement lessons) | `session_id`, `lead_quality`, `lesson_count` |
 | `agent_lesson_reviewed` | an AM approves or rejects a proposed lesson in the Lessons view | `lesson_id`, `decision`, `edited` |
+| `model_config_updated` | an AM saves new live model config in the dashboard Models pane | `interview_model`, `pills_model`, `translate_model`, `pills_thinking` |
 | `llm_call_completed` | every Gemini API call the backend makes | `model`, `prompt_type`, `latency_ms`, `total_cost_usd`, `success` |
 | `hubspot_sync_failed` | CRM sync fails during handoff | `fatal`, `error` |
 | `rate_limited` | anyone hits a rate limit | `scope`, `key` |

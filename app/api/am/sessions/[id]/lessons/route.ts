@@ -6,6 +6,7 @@ import { getRfq, rfqRowToProfile } from "@/lib/db/rfqs";
 import { listMessages } from "@/lib/db/messages";
 import { checkRateLimit, rateLimited429 } from "@/lib/rateLimit";
 import { captureServer } from "@/lib/analytics";
+import { getModelConfig } from "@/lib/modelConfig";
 import type { AgentLessonsRow } from "@/lib/supabase/types";
 
 // AM-triggered lesson generation (Path 2 of the agent-improvement loop).
@@ -76,6 +77,9 @@ export async function POST(
     return NextResponse.json({ error: "No interview transcript" }, { status: 409 });
   }
 
+  // Lessons run on the interview model, so honour the same dashboard-driven
+  // setting as /chat; null → backend uses its GEMINI_MODEL env default.
+  const { interviewModel } = await getModelConfig();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), DRAFT_TIMEOUT_MS);
   let lessons: ProposedLesson[];
@@ -91,6 +95,7 @@ export async function POST(
         profile: rfqRowToProfile(rfq),
         session_id: id,
         user_id: gate.userId,
+        ...(interviewModel && { model: interviewModel }),
       }),
       signal: controller.signal,
     });

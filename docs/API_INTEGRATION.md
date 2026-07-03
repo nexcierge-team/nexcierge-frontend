@@ -20,6 +20,7 @@ The frontend never calls the FastAPI backend directly from the browser. All requ
 | `POST /api/am/sessions/[id]/rating` | — (Supabase only) | AM rates the AI interview's output on a claimed brief: `{ lead_quality, field_issues?, notes? }` → written to the `rfqs` row (migration 0014). 409 unless the caller is the assigned AM. See `docs/ARCHITECTURE.md` § Agent improvement loop |
 | `POST /api/am/sessions/[id]/lessons` | `POST /draft-lessons` | Generate improvement lessons from a rated brief: loads the user/ai transcript + rating from Supabase, gets 0-3 drafts back, inserts them into `agent_lessons` as `proposed`. Requires claim + rating (409); rate-limited `am-lessons:user:<id>` 20/h |
 | `GET /api/am/lessons`, `PATCH /api/am/lessons/[id]` | — (Supabase only) | Lessons review queue: list (optional `?status=`), then approve (optionally with edited `lesson_text`) or reject each proposed lesson |
+| `GET /api/am/config`, `PUT /api/am/config` | — (Supabase only) | Live Gemini model config (the `app_settings` singleton row, migrations 0015/0016). GET returns `{ config: { interview_model, pills_model, translate_model, pills_thinking, updated_at, updated_by_name } }`; PUT validates each id against the `lib/models.ts` allowlist (and `pills_thinking` against off/low/medium/high) and saves. AM-gated. Powers the dashboard **Models** pane and emits `model_config_updated` |
 
 ## Flow — chat turn
 
@@ -152,6 +153,16 @@ The sidebar's **chrome** still follows the AM's working language: section titles
 - `404` (session not found) — shouldn't happen in normal use; client surfaces a generic error message
 - `409` (profile not complete) — shouldn't happen because the UI only exposes the button when `profile_complete` is true; client surfaces a generic error message
 - `502` (backend unreachable) — Route Handler catches and returns its own 502 JSON
+
+### Live model config injection
+
+The Gemini models are set from the dashboard **Models** pane, not hard-coded and no longer only Render env vars. `lib/modelConfig.ts` `getModelConfig()` reads the `app_settings` singleton row (service-role client, short in-memory TTL cache, never throws → returns nulls on failure). Every server-side call that reaches the backend injects the relevant model, and the backend falls back to its env default for any null field:
+
+- `/api/chat` → `model` (interview) + `pills_model` + `pills_thinking` (semantic off/low/medium/high reasoning level for the pills pass) on the `/chat` body
+- `lib/translate.ts` (`translateText` / `detectLanguage`, used by the AM message-send + display-language routes) → `model` on `/translate` and `/detect-language`
+- `/api/am/sessions/[id]/lessons` → `model` (interview) on `/draft-lessons`
+
+The model actually used is what the backend logs to `llm_call_logs` + PostHog, so a model change is immediately comparable in analytics. This is a **global live** control (all buyer chats), because buyers chat anonymously before any AM is assigned — there is no per-tester scoping. The allowlist of selectable ids is `lib/models.ts` (shared by the dropdown and the PUT validation).
 
 ## Error handling
 

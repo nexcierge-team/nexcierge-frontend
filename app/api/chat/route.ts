@@ -12,6 +12,7 @@ import {
 } from "@/lib/db/rfqs";
 import { checkRateLimit, rateLimited429 } from "@/lib/rateLimit";
 import { captureServer } from "@/lib/analytics";
+import { getModelConfig } from "@/lib/modelConfig";
 import type { ChatMessagesRow } from "@/lib/supabase/types";
 
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8000";
@@ -116,6 +117,10 @@ export async function POST(req: Request) {
   // OUTPUT LANGUAGE lock.
   const sessionLanguage = session.language ?? "en";
 
+  // Dashboard-driven live models (app_settings). null → the backend uses its
+  // GEMINI_MODEL / GEMINI_PILLS_MODEL env defaults; never blocks a turn.
+  const modelCfg = await getModelConfig();
+
   const backendBody = {
     session_id: session.id,
     // Telemetry context only — lands in llm_call_logs.user_id and the
@@ -125,6 +130,9 @@ export async function POST(req: Request) {
     history: toBackendHistory(historyRows),
     profile: rfqRowToProfile(rfqRow),
     language: sessionLanguage,
+    ...(modelCfg.interviewModel && { model: modelCfg.interviewModel }),
+    ...(modelCfg.pillsModel && { pills_model: modelCfg.pillsModel }),
+    ...(modelCfg.pillsThinking && { pills_thinking: modelCfg.pillsThinking }),
   };
 
   let backendData: {
