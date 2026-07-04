@@ -5,8 +5,7 @@
 // need to add @google/genai or another secret to the Next.js side.
 
 import { getModelConfig } from "@/lib/modelConfig";
-
-const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8000";
+import { BACKEND_URL, backendHeaders } from "@/lib/backend";
 
 // Hard cap on the translation round-trip. Flash-Lite usually answers in
 // ~1s; if it takes longer than 8s something is wrong and the AM
@@ -30,7 +29,7 @@ export async function detectLanguage(text: string): Promise<string> {
   try {
     const res = await fetch(`${BACKEND_URL}/detect-language`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: backendHeaders(),
       body: JSON.stringify({ text, ...(translateModel && { model: translateModel }) }),
       signal: controller.signal,
     });
@@ -75,7 +74,7 @@ export async function translateText(
   try {
     const res = await fetch(`${BACKEND_URL}/translate`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: backendHeaders(),
       body: JSON.stringify({
         text,
         target_language: targetLanguage,

@@ -2,6 +2,8 @@
 
 The frontend never calls the FastAPI backend directly from the browser. All requests go through Next.js Route Handlers under `/api/*`, which proxy server-side to `process.env.BACKEND_URL`.
 
+Every server-side call to the backend goes through `lib/backend.ts` (`BACKEND_URL` + `backendHeaders()`), which attaches an `x-internal-token: BACKEND_SHARED_SECRET` header. The backend rejects LLM calls without it (`401`), so the public Render URL can't be abused directly — set `BACKEND_SHARED_SECRET` to the same value on the frontend (Vercel) and backend (Render). Any **new** backend call must use `backendHeaders()` so it carries the token. See `backend/docs/API.md` § Internal auth.
+
 ## Why proxies
 
 1. **No CORS** — the request is server-to-server from Vercel to Render, not browser-to-Render

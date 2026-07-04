@@ -8,6 +8,7 @@ import { checkRateLimit, rateLimited429 } from "@/lib/rateLimit";
 import { captureServer } from "@/lib/analytics";
 import { getModelConfig } from "@/lib/modelConfig";
 import type { AgentLessonsRow } from "@/lib/supabase/types";
+import { BACKEND_URL, backendHeaders } from "@/lib/backend";
 
 // AM-triggered lesson generation (Path 2 of the agent-improvement loop).
 // Requires the brief to be claimed by the caller AND already rated
@@ -17,7 +18,6 @@ import type { AgentLessonsRow } from "@/lib/supabase/types";
 // approve/edit/reject review. Nothing consumes lessons automatically —
 // approval is a human act, and approved lessons feed future prompt work.
 
-const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8000";
 // Drafting reads a whole transcript with thinking on — allow more than
 // the translate route's 8s, but don't let the AM's click hang forever.
 const DRAFT_TIMEOUT_MS = 45_000;
@@ -86,7 +86,7 @@ export async function POST(
   try {
     const res = await fetch(`${BACKEND_URL}/draft-lessons`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: backendHeaders(),
       body: JSON.stringify({
         transcript,
         rating: rfq.lead_quality,

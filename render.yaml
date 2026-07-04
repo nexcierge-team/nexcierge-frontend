@@ -15,3 +15,9 @@ services:
     envVars:
       - key: NEXT_PUBLIC_BACKEND_URL
         sync: false       # e.g. https://nexcierge-backend.onrender.com
+      # Same value as nexcierge-backend's BACKEND_SHARED_SECRET. Sent as the
+      # x-internal-token header on every server-side call to the backend so
+      # the backend can reject direct/unauthenticated callers. (Frontend
+      # deploys on Vercel — set this there too, not just here.)
+      - key: BACKEND_SHARED_SECRET
+        sync: false

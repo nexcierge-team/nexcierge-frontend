@@ -14,8 +14,7 @@ import { checkRateLimit, rateLimited429 } from "@/lib/rateLimit";
 import { captureServer } from "@/lib/analytics";
 import { getModelConfig } from "@/lib/modelConfig";
 import type { ChatMessagesRow } from "@/lib/supabase/types";
-
-const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8000";
+import { BACKEND_URL, backendHeaders } from "@/lib/backend";
 
 // Convert DB chat_messages rows into the {role, content} pairs the
 // backend's Gemini history accepts. account_manager / system rows are
@@ -145,7 +144,7 @@ export async function POST(req: Request) {
   try {
     const res = await fetch(`${BACKEND_URL}/chat`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: backendHeaders(),
       body: JSON.stringify(backendBody),
     });
     if (!res.ok) throw new Error(`backend ${res.status}`);

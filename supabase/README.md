@@ -134,6 +134,8 @@ update public.users set role = 'account_manager' where email = 'sara@nexcierge.c
 
 That email needs an existing user row — have them sign in once first (Google or magic link).
 
+Run this in the **Supabase SQL console** (or via the service-role key). As of migration `0017_lock_users_role.sql`, `public.users.role` is **not** client-updatable: `UPDATE` is revoked from the `anon`/`authenticated` roles and a trigger blocks any role/id change from those roles. This closes a critical privilege-escalation hole (any visitor could otherwise PATCH their own row to `account_manager` and read all customer data — SECURITY_AUDIT #1). The SQL console runs as `postgres` and the service-role client as `service_role`, both of which bypass the trigger, so this promotion still works. After deploying `0017`, audit existing rows: `select id, email, role from public.users where role = 'account_manager';` and reset any you don't recognise.
+
 ## Local dev tips
 
 - Supabase emulator (`supabase start`) works locally if you don't want to use a cloud project for dev. Migrations run automatically on `supabase start` / `supabase db reset`.
