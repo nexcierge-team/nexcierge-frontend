@@ -254,6 +254,130 @@ const hi: ChatStrings = {
     "अभी आपके अकाउंट मैनेजर को स्थानांतरित नहीं किया जा सका — कृपया फिर से प्रयास करें।",
 };
 
+const gu: ChatStrings = {
+  composerReply: "જવાબ આપો…",
+  composerHandoff: "તમારા એકાઉન્ટ મેનેજરને સંદેશ મોકલો…",
+  composerDefault: "Nexcierge ને સંદેશ મોકલો…",
+  composerHint: "મોકલવા માટે Enter · નવી લાઇન માટે Shift + Enter",
+  sendAria: "સંદેશ મોકલો",
+  historyAria: "ચેટ ઇતિહાસ ખોલો",
+  newChatAria: "નવી વાતચીત",
+  errDelete: "તે વાતચીત કાઢી શકાઈ નહીં. કૃપા કરીને ફરી પ્રયાસ કરો.",
+  errBootstrap: "ચેટ સત્ર શરૂ થઈ શક્યું નહીં. ફરી પ્રયાસ કરવા રિફ્રેશ કરો.",
+  errNoReply: "AI એ કોઈ જવાબ આપ્યો નહીં. કૃપા કરીને ફરી પ્રયાસ કરો.",
+  errTimeout:
+    "AI ને જવાબ આપવામાં ઘણો સમય લાગ્યો. કૃપા કરીને ફરી પ્રયાસ કરો.",
+  errConnection:
+    "કનેક્શન ભૂલ. કૃપા કરીને ફરી પ્રયાસ કરો, અથવા બેકએન્ડ ચાલી રહ્યું છે કે નહીં તે તપાસો.",
+  errInvalidField:
+    "તમારી કોઈ વિગત અમાન્ય લાગે છે. કૃપા કરીને ચેટમાં તેને સુધારો અને ફરીથી 'માનવ સમીક્ષાની વિનંતી કરો' અજમાવો.",
+  errTransfer:
+    "હમણાં તમારા એકાઉન્ટ મેનેજરને ટ્રાન્સફર થઈ શક્યું નહીં — કૃપા કરીને ફરી પ્રયાસ કરો.",
+};
+
+const ta: ChatStrings = {
+  composerReply: "பதிலளிக்கவும்…",
+  composerHandoff: "உங்கள் கணக்கு மேலாளருக்கு செய்தி அனுப்பவும்…",
+  composerDefault: "Nexcierge-க்கு செய்தி அனுப்பவும்…",
+  composerHint: "அனுப்ப Enter · புதிய வரிக்கு Shift + Enter",
+  sendAria: "செய்தி அனுப்பவும்",
+  historyAria: "அரட்டை வரலாற்றைத் திறக்கவும்",
+  newChatAria: "புதிய உரையாடல்",
+  errDelete: "அந்த உரையாடலை நீக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.",
+  errBootstrap:
+    "அரட்டை அமர்வைத் தொடங்க முடியவில்லை. மீண்டும் முயற்சிக்க ரிஃப்ரெஷ் செய்யவும்.",
+  errNoReply: "AI பதில் அளிக்கவில்லை. மீண்டும் முயற்சிக்கவும்.",
+  errTimeout: "AI பதிலளிக்க அதிக நேரம் எடுத்தது. மீண்டும் முயற்சிக்கவும்.",
+  errConnection:
+    "இணைப்புப் பிழை. மீண்டும் முயற்சிக்கவும், அல்லது backend இயங்குகிறதா எனச் சரிபார்க்கவும்.",
+  errInvalidField:
+    "உங்கள் விவரங்களில் ஒன்று தவறாகத் தெரிகிறது. அரட்டையில் அதைத் திருத்திவிட்டு, 'மனித மதிப்பாய்வு கோரவும்' என்பதை மீண்டும் முயற்சிக்கவும்.",
+  errTransfer:
+    "இப்போது உங்கள் கணக்கு மேலாளரிடம் மாற்ற முடியவில்லை — மீண்டும் முயற்சிக்கவும்.",
+};
+
+const bn: ChatStrings = {
+  composerReply: "উত্তর দিন…",
+  composerHandoff: "আপনার অ্যাকাউন্ট ম্যানেজারকে বার্তা পাঠান…",
+  composerDefault: "Nexcierge-কে বার্তা পাঠান…",
+  composerHint: "পাঠাতে Enter · নতুন লাইনের জন্য Shift + Enter",
+  sendAria: "বার্তা পাঠান",
+  historyAria: "চ্যাট ইতিহাস খুলুন",
+  newChatAria: "নতুন কথোপকথন",
+  errDelete: "সেই কথোপকথনটি মুছে ফেলা যায়নি। অনুগ্রহ করে আবার চেষ্টা করুন।",
+  errBootstrap: "চ্যাট সেশন শুরু করা যায়নি। আবার চেষ্টা করতে রিফ্রেশ করুন।",
+  errNoReply: "AI কোনো উত্তর দেয়নি। অনুগ্রহ করে আবার চেষ্টা করুন।",
+  errTimeout: "AI উত্তর দিতে অনেক সময় নিয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।",
+  errConnection:
+    "সংযোগ ত্রুটি। অনুগ্রহ করে আবার চেষ্টা করুন, বা ব্যাকএন্ড চলছে কি না দেখুন।",
+  errInvalidField:
+    "আপনার একটি তথ্য অবৈধ মনে হচ্ছে। অনুগ্রহ করে চ্যাটে সেটি ঠিক করুন এবং আবার 'মানব পর্যালোচনার অনুরোধ করুন' চেষ্টা করুন।",
+  errTransfer:
+    "এই মুহূর্তে আপনার অ্যাকাউন্ট ম্যানেজারের কাছে স্থানান্তর করা যায়নি — অনুগ্রহ করে আবার চেষ্টা করুন।",
+};
+
+const tr: ChatStrings = {
+  composerReply: "Yanıtla…",
+  composerHandoff: "Müşteri temsilcinize mesaj yazın…",
+  composerDefault: "Nexcierge'e mesaj yazın…",
+  composerHint: "Göndermek için Enter · Yeni satır için Shift + Enter",
+  sendAria: "Mesaj gönder",
+  historyAria: "Sohbet geçmişini aç",
+  newChatAria: "Yeni sohbet",
+  errDelete: "Bu sohbet silinemedi. Lütfen tekrar deneyin.",
+  errBootstrap: "Sohbet oturumu başlatılamadı. Yenileyip tekrar deneyin.",
+  errNoReply: "Yapay zekâ yanıt döndürmedi. Lütfen tekrar deneyin.",
+  errTimeout: "Yapay zekâ yanıt vermekte çok gecikti. Lütfen tekrar deneyin.",
+  errConnection:
+    "Bağlantı hatası. Lütfen tekrar deneyin veya backend'in çalıştığını kontrol edin.",
+  errInvalidField:
+    "Bilgilerinizden biri geçersiz görünüyor. Lütfen sohbette düzeltin ve 'İnsan incelemesi iste'yi tekrar deneyin.",
+  errTransfer:
+    "Şu anda müşteri temsilcinize aktarılamadı — lütfen tekrar deneyin.",
+};
+
+const id: ChatStrings = {
+  composerReply: "Balas…",
+  composerHandoff: "Kirim pesan ke manajer akun Anda…",
+  composerDefault: "Kirim pesan ke Nexcierge…",
+  composerHint: "Tekan Enter untuk mengirim · Shift + Enter untuk baris baru",
+  sendAria: "Kirim pesan",
+  historyAria: "Buka riwayat obrolan",
+  newChatAria: "Percakapan baru",
+  errDelete: "Tidak dapat menghapus percakapan itu. Silakan coba lagi.",
+  errBootstrap:
+    "Tidak dapat memulai sesi obrolan. Muat ulang untuk mencoba lagi.",
+  errNoReply: "AI tidak memberikan balasan. Silakan coba lagi.",
+  errTimeout: "AI terlalu lama merespons. Silakan coba lagi.",
+  errConnection:
+    "Kesalahan koneksi. Silakan coba lagi, atau periksa apakah backend sedang berjalan.",
+  errInvalidField:
+    "Salah satu data Anda tampak tidak valid. Perbaiki di obrolan lalu coba lagi Minta tinjauan manusia.",
+  errTransfer:
+    "Tidak dapat mengalihkan ke manajer akun Anda saat ini — silakan coba lagi.",
+};
+
+const vi: ChatStrings = {
+  composerReply: "Trả lời…",
+  composerHandoff: "Nhắn tin cho quản lý tài khoản của bạn…",
+  composerDefault: "Nhắn tin cho Nexcierge…",
+  composerHint: "Nhấn Enter để gửi · Shift + Enter để xuống dòng",
+  sendAria: "Gửi tin nhắn",
+  historyAria: "Mở lịch sử trò chuyện",
+  newChatAria: "Cuộc trò chuyện mới",
+  errDelete: "Không thể xóa cuộc trò chuyện đó. Vui lòng thử lại.",
+  errBootstrap:
+    "Không thể bắt đầu phiên trò chuyện. Tải lại trang để thử lại.",
+  errNoReply: "AI không trả về phản hồi. Vui lòng thử lại.",
+  errTimeout: "AI phản hồi quá lâu. Vui lòng thử lại.",
+  errConnection:
+    "Lỗi kết nối. Vui lòng thử lại hoặc kiểm tra backend có đang chạy không.",
+  errInvalidField:
+    "Một thông tin của bạn có vẻ không hợp lệ. Vui lòng sửa trong cuộc trò chuyện rồi thử lại Yêu cầu nhân viên xem xét.",
+  errTransfer:
+    "Hiện không thể chuyển cho quản lý tài khoản của bạn — vui lòng thử lại.",
+};
+
 const CHAT_STRINGS: Record<string, ChatStrings> = {
   en,
   es,
@@ -266,6 +390,12 @@ const CHAT_STRINGS: Record<string, ChatStrings> = {
   ru,
   pt,
   hi,
+  gu,
+  ta,
+  bn,
+  tr,
+  id,
+  vi,
 };
 
 // Return the chat chrome copy for a language, falling back to English for any
