@@ -63,7 +63,7 @@ export async function POST(
 
   // Each uncached message may trigger a paid Gemini call, so bound how
   // fast an AM can fan these out. Generous — opening a few briefs and
-  // toggling between Chinese/Hindi stays well under the limit because
+  // toggling between display languages stays well under the limit because
   // translations are cached after the first pass.
   const limit = await checkRateLimit(
     `am-translate:user:${gate.userId}`,
@@ -110,7 +110,11 @@ export async function POST(
     const chunk = toTranslate.slice(i, i + CHUNK);
     await Promise.all(
       chunk.map(async (m) => {
-        const translated = await translateText(m.content, language);
+        // An "en" target is a no-op in translateText unless forced —
+        // here the AM explicitly asked to read the thread in English.
+        const translated = await translateText(m.content, language, {
+          force: language === "en",
+        });
         const trimmed = translated?.trim();
         // Skip no-ops (model echoed the input — e.g. the AM already typed
         // in `language`): no secondary line needed, nothing to cache.

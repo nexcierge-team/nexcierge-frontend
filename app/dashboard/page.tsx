@@ -11,6 +11,7 @@ import {
   ChevronDown,
   GraduationCap,
   Check,
+  Copy,
   X,
   Pencil,
   SlidersHorizontal,
@@ -53,6 +54,7 @@ import {
 import { cn } from "@/lib/utils";
 import { cardStrings } from "@/lib/cardStrings";
 import { amBriefStrings, type AmBriefStrings } from "@/lib/amBriefStrings";
+import { AM_DISPLAY_LANGUAGES } from "@/lib/amLanguages";
 import { GEMINI_MODELS, PILLS_THINKING_LEVELS } from "@/lib/models";
 
 interface InboxBrief {
@@ -143,7 +145,7 @@ export default function DashboardPage() {
     if (typeof window === "undefined") return "";
     try {
       const saved = window.localStorage.getItem("nexcierge.am.displayLanguage");
-      return saved === "zh" || saved === "hi" ? saved : "";
+      return saved && AM_DISPLAY_LANGUAGES.has(saved) ? saved : "";
     } catch {
       return "";
     }
@@ -313,7 +315,7 @@ export default function DashboardPage() {
   // redundant runs do no Gemini work; the in-flight ref avoids overlap.
   useEffect(() => {
     if (!open?.sessionId) return;
-    if (amLanguage !== "zh" && amLanguage !== "hi") return;
+    if (!AM_DISPLAY_LANGUAGES.has(amLanguage)) return;
     if (translatingRef.current) return;
     const lang = amLanguage;
     const sessionId = open.sessionId;
@@ -1037,6 +1039,7 @@ function BriefPane({
 
         <BriefSummary
           rfq={rfq}
+          sessionId={brief.sessionId}
           language={amLanguage}
           canRate={assignedToMe}
           onSaveRating={onSaveRating}
@@ -1049,9 +1052,9 @@ function BriefPane({
 
 
 // Header control letting the AM read the whole thread in their working
-// language. "" = original only; "zh"/"hi" translate every message and
-// show the translation under each original. The choice is global (lifted
-// to DashboardPage + persisted), so it sticks across briefs.
+// language. "" = original only; "en"/"zh"/"hi" translate every message
+// and show the translation under each original. The choice is global
+// (lifted to DashboardPage + persisted), so it sticks across briefs.
 function LanguageSelector({
   value,
   onChange,
@@ -1082,6 +1085,7 @@ function LanguageSelector({
           className="appearance-none rounded-full border border-gray-200 bg-white py-1.5 pl-8 pr-7 text-xs font-medium text-gray-700 shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-colors hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0F2747]/15"
         >
           <option value="">Original only</option>
+          <option value="en">English</option>
           <option value="zh">中文 (Chinese)</option>
           <option value="hi">हिन्दी (Hindi)</option>
         </select>
@@ -1097,12 +1101,14 @@ function LanguageSelector({
 
 function BriefSummary({
   rfq,
+  sessionId,
   language,
   canRate,
   onSaveRating,
   onGenerateLessons,
 }: {
   rfq: RfqsRow;
+  sessionId: string;
   language: string;
   canRate: boolean;
   onSaveRating: (input: {
@@ -1214,6 +1220,7 @@ function BriefSummary({
             {chrome.notPushedToHubspot}
           </p>
         )}
+        <CopyableId label={chrome.sessionIdLabel} value={sessionId} />
       </Section>
 
       <Section title={chrome.sectionRating}>
@@ -1232,6 +1239,36 @@ function BriefSummary({
         )}
       </Section>
     </aside>
+  );
+}
+
+// Click-to-copy id row (CRM section). AMs need the session UUID for SQL
+// forensics — clearing a cached translation, querying chat_messages —
+// without digging it out of devtools network calls.
+function CopyableId({ label, value }: { label: string; value: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      title={value}
+      onClick={() => {
+        void navigator.clipboard?.writeText(value).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1500);
+        });
+      }}
+      className="mt-2 flex w-full items-center gap-1.5 text-left text-[11px] text-gray-500 transition-colors hover:text-gray-700"
+    >
+      <span className="shrink-0">{label}</span>
+      <span className="truncate font-mono text-[10px] text-gray-400">
+        {value}
+      </span>
+      {copied ? (
+        <Check className="h-3 w-3 shrink-0 text-emerald-600" strokeWidth={2} />
+      ) : (
+        <Copy className="h-3 w-3 shrink-0" strokeWidth={1.75} />
+      )}
+    </button>
   );
 }
 

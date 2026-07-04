@@ -43,7 +43,8 @@ interface MessageBubbleProps {
   // account_manager viewers (they use amDisplayLanguage instead).
   sessionLanguage?: string;
   // AM dashboard only: the ISO 639-1 code the AM picked to read the
-  // thread in ("zh" / "hi"), or "" / undefined for "original only". When
+  // thread in ("en" / "zh" / "hi"), or "" / undefined for "original
+  // only". When
   // set and the message has a cached translation for it
   // (message.translations[amDisplayLanguage]), the bubble shows the
   // original as primary and the translation as a muted secondary line.

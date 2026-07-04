@@ -14,6 +14,7 @@ export interface AmBriefStrings {
   statusLost: string;
   hubspotDealPrefix: string;
   notPushedToHubspot: string;
+  sessionIdLabel: string;
   claimBrief: string;
   noSpecsCaptured: string;
   // Lead-rating card (AI interview quality)
@@ -54,6 +55,7 @@ const en: AmBriefStrings = {
   statusLost: "Lost",
   hubspotDealPrefix: "HubSpot deal",
   notPushedToHubspot: "Not yet pushed to HubSpot.",
+  sessionIdLabel: "Session ID",
   claimBrief: "Claim this brief",
   noSpecsCaptured: "No technical specs captured.",
   sectionRating: "AI interview quality",
@@ -92,6 +94,7 @@ const zh: AmBriefStrings = {
   statusLost: "已流失",
   hubspotDealPrefix: "HubSpot 交易",
   notPushedToHubspot: "尚未推送到 HubSpot。",
+  sessionIdLabel: "会话 ID",
   claimBrief: "认领此简报",
   noSpecsCaptured: "尚未采集技术规格。",
   sectionRating: "AI 访谈质量",
@@ -130,6 +133,7 @@ const hi: AmBriefStrings = {
   statusLost: "खोया",
   hubspotDealPrefix: "हबस्पॉट डील",
   notPushedToHubspot: "अभी तक हबस्पॉट पर पुश नहीं किया गया।",
+  sessionIdLabel: "सत्र ID",
   claimBrief: "इस ब्रीफ़ को क्लेम करें",
   noSpecsCaptured: "अभी तक कोई तकनीकी विनिर्देश दर्ज नहीं हुआ।",
   sectionRating: "AI साक्षात्कार गुणवत्ता",
