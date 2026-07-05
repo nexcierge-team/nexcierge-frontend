@@ -11,5 +11,10 @@ if (key) {
     api_host:
       process.env.NEXT_PUBLIC_POSTHOG_HOST ?? "https://us.i.posthog.com",
     defaults: "2025-05-24",
+    // Autocapture uncaught browser exceptions + unhandled promise
+    // rejections as `$exception` events. React render errors are caught
+    // by error boundaries before they reach window.onerror, so those are
+    // reported explicitly from app/global-error.tsx instead.
+    capture_exceptions: true,
   });
 }

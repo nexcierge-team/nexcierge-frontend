@@ -125,9 +125,15 @@ instrumentation-client.ts   PostHog bootstrap (Next.js convention — runs pre-h
 
 Three surfaces, one identity — everything keys on the Supabase `auth.users.id`:
 
-- **Browser** — `instrumentation-client.ts` (autocapture + SPA pageviews). `components/analytics/PostHogIdentify.tsx` (mounted in the root layout) calls `posthog.identify(user.id)` for **permanent** users only and `posthog.reset()` on sign-out; anonymous visitors stay anonymous.
+- **Browser** — `instrumentation-client.ts` (autocapture + SPA pageviews + `capture_exceptions: true` → `$exception` on uncaught errors / unhandled rejections). `components/analytics/PostHogIdentify.tsx` (mounted in the root layout) calls `posthog.identify(user.id)` for **permanent** users only and `posthog.reset()` on sign-out; anonymous visitors stay anonymous.
 - **Route handlers** — `lib/analytics.ts` `captureServer(distinctId, event, props)` (posthog-node, immediate flush, no-op without `NEXT_PUBLIC_POSTHOG_KEY`, never throws).
 - **FastAPI backend** — `llm_call_completed` per Gemini call (see `backend/docs/ARCHITECTURE.md` § LLM telemetry).
+
+Error tracking (all `$exception` events, one PostHog product):
+
+- **Browser exceptions** — autocaptured via the init config above (uncaught errors + unhandled promise rejections).
+- **React render errors** — `app/global-error.tsx` (root error boundary) calls `posthog.captureException(error)`; error boundaries swallow the throw before `window.onerror`, so this is the only way render crashes get captured.
+- **Server errors** — `instrumentation.ts` `onRequestError` forwards every uncaught Route Handler / RSC / SSR error to `captureServerException()` in `lib/analytics.ts` (Node runtime only — posthog-node has no Edge build). distinct_id is read best-effort from the `ph_<key>_posthog` browser cookie so server errors tie to the browsing person.
 
 Server-side events (funnel order):
 
@@ -136,7 +142,8 @@ Server-side events (funnel order):
 | `chat_session_started` | `/api/chat/start`, `/api/chat/sessions` POST | `source`: bootstrap / homepage_new / sidebar_new |
 | `profile_completed` | `/api/chat` | fires on the turn `rfqs.is_complete` flips false→true |
 | `auth_completed` | `/auth/callback` | `method`: google_oauth / magic_link |
-| `review_requested` | `/api/request-review` | **core conversion**; `language`, `hubspot_synced` |
+| `review_blocked` | `/api/request-review` | buyer clicked handoff but was blocked; `reason`: missing_fields (409) / auth_required (401) — the funnel drop-off `review_requested` can't show |
+| `review_requested` | `/api/request-review` | **core conversion**; `language`, `hubspot_synced`, `machine_type`, `delivery_country` (category dims for conversion breakdowns) |
 | `am_brief_claimed` | `/api/am/sessions/[id]/claim` | distinct_id = the AM |
 | `am_reply_sent` | `/api/am/sessions/[id]/messages` | `translated`, `has_attachments` |
 | `am_lead_rated` | `/api/am/sessions/[id]/rating` | AM's verdict on the AI interview; `lead_quality`, `field_issues` |
@@ -322,6 +329,7 @@ The interview agent is prompt-driven and stateless, so it only "learns" through 
 - New chat-affecting state → update `lib/useChat.ts` AND, if the AM dashboard needs the same data, mirror in `app/dashboard/page.tsx`.
 - New profile field → update `types/chat.ts` BuyerProfile, `ProfileSummaryCard`, `components/dashboard/BriefSummary.tsx`, the backend (`_empty_profile` + tool + prompt), the `rfqs` migration, `lib/db/rfqs.ts` converters, and the HubSpot mapping in `lib/hubspot/sync.ts`.
 - New AM-only route → put under `app/api/am/*`, gate with `requireAccountManager()` at the top of the handler.
+- **New Route Handler → add tracking for it before it ships.** Every new endpoint must have its tracking decided: action endpoints (create / mutate / convert / buyer or AM step) get a `captureServer(...)` event + a row in the § Analytics table; pure-read endpoints are exempt from events but still covered by automatic `$exception` error capture (`instrumentation.ts`). No endpoint merges without either an event or a deliberate "pure read, no event" call.
 - **New feature → decide its tracking before shipping** (see § Analytics). Add a PostHog event when the feature is (a) a buyer funnel step (creation / completion / conversion), (b) an AM productivity action, or (c) an operational failure worth alarming on. Pure reads and internal refactors don't get events. Server-side: `captureServer(userId, "event_name", props)`; browser-only interactions: `posthog.capture(...)`. Conventions: snake_case past-tense names (`review_requested`, not `RequestReview`), distinct_id = Supabase user id, props limited to ids + enums/booleans — never emails or free text. Then add a row to the event table in § Analytics; an undocumented event is a future mystery.
 - **Always update `docs/ARCHITECTURE.md` when adding a route, changing the state machine, or changing the API integration pattern.**
 - **Always update `docs/DESIGN_SYSTEM.md` when introducing new visual primitives.**

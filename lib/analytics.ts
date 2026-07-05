@@ -34,3 +34,21 @@ export function captureServer(
     console.error(`posthog capture failed for ${event}:`, e);
   }
 }
+
+// Report a server-side exception to PostHog as a `$exception` event.
+// Used by instrumentation.ts's onRequestError hook so uncaught errors in
+// Route Handlers / RSC / SSR are visible alongside browser exceptions.
+// distinctId ties the error to a person when we can resolve one (from the
+// PostHog browser cookie); omit it and PostHog scopes the event to the
+// exception itself. No-ops without the key, never throws.
+export function captureServerException(
+  error: unknown,
+  distinctId?: string,
+  properties?: Record<string, unknown>,
+): void {
+  try {
+    getClient()?.captureException(error, distinctId, properties);
+  } catch (e) {
+    console.error("posthog captureException failed:", e);
+  }
+}

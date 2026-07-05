@@ -18,7 +18,8 @@ In buyer funnel order:
 | `chat_session_started` | a new chat session is created | `source`: `bootstrap` (first `/chat` visit), `homepage_new` (marketing modal), `sidebar_new` (returning user) |
 | `profile_completed` | the AI interview fills the last required field of the sourcing brief | `session_id` |
 | `auth_completed` | anonymous buyer signs in (Google or magic link) | `method`: `google_oauth` / `magic_link` |
-| `review_requested` | buyer clicks *Request human review* — **this is the conversion we get paid for** | `language`, `hubspot_synced` |
+| `review_blocked` | buyer clicks *Request human review* but is turned away | `reason`: `missing_fields` (brief incomplete) / `auth_required` (still anonymous) — the drop-off `review_requested` can't capture |
+| `review_requested` | buyer clicks *Request human review* — **this is the conversion we get paid for** | `language`, `hubspot_synced`, `machine_type`, `delivery_country` |
 | `am_brief_claimed` | an account manager claims a handed-off brief | `session_id` |
 | `am_reply_sent` | an AM replies to a buyer | `translated`, `has_attachments` |
 | `am_lead_rated` | an AM rates the AI interview's output on a claimed brief | `session_id`, `lead_quality` (`qualified`/`partial`/`junk`), `field_issues` |
@@ -28,6 +29,9 @@ In buyer funnel order:
 | `llm_call_completed` | every Gemini API call the backend makes | `model`, `prompt_type`, `latency_ms`, `total_cost_usd`, `success` |
 | `hubspot_sync_failed` | CRM sync fails during handoff | `fatal`, `error` |
 | `rate_limited` | anyone hits a rate limit | `scope`, `key` |
+| `$exception` | any uncaught error — browser, server, or backend (see § Errors) | `$exception_message`, `$exception_type`, plus our `path` / `route` / `source` context |
+
+**Category breakdown:** `review_requested` carries `machine_type` and `delivery_country` — buyer-entered category strings (non-PII, low-cardinality). They're the exception to the "no free text" rule *on purpose*: they let you break down conversions by vertical and destination (Trend → `review_requested` → Breakdown by `machine_type`). Don't add free-text fields beyond these two.
 
 **Identity:** anonymous buyers stay anonymous in PostHog. The moment they sign in, `posthog.identify()` ties their browsing history, server events, and AI calls to one person (the Supabase user id). AMs are identified the same way on the dashboard.
 
@@ -36,6 +40,19 @@ In buyer funnel order:
 One row per Gemini call with the full detail PostHog doesn't get: exact input/output/**thinking** token counts, input/output/total cost in USD (computed from a pricing table at call time), latency, success/failure with the actual error code and message, and which conversation + user caused the call.
 
 `prompt_type` values: `interview` (the main chat turn), `interview_retry` (blank-reply retry), `pills` (quick-reply suggestions), `detect_language`, `translate`, `lesson_draft` (AM-triggered improvement-lesson drafting from a rated transcript).
+
+### Errors (PostHog `$exception`)
+
+Every uncaught error becomes a `$exception` event, viewable under **[Error tracking](https://us.posthog.com/project/494483/error_tracking)** (auto-grouped by stack trace). Four capture points:
+
+| Where it breaks | How it's captured |
+|---|---|
+| Browser JS (uncaught error / unhandled promise rejection) | Autocaptured — `capture_exceptions: true` in `instrumentation-client.ts` |
+| React render crash | `app/global-error.tsx` reports it (`source: global-error`); error boundaries hide these from browser autocapture, so this is the only path |
+| Next.js server code (Route Handler / RSC / SSR) | `instrumentation.ts` `onRequestError` → PostHog; props carry `path`, `method`, `route` |
+| FastAPI backend (a real 500, not an intentional `HTTPException`) | `@app.exception_handler(Exception)` in `backend/app/main.py` → `analytics.capture_exception`; props carry `path`, `method` |
+
+Gemini call failures are **not** here — those live in `llm_call_logs` (exact model/tokens/error_code) and the `llm_call_completed` event (`success=false`). `$exception` is for code crashes.
 
 ## Where to look — PostHog
 
@@ -139,13 +156,18 @@ GROUP BY model;
 
 | Piece | Where |
 |---|---|
-| Browser init + autocapture | `frontend/instrumentation-client.ts` |
+| Browser init + autocapture + exception autocapture | `frontend/instrumentation-client.ts` |
 | Identify / reset on auth changes | `frontend/components/analytics/PostHogIdentify.tsx` |
 | Server-side event capture | `captureServer()` in `frontend/lib/analytics.ts` |
-| Backend event capture | `backend/app/analytics.py` |
+| Server-side exception capture | `captureServerException()` in `frontend/lib/analytics.ts` |
+| Next.js server error hook | `frontend/instrumentation.ts` (`onRequestError`) |
+| React render error boundary | `frontend/app/global-error.tsx` |
+| Backend event + exception capture | `backend/app/analytics.py` (`capture`, `capture_exception`); 500 handler in `backend/app/main.py` |
 | Per-Gemini-call telemetry (both sinks) | `backend/app/llm_tracking.py` — every call site wraps in `track()` |
 | Pricing table (USD per 1M tokens) | `_PRICING_PER_1M` in `llm_tracking.py` — **update when models change** |
 | Table schema | `frontend/supabase/migrations/0013_llm_call_logs.sql` |
 | Env keys | Frontend/Vercel: `NEXT_PUBLIC_POSTHOG_KEY` + `NEXT_PUBLIC_POSTHOG_HOST`. Backend/Render: `POSTHOG_API_KEY`, `POSTHOG_HOST`, `DATABASE_URL` (Supabase session pooler). Everything no-ops without its key. |
 
 Conventions for new tracking (full policy: workspace `CLAUDE.md` § Analytics & Tracking Policy): snake_case past-tense event names; `distinct_id` = Supabase user id; properties are ids + enums/booleans only — never emails or free text; every new event gets a row in the table at the top of this file.
+
+**Every new endpoint gets tracking.** Any new FastAPI route or Next.js Route Handler must have its tracking decided before it ships: action endpoints (create / mutate / convert / buyer or AM step) get a PostHog event + a table row; pure reads are event-exempt but still covered by automatic `$exception` error capture. No endpoint ships without either an event or a deliberate "pure read, no event" decision.

@@ -68,6 +68,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Missing rfq" }, { status: 500 });
   }
   if (!rfq.is_complete) {
+    // Buyer wanted to hand off but the brief is missing a required field.
+    // The single most important funnel drop-off — `review_requested` only
+    // fires on success, so without this the blocked attempt is invisible.
+    captureServer(auth.userId, "review_blocked", {
+      session_id: session.id,
+      reason: "missing_fields",
+    });
     return NextResponse.json(
       { error: "Profile is not complete yet" },
       { status: 409 },
@@ -77,6 +84,12 @@ export async function POST(req: Request) {
   // Auth gate: handoff requires a real account so the AM has someone
   // to reach. Frontend opens AuthModal on this 401.
   if (auth.isAnonymous) {
+    // Brief is complete but the buyer is still anonymous — measures how
+    // many qualified buyers hit (and hopefully clear) the auth wall.
+    captureServer(auth.userId, "review_blocked", {
+      session_id: session.id,
+      reason: "auth_required",
+    });
     return NextResponse.json({ auth_required: true }, { status: 401 });
   }
 
@@ -186,10 +199,15 @@ export async function POST(req: Request) {
   ]);
 
   // The core conversion — a qualified lead handed to the human team.
+  // machine_type + delivery_country are the buyer's category dimensions
+  // (non-PII, low-ish cardinality) so conversions can be broken down by
+  // vertical and destination in PostHog.
   captureServer(auth.userId, "review_requested", {
     session_id: session.id,
     language: targetLanguage,
     hubspot_synced: hubspotSynced,
+    machine_type: rfq.machine_type,
+    delivery_country: rfq.delivery_country,
   });
 
   return NextResponse.json({
