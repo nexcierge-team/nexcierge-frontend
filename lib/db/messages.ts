@@ -40,6 +40,58 @@ interface InsertMessageArgs {
   // flow that inserts AI close + divider + AM welcome together) should
   // pass staggered timestamps to guarantee render order.
   createdAt?: string;
+  // Client-generated idempotency key (buyer sends only). Unique per
+  // session (migration 0018) — a duplicate delivery raises 23505, which
+  // callers detect via isDuplicateMessageError() and resolve with
+  // findMessageByClientId() instead of inserting twice.
+  clientMessageId?: string;
+}
+
+// True when an insertMessage failure is the unique-index conflict on
+// (chat_session_id, client_message_id) — i.e. this exact send was
+// already persisted by an earlier delivery of the same request.
+export function isDuplicateMessageError(e: unknown): boolean {
+  return (
+    typeof e === "object" &&
+    e !== null &&
+    (e as { code?: string }).code === "23505"
+  );
+}
+
+export async function findMessageByClientId(
+  supabase: Client,
+  sessionId: string,
+  clientMessageId: string,
+): Promise<ChatMessagesRow | null> {
+  const { data, error } = await supabase
+    .from("chat_messages")
+    .select("*")
+    .eq("chat_session_id", sessionId)
+    .eq("client_message_id", clientMessageId)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+// The AI reply that answered a given user message: the earliest
+// sender_type='ai' row inserted after it. Used by the duplicate-send
+// path in /api/chat to return the original turn's reply to a retry.
+export async function findAiReplyAfter(
+  supabase: Client,
+  sessionId: string,
+  afterCreatedAt: string,
+): Promise<ChatMessagesRow | null> {
+  const { data, error } = await supabase
+    .from("chat_messages")
+    .select("*")
+    .eq("chat_session_id", sessionId)
+    .eq("sender_type", "ai")
+    .gt("created_at", afterCreatedAt)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
 }
 
 export async function insertMessage(
@@ -56,6 +108,7 @@ export async function insertMessage(
     metadata: args.metadata ?? {},
   };
   if (args.createdAt) row.created_at = args.createdAt;
+  if (args.clientMessageId) row.client_message_id = args.clientMessageId;
   const { data, error } = await supabase
     .from("chat_messages")
     .insert(row)

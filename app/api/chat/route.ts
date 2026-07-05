@@ -3,7 +3,13 @@ import { getOrCreateUser } from "@/lib/supabase/route";
 import { getSupabaseServer } from "@/lib/supabase/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { getSession, setSessionLanguage } from "@/lib/db/sessions";
-import { insertMessage, listMessages } from "@/lib/db/messages";
+import {
+  findAiReplyAfter,
+  findMessageByClientId,
+  insertMessage,
+  isDuplicateMessageError,
+  listMessages,
+} from "@/lib/db/messages";
 import {
   getRfq,
   profileToRfqUpdate,
@@ -31,6 +37,10 @@ function toBackendHistory(rows: ChatMessagesRow[]) {
 interface ChatPostBody {
   session_id: string;
   message: string;
+  // Client-generated idempotency key (crypto.randomUUID() per send,
+  // reused verbatim on retry). Optional so older clients keep working;
+  // without it a request is never deduped.
+  client_message_id?: string;
 }
 
 export async function POST(req: Request) {
@@ -46,6 +56,12 @@ export async function POST(req: Request) {
       { status: 400 },
     );
   }
+  const clientMessageId =
+    typeof body.client_message_id === "string" &&
+    body.client_message_id.length > 0 &&
+    body.client_message_id.length <= 64
+      ? body.client_message_id
+      : undefined;
 
   const auth = await getOrCreateUser();
   if (!auth) {
@@ -74,8 +90,84 @@ export async function POST(req: Request) {
       senderType: "user",
       senderUserId: auth.userId,
       content: body.message,
+      clientMessageId,
     });
   } catch (e) {
+    // Idempotent replay: the unique index on (chat_session_id,
+    // client_message_id) means this exact send already landed — a retry
+    // after a client-side timeout, or a duplicate delivery. Don't insert
+    // again and don't burn another Gemini turn; return the original
+    // turn's result instead.
+    if (clientMessageId && isDuplicateMessageError(e)) {
+      const existing = await findMessageByClientId(
+        supabase,
+        session.id,
+        clientMessageId,
+      );
+      if (!existing) {
+        // Conflict fired but the row isn't visible — shouldn't happen
+        // (same session, same RLS scope). Fail loudly rather than
+        // double-insert.
+        console.error(
+          "duplicate send detected but original row not found:",
+          session.id,
+          clientMessageId,
+        );
+        return NextResponse.json(
+          { error: "Could not save your message" },
+          { status: 500 },
+        );
+      }
+      if (session.status === "in_handoff") {
+        return NextResponse.json({
+          reply: "",
+          user_message: existing,
+          agent_message: null,
+          profile: null,
+          profile_complete: true,
+          review_requested: true,
+          ai_skipped: true,
+          duplicate: true,
+        });
+      }
+      const [aiReply, rfq] = await Promise.all([
+        findAiReplyAfter(supabase, session.id, existing.created_at),
+        getRfq(supabase, session.id),
+      ]);
+      if (!aiReply) {
+        // Original request is still mid-Gemini (or died before the AI
+        // insert). Tell the client the send is safe but the reply isn't
+        // ready; it renders a retryable error so the buyer can re-poll
+        // with the same key.
+        return NextResponse.json({
+          reply: "",
+          user_message: existing,
+          agent_message: null,
+          profile: rfq ? rfqRowToProfile(rfq) : null,
+          profile_complete: rfq?.is_complete ?? false,
+          review_requested: false,
+          ai_skipped: false,
+          duplicate: true,
+          ai_pending: true,
+        });
+      }
+      const replySuggestions = Array.isArray(
+        (aiReply.metadata as { suggestions?: unknown })?.suggestions,
+      )
+        ? ((aiReply.metadata as { suggestions: string[] }).suggestions)
+        : [];
+      return NextResponse.json({
+        reply: aiReply.content,
+        user_message: existing,
+        agent_message: aiReply,
+        profile: rfq ? rfqRowToProfile(rfq) : null,
+        profile_complete: rfq?.is_complete ?? false,
+        review_requested: false,
+        ai_skipped: false,
+        duplicate: true,
+        suggestions: replySuggestions,
+      });
+    }
     console.error("user message insert failed:", e);
     return NextResponse.json(
       { error: "Could not save your message" },

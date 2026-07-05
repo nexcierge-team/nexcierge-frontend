@@ -58,6 +58,7 @@ export interface ChatMessagesRow {
   metadata: Record<string, unknown>;
   created_at: string;
   read_at: string | null;
+  client_message_id: string | null;
 }
 
 export interface RfqsRow {
@@ -169,6 +170,7 @@ export type Database = {
           translated_to?: string | null;
           metadata?: Json;
           created_at?: string;
+          client_message_id?: string | null;
         };
         Update: {
           id?: string;
@@ -180,6 +182,7 @@ export type Database = {
           translated_to?: string | null;
           metadata?: Json;
           created_at?: string;
+          client_message_id?: string | null;
         };
         Relationships: [];
       };

@@ -19,6 +19,15 @@ function newMessageId() {
   return Math.random().toString(36).slice(2);
 }
 
+// Idempotency key sent as client_message_id on POST /api/chat. One per
+// send; retry() reuses the failed send's key so a timed-out request
+// that actually landed server-side isn't inserted (or answered) twice.
+function newClientMessageId() {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+}
+
 // Quick-reply pills, written into metadata.suggestions at insert time
 // (app/api/chat/route.ts) so they survive a session switch or refresh.
 // Rendering only ever shows pills on the LAST message in the array (see
@@ -112,7 +121,11 @@ export function useChat(options: UseChatOptions = {}) {
   const [lastAttachedProfile, setLastAttachedProfile] = useState<string | null>(
     null,
   );
-  const [lastUserMessage, setLastUserMessage] = useState<string | null>(null);
+  // Text + idempotency key of the last send, kept for retry().
+  const [lastUserMessage, setLastUserMessage] = useState<{
+    text: string;
+    clientId: string;
+  } | null>(null);
   // Tracks DB message ids we've already rendered so Realtime echoes
   // (Step 6) don't double-render.
   const seenIds = useRef<Set<string>>(new Set());
@@ -218,7 +231,7 @@ export function useChat(options: UseChatOptions = {}) {
   }, []);
 
   const callApi = useCallback(
-    async (text: string): Promise<void> => {
+    async (text: string, clientMessageId: string): Promise<void> => {
       if (!sessionId) return;
 
       // Hard 30s ceiling on the POST. FastAPI / Gemini typically
@@ -232,7 +245,11 @@ export function useChat(options: UseChatOptions = {}) {
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ session_id: sessionId, message: text }),
+          body: JSON.stringify({
+            session_id: sessionId,
+            message: text,
+            client_message_id: clientMessageId,
+          }),
           signal: controller.signal,
         });
         clearTimeout(timeoutHandle);
@@ -251,6 +268,23 @@ export function useChat(options: UseChatOptions = {}) {
         // Post-handoff: server short-circuited the AI call. Just leave
         // the optimistic user bubble in place.
         if (data.ai_skipped) return;
+
+        // Duplicate replay whose original turn is still mid-Gemini: the
+        // message is saved (won't double-send), the reply just isn't
+        // ready yet. Render a retryable error — Retry re-polls with the
+        // same client_message_id and picks the reply up once it lands.
+        if (data.ai_pending) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: newMessageId(),
+              role: "agent",
+              content: chatStrings(bootstrap?.language).errTimeout,
+              error: true,
+            },
+          ]);
+          return;
+        }
 
         const agentId = data.agent_message?.id as string | undefined;
         const replyText = (data.reply ?? "") as string;
@@ -288,11 +322,13 @@ export function useChat(options: UseChatOptions = {}) {
           : undefined;
 
         // POST is now the sole source of truth for AI message rendering
-        // (Realtime filters sender_type='ai'). Unconditionally append.
+        // (Realtime filters sender_type='ai'). Append unless this exact
+        // row is already on screen (possible when a duplicate replay
+        // returns a reply an earlier response delivered).
         // React batches setLoading(false) in sendMessage's `finally` with
         // this setMessages call into one commit, so the user sees the
         // typing dots become the bubble in a single frame.
-        setMessages((prev) => [
+        setMessages((prev) => prev.some((m) => m.id === agentId) ? prev : [
           ...prev,
           {
             id: agentId,
@@ -355,7 +391,8 @@ export function useChat(options: UseChatOptions = {}) {
   async function sendMessage(text: string): Promise<void> {
     const trimmed = text.trim();
     if (!trimmed || loading || !sessionId) return;
-    setLastUserMessage(trimmed);
+    const clientId = newClientMessageId();
+    setLastUserMessage({ text: trimmed, clientId });
     setMessages((prev) => [
       ...prev,
       { id: newMessageId(), role: "user", content: trimmed },
@@ -369,7 +406,7 @@ export function useChat(options: UseChatOptions = {}) {
     const showAiTyping = !reviewRequested;
     if (showAiTyping) setLoading(true);
     try {
-      await callApi(trimmed);
+      await callApi(trimmed, clientId);
     } finally {
       if (showAiTyping) setLoading(false);
     }
@@ -384,7 +421,10 @@ export function useChat(options: UseChatOptions = {}) {
     });
     setLoading(true);
     try {
-      await callApi(lastUserMessage);
+      // Same idempotency key as the failed send — if the original POST
+      // actually landed server-side, this resolves to its result instead
+      // of double-inserting the message.
+      await callApi(lastUserMessage.text, lastUserMessage.clientId);
     } finally {
       setLoading(false);
     }

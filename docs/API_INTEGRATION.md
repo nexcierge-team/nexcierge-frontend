@@ -96,12 +96,19 @@ Bootstraps the buyer's chat surface — anonymous Supabase sign-in if needed, th
 
 **Request:**
 ```json
-{ "session_id": "<crypto.randomUUID()>", "message": "<trimmed user input>" }
+{ "session_id": "<uuid>", "message": "<trimmed user input>", "client_message_id": "<crypto.randomUUID() per send>" }
 ```
 
 The route handler reads `chat_sessions.language` for the given session and forwards it to FastAPI as the `language` field. The browser never has to send it.
 
 **Response:** see `backend/docs/API.md` `POST /chat` — full `profile` dict always present, plus `profile_complete` and `review_requested` booleans. `reply` is in the buyer's language: Gemini mirrors whatever the buyer wrote, or follows the pinned `session.language` once it's been set. Per-turn quick-reply `suggestions` are included, plus `reply_language` (ISO 639-1) — the language of the agent's reply, classified by the pills pass — which `useChat` adopts as the buyer's **display language** to localize chat chrome (`lib/chatStrings.ts`) and the summary card from the first turn.
+
+**Idempotency (`client_message_id`):** `useChat` generates a UUID per send and **reuses it on Retry**. The route inserts the user message with it; a unique index on `chat_messages (chat_session_id, client_message_id)` (migration `0018`) turns a duplicate delivery — timeout retry, flaky network, double submit — into a conflict instead of a second row + second Gemini turn. On conflict the route returns the original turn's result with `duplicate: true`:
+- AI reply already persisted → full normal response shape (`reply`, `agent_message`, `profile`, stored `suggestions`; no `reply_language` — the client keeps its current display language).
+- Original request still mid-Gemini → `ai_pending: true` with `agent_message: null`; the client renders a retryable error (`errTimeout`) so the buyer can re-poll with the same key.
+- Session already `in_handoff` → the usual `ai_skipped: true` shape.
+
+The field is optional; requests without it (older clients) are never deduped. Server-generated rows (`ai` / `account_manager` / `system`) leave the column null, so the partial unique index ignores them.
 
 ### Buyer-language: two signals
 

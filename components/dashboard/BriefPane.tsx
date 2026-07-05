@@ -4,7 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChatComposer } from "@/components/chat/ChatComposer";
 import { MessageBubble, TypingIndicator } from "@/components/chat/MessageBubble";
-import { amBriefStrings } from "@/lib/amBriefStrings";
+import { AM_BRIEF_EN } from "@/lib/amBriefStrings";
 import { ATTACHMENT_ACCEPT, MAX_ATTACHMENTS_PER_MESSAGE } from "@/lib/attachments";
 import type { PendingAttachment } from "@/lib/storage/attachments";
 import type { LeadQuality } from "@/lib/supabase/types";
@@ -57,7 +57,7 @@ export function BriefPane({
   }) => Promise<boolean>;
   onGenerateLessons: () => Promise<number | null>;
 }) {
-  const chrome = amBriefStrings(amLanguage);
+  const chrome = AM_BRIEF_EN;
   const { rfq, messages, assignedToMe } = brief;
   const uploading = pending.some((p) => p.uploading);
   const hasReadyAttachment = pending.some((p) => p.uploaded);
@@ -154,7 +154,6 @@ export function BriefPane({
         <BriefSummary
           rfq={rfq}
           sessionId={brief.sessionId}
-          language={amLanguage}
           canRate={assignedToMe}
           onSaveRating={onSaveRating}
           onGenerateLessons={onGenerateLessons}

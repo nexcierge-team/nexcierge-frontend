@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Check, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { cardStrings } from "@/lib/cardStrings";
-import { amBriefStrings, type AmBriefStrings } from "@/lib/amBriefStrings";
+import { AM_BRIEF_EN, type AmBriefStrings } from "@/lib/amBriefStrings";
 import type { LeadQuality, RfqsRow, RfqStatus } from "@/lib/supabase/types";
 import type {
   NewOrUsedPreference,
@@ -12,22 +12,20 @@ import type {
 } from "@/types/chat";
 import { QUALITY_CHIP, RatingSection } from "./RatingSection";
 
-// Right-hand brief panel. The reading surface (headings, field labels,
-// enum values) is pinned to English so it stays canonical against
-// HubSpot/CRM records — see docs/ARCHITECTURE.md § AM display language.
-// Only the AM-workflow chrome (status pill, CRM copy, rating card)
-// localizes via lib/amBriefStrings.ts.
+// Right-hand brief panel. Pinned to English in its entirety — headings,
+// field labels, enum values, AND the workflow chrome (status pill, CRM
+// copy, rating card) — so it stays canonical against HubSpot/CRM records.
+// The AM display language selector translates only the chat thread — see
+// docs/ARCHITECTURE.md § AM display language.
 export function BriefSummary({
   rfq,
   sessionId,
-  language,
   canRate,
   onSaveRating,
   onGenerateLessons,
 }: {
   rfq: RfqsRow;
   sessionId: string;
-  language: string;
   canRate: boolean;
   onSaveRating: (input: {
     quality: LeadQuality;
@@ -39,7 +37,7 @@ export function BriefSummary({
   // Field labels + timeline/condition enum tables are shared with the
   // buyer-facing ProfileSummaryCard (lib/cardStrings.ts), always English.
   const t = cardStrings("en");
-  const chrome = amBriefStrings(language);
+  const chrome = AM_BRIEF_EN;
   const specs = Object.entries(rfq.technical_specifications ?? {});
   const created = rfq.created_at
     ? new Date(rfq.created_at).toLocaleDateString(undefined, {
