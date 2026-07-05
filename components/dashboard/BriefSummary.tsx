@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Copy } from "lucide-react";
+import { Check, ChevronDown, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { cardStrings } from "@/lib/cardStrings";
 import { AM_BRIEF_EN, type AmBriefStrings } from "@/lib/amBriefStrings";
@@ -56,7 +56,7 @@ export function BriefSummary({
   return (
     <aside className="hidden w-80 shrink-0 flex-col border-l border-gray-200 bg-white lg:flex">
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-5 pb-4 pt-5">
-        <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-gray-900">
+        <h2 className="text-sm font-semibold tracking-[-0.01em] text-gray-900">
           {rfq.machine_type || "Sourcing brief"}
         </h2>
         <StatusPill status={rfq.status} chrome={chrome} />
@@ -108,14 +108,28 @@ export function BriefSummary({
 
         {rfq.additional_notes && (
           <PanelSection title={t.sectionNotes}>
-            <p className="text-[13px] leading-relaxed text-gray-700">
+            <p className="text-xs leading-relaxed text-gray-700">
               {rfq.additional_notes}
             </p>
           </PanelSection>
         )}
 
+        <PanelSection title={chrome.sectionCrm}>
+          {rfq.hubspot_deal_id ? (
+            <p className="text-xs text-gray-500">
+              {chrome.hubspotDealPrefix} {rfq.hubspot_deal_id}
+            </p>
+          ) : (
+            <p className="text-xs italic text-gray-400">
+              {chrome.notPushedToHubspot}
+            </p>
+          )}
+          <CopyableId label={chrome.sessionIdLabel} value={sessionId} />
+        </PanelSection>
+
         <PanelSection
           title={chrome.sectionRating}
+          collapsible
           badge={
             rfq.lead_quality ? (
               <span
@@ -143,19 +157,6 @@ export function BriefSummary({
             </p>
           )}
         </PanelSection>
-
-        <PanelSection title={chrome.sectionCrm}>
-          {rfq.hubspot_deal_id ? (
-            <p className="text-xs text-gray-500">
-              {chrome.hubspotDealPrefix} {rfq.hubspot_deal_id}
-            </p>
-          ) : (
-            <p className="text-xs italic text-gray-400">
-              {chrome.notPushedToHubspot}
-            </p>
-          )}
-          <CopyableId label={chrome.sessionIdLabel} value={sessionId} />
-        </PanelSection>
       </div>
     </aside>
   );
@@ -163,25 +164,50 @@ export function BriefSummary({
 
 // One section of the panel: sentence-case semibold heading (optionally
 // with an inline badge, e.g. the lead-quality pill), hairline divider
-// between sections.
+// between sections. `collapsible` turns the heading into a disclosure
+// toggle, collapsed by default; the badge stays visible while collapsed.
 function PanelSection({
   title,
   badge,
   first = false,
+  collapsible = false,
   children,
 }: {
   title: string;
   badge?: React.ReactNode;
   first?: boolean;
+  collapsible?: boolean;
   children: React.ReactNode;
 }) {
+  const [open, setOpen] = useState(!collapsible);
+  const heading = (
+    <>
+      <h3 className="text-[13px] font-semibold text-gray-900">{title}</h3>
+      {badge}
+    </>
+  );
   return (
     <div className={cn("py-5", !first && "border-t border-gray-100")}>
-      <div className="mb-3 flex items-center gap-2">
-        <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
-        {badge}
-      </div>
-      <div className="space-y-1.5">{children}</div>
+      {collapsible ? (
+        <button
+          type="button"
+          aria-expanded={open}
+          onClick={() => setOpen((v) => !v)}
+          className="flex w-full items-center gap-2 text-left"
+        >
+          {heading}
+          <ChevronDown
+            className={cn(
+              "ml-auto h-3.5 w-3.5 shrink-0 text-gray-400 transition-transform",
+              open && "rotate-180",
+            )}
+            strokeWidth={1.75}
+          />
+        </button>
+      ) : (
+        <div className="flex items-center gap-2">{heading}</div>
+      )}
+      {open && <div className="mt-3 space-y-1.5">{children}</div>}
     </div>
   );
 }
@@ -192,7 +218,7 @@ function PanelSection({
 function Row({ label, value }: { label: string; value: string }) {
   if (!value) return null;
   return (
-    <div className="grid grid-cols-[100px_1fr] gap-x-3 text-[13px] leading-relaxed">
+    <div className="grid grid-cols-[92px_1fr] gap-x-3 text-xs leading-relaxed">
       <span className="text-gray-400">{label}</span>
       <span className="break-words text-gray-800">{value}</span>
     </div>
