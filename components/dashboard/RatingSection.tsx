@@ -22,7 +22,9 @@ function issueOptions(
   ];
 }
 
-const QUALITY_CHIP: Record<LeadQuality, string> = {
+// Shared with BriefSummary, which renders the verdict pill inline in
+// the "AI brief quality" section heading.
+export const QUALITY_CHIP: Record<LeadQuality, string> = {
   qualified: "bg-emerald-100 text-emerald-800",
   partial: "bg-amber-100 text-amber-800",
   junk: "bg-red-100 text-red-800",
@@ -103,28 +105,14 @@ export function RatingSection({
     }
   }
 
+  // Rated + not editing: calm summary. The verdict pill itself renders
+  // in the section heading (BriefSummary), so this is just the flagged
+  // issues, the note, and the follow-up actions.
   if (!editing && rfq.lead_quality) {
     return (
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <span
-            className={cn(
-              "inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium",
-              QUALITY_CHIP[rfq.lead_quality],
-            )}
-          >
-            {qualityLabel[rfq.lead_quality]}
-          </span>
-          <button
-            onClick={() => setEditing(true)}
-            className="inline-flex items-center gap-1 text-[11px] text-gray-500 hover:text-gray-900"
-          >
-            <Pencil className="h-3 w-3" strokeWidth={1.75} />
-            {chrome.editRating}
-          </button>
-        </div>
+      <div className="space-y-2.5">
         {rfq.lead_quality_field_issues.length > 0 && (
-          <p className="text-[11px] text-gray-500">
+          <p className="text-xs text-gray-500">
             {issueOptions(chrome)
               .filter((o) => rfq.lead_quality_field_issues.includes(o.slug))
               .map((o) => o.label)
@@ -132,7 +120,7 @@ export function RatingSection({
           </p>
         )}
         {rfq.lead_quality_notes && (
-          <p className="text-[11px] italic text-gray-500">
+          <p className="text-xs italic text-gray-500">
             {rfq.lead_quality_notes}
           </p>
         )}
@@ -168,20 +156,27 @@ export function RatingSection({
               {chrome.noLessonsProposed}
             </p>
           ))}
+        <button
+          onClick={() => setEditing(true)}
+          className="inline-flex items-center gap-1 text-[11px] text-gray-400 transition-colors hover:text-gray-700"
+        >
+          <Pencil className="h-3 w-3" strokeWidth={1.75} />
+          {chrome.editRating}
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="space-y-3">
-      <p className="text-[11px] text-gray-500">{chrome.ratingQuestion}</p>
+    <div className="space-y-3.5">
+      <p className="text-xs text-gray-500">{chrome.ratingQuestion}</p>
       <div className="flex gap-1.5">
         {(["qualified", "partial", "junk"] as LeadQuality[]).map((q) => (
           <button
             key={q}
             onClick={() => setQuality(q)}
             className={cn(
-              "flex-1 rounded-full border px-2 py-1 text-[11px] font-medium transition-colors",
+              "flex-1 rounded-full border px-2 py-1.5 text-xs font-medium transition-colors",
               quality === q
                 ? cn("border-transparent", QUALITY_CHIP[q])
                 : "border-gray-200 bg-white text-gray-600 hover:border-gray-300",
@@ -192,20 +187,20 @@ export function RatingSection({
         ))}
       </div>
       <div>
-        <p className="mb-1.5 text-[11px] text-gray-500">
+        <p className="mb-2 text-xs text-gray-500">
           {chrome.issuesQuestion}
         </p>
-        <div className="grid grid-cols-2 gap-x-2 gap-y-1">
+        <div className="grid grid-cols-2 gap-x-2 gap-y-1.5">
           {issueOptions(chrome).map((o) => (
             <label
               key={o.slug}
-              className="inline-flex cursor-pointer items-center gap-1.5 text-[11px] text-gray-700"
+              className="inline-flex cursor-pointer items-center gap-1.5 text-xs text-gray-700"
             >
               <input
                 type="checkbox"
                 checked={issues.has(o.slug)}
                 onChange={() => toggleIssue(o.slug)}
-                className="h-3 w-3 rounded border-gray-300 accent-[#0F2747]"
+                className="h-3.5 w-3.5 rounded border-gray-300 accent-[#0F2747]"
               />
               {o.label}
             </label>
@@ -213,14 +208,14 @@ export function RatingSection({
         </div>
       </div>
       <div>
-        <p className="mb-1 text-[11px] text-gray-500">{chrome.noteLabel}</p>
+        <p className="mb-1.5 text-xs text-gray-500">{chrome.noteLabel}</p>
         <textarea
           value={note}
           onChange={(e) => setNote(e.target.value)}
           placeholder={chrome.notePlaceholder}
           rows={2}
           maxLength={2000}
-          className="w-full resize-none rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-[11px] text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0F2747]/15"
+          className="w-full resize-none rounded-lg border border-gray-200 bg-white px-2.5 py-2 text-xs text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0F2747]/15"
         />
       </div>
       <Button

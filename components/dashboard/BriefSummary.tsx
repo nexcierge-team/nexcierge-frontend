@@ -10,8 +10,13 @@ import type {
   NewOrUsedPreference,
   PurchaseTimeline,
 } from "@/types/chat";
-import { RatingSection } from "./RatingSection";
+import { QUALITY_CHIP, RatingSection } from "./RatingSection";
 
+// Right-hand brief panel. The reading surface (headings, field labels,
+// enum values) is pinned to English so it stays canonical against
+// HubSpot/CRM records — see docs/ARCHITECTURE.md § AM display language.
+// Only the AM-workflow chrome (status pill, CRM copy, rating card)
+// localizes via lib/amBriefStrings.ts.
 export function BriefSummary({
   rfq,
   sessionId,
@@ -31,123 +36,168 @@ export function BriefSummary({
   }) => Promise<boolean>;
   onGenerateLessons: () => Promise<number | null>;
 }) {
-  // Section titles + field labels + the timeline/condition enum tables are
-  // shared with the buyer-facing ProfileSummaryCard (lib/cardStrings.ts).
-  // The brief itself is ALWAYS rendered in English — titles, labels, and
-  // enum values stay canonical regardless of the AM's display language, so
-  // the brief matches HubSpot/CRM records and the buyer's submitted data.
-  // Only AM-only chrome (CRM section, status pill, rating card) from
-  // lib/amBriefStrings.ts localizes to the AM's chosen `language`. The
-  // brief's free-text values are shown exactly as the buyer submitted them
-  // — we no longer translate the brief itself (a future "download in
-  // language X" export can translate on demand).
+  // Field labels + timeline/condition enum tables are shared with the
+  // buyer-facing ProfileSummaryCard (lib/cardStrings.ts), always English.
   const t = cardStrings("en");
   const chrome = amBriefStrings(language);
-  // English chrome for strings that live inside the brief reading surface
-  // (panel header, empty-specs placeholder) — they follow the brief, not
-  // the AM language.
-  const chromeEn = amBriefStrings("");
-  const machineType = rfq.machine_type;
-  const application = rfq.intended_application;
-  const notes = rfq.additional_notes;
   const specs = Object.entries(rfq.technical_specifications ?? {});
+  const created = rfq.created_at
+    ? new Date(rfq.created_at).toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      })
+    : "";
+
+  const qualityLabel: Record<LeadQuality, string> = {
+    qualified: chrome.qualityQualified,
+    partial: chrome.qualityPartial,
+    junk: chrome.qualityJunk,
+  };
 
   return (
-    <aside className="hidden w-80 shrink-0 overflow-y-auto border-l border-gray-200 bg-[#F7F8FA] px-5 py-6 lg:block">
-      <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
-        {chromeEn.briefDetailsTitle}
+    <aside className="hidden w-80 shrink-0 flex-col border-l border-gray-200 bg-white lg:flex">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-5 pb-4 pt-5">
+        <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-gray-900">
+          {rfq.machine_type || "Sourcing brief"}
+        </h2>
+        <StatusPill status={rfq.status} chrome={chrome} />
       </div>
 
-      <Section title={t.sectionBuyer}>
-        <Field label={t.labelName} value={rfq.full_name} />
-        <Field label={t.labelCompany} value={rfq.company_name} />
-        <Field label={t.labelEmail} value={rfq.business_email} />
-        <Field label={t.labelPhone} value={rfq.phone_number} />
-        <Field label={t.labelRole} value={rfq.job_role} />
-      </Section>
+      <div className="flex-1 overflow-y-auto px-5 pb-6">
+        <PanelSection title="Buyer information" first>
+          <Row label={t.labelName} value={rfq.full_name} />
+          <Row label={t.labelCompany} value={rfq.company_name} />
+          <Row label={t.labelEmail} value={rfq.business_email} />
+          <Row label={t.labelPhone} value={rfq.phone_number} />
+          <Row label={t.labelRole} value={rfq.job_role} />
+          <Row label={t.labelCountry} value={rfq.delivery_country} />
+        </PanelSection>
 
-      <Section title={t.sectionMachine}>
-        <Field label={t.labelType} value={machineType} />
-        <Field label={t.labelApplication} value={application} />
-        <Field label={t.labelQuantity} value={rfq.quantity} />
-        <Field
-          label={t.labelNewUsed}
-          value={
-            isNewOrUsedPreference(rfq.new_or_used_preference)
-              ? t.condition[rfq.new_or_used_preference]
-              : rfq.new_or_used_preference
-          }
-        />
-      </Section>
-
-      <Section title={t.sectionDelivery}>
-        <Field label={t.labelCountry} value={rfq.delivery_country} />
-        <Field label={t.labelCityPort} value={rfq.delivery_city_or_port} />
-        <Field
-          label={t.labelTimeline}
-          value={
-            isPurchaseTimeline(rfq.purchase_timeline)
-              ? t.timeline[rfq.purchase_timeline]
-              : rfq.purchase_timeline
-          }
-        />
-        <Field label={t.labelBudget} value={rfq.budget_range} />
-      </Section>
-
-      <Section title={t.sectionSpecs}>
-        {specs.length === 0 ? (
-          <p className="text-[11px] italic text-gray-400">
-            {chromeEn.noSpecsCaptured}
-          </p>
-        ) : (
-          specs.map(([k, v]) => (
-            <Field key={k} label={humanizeKey(k)} value={String(v)} />
-          ))
-        )}
-        {rfq.compliance_requirements.length > 0 && (
-          <Field
-            label={t.labelCompliance}
-            value={rfq.compliance_requirements.join(", ")}
+        <PanelSection title="RFQ details">
+          <Row label={t.labelType} value={rfq.machine_type} />
+          <Row label={t.labelApplication} value={rfq.intended_application} />
+          <Row label={t.labelQuantity} value={rfq.quantity} />
+          <Row
+            label={t.labelNewUsed}
+            value={
+              isNewOrUsedPreference(rfq.new_or_used_preference)
+                ? t.condition[rfq.new_or_used_preference]
+                : rfq.new_or_used_preference
+            }
           />
-        )}
-      </Section>
-
-      {notes && (
-        <Section title={t.sectionNotes}>
-          <p className="text-xs leading-relaxed text-gray-700">{notes}</p>
-        </Section>
-      )}
-
-      <Section title={chrome.sectionCrm}>
-        <StatusPill status={rfq.status} chrome={chrome} />
-        {rfq.hubspot_deal_id ? (
-          <p className="mt-2 text-[11px] text-gray-500">
-            {chrome.hubspotDealPrefix} {rfq.hubspot_deal_id}
-          </p>
-        ) : (
-          <p className="mt-2 text-[11px] italic text-gray-400">
-            {chrome.notPushedToHubspot}
-          </p>
-        )}
-        <CopyableId label={chrome.sessionIdLabel} value={sessionId} />
-      </Section>
-
-      <Section title={chrome.sectionRating}>
-        {canRate ? (
-          <RatingSection
-            key={rfq.id}
-            rfq={rfq}
-            chrome={chrome}
-            onSave={onSaveRating}
-            onGenerate={onGenerateLessons}
+          {specs.map(([k, v]) => (
+            <Row key={k} label={humanizeKey(k)} value={String(v)} />
+          ))}
+          {rfq.compliance_requirements.length > 0 && (
+            <Row
+              label={t.labelCompliance}
+              value={rfq.compliance_requirements.join(", ")}
+            />
+          )}
+          <Row label={t.labelCityPort} value={rfq.delivery_city_or_port} />
+          <Row
+            label={t.labelTimeline}
+            value={
+              isPurchaseTimeline(rfq.purchase_timeline)
+                ? t.timeline[rfq.purchase_timeline]
+                : rfq.purchase_timeline
+            }
           />
-        ) : (
-          <p className="text-[11px] italic text-gray-400">
-            {chrome.claimToRate}
-          </p>
+          <Row label={t.labelBudget} value={rfq.budget_range} />
+          <Row label="Created" value={created} />
+        </PanelSection>
+
+        {rfq.additional_notes && (
+          <PanelSection title={t.sectionNotes}>
+            <p className="text-[13px] leading-relaxed text-gray-700">
+              {rfq.additional_notes}
+            </p>
+          </PanelSection>
         )}
-      </Section>
+
+        <PanelSection
+          title={chrome.sectionRating}
+          badge={
+            rfq.lead_quality ? (
+              <span
+                className={cn(
+                  "inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium",
+                  QUALITY_CHIP[rfq.lead_quality],
+                )}
+              >
+                {qualityLabel[rfq.lead_quality]}
+              </span>
+            ) : null
+          }
+        >
+          {canRate ? (
+            <RatingSection
+              key={rfq.id}
+              rfq={rfq}
+              chrome={chrome}
+              onSave={onSaveRating}
+              onGenerate={onGenerateLessons}
+            />
+          ) : (
+            <p className="text-xs italic text-gray-400">
+              {chrome.claimToRate}
+            </p>
+          )}
+        </PanelSection>
+
+        <PanelSection title={chrome.sectionCrm}>
+          {rfq.hubspot_deal_id ? (
+            <p className="text-xs text-gray-500">
+              {chrome.hubspotDealPrefix} {rfq.hubspot_deal_id}
+            </p>
+          ) : (
+            <p className="text-xs italic text-gray-400">
+              {chrome.notPushedToHubspot}
+            </p>
+          )}
+          <CopyableId label={chrome.sessionIdLabel} value={sessionId} />
+        </PanelSection>
+      </div>
     </aside>
+  );
+}
+
+// One section of the panel: sentence-case semibold heading (optionally
+// with an inline badge, e.g. the lead-quality pill), hairline divider
+// between sections.
+function PanelSection({
+  title,
+  badge,
+  first = false,
+  children,
+}: {
+  title: string;
+  badge?: React.ReactNode;
+  first?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={cn("py-5", !first && "border-t border-gray-100")}>
+      <div className="mb-3 flex items-center gap-2">
+        <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
+        {badge}
+      </div>
+      <div className="space-y-1.5">{children}</div>
+    </div>
+  );
+}
+
+// Two-column label/value row: fixed label rail on the left, value
+// wrapping in the right column — matches the calmer reference layout
+// (the old float-left variant packed everything onto one line).
+function Row({ label, value }: { label: string; value: string }) {
+  if (!value) return null;
+  return (
+    <div className="grid grid-cols-[100px_1fr] gap-x-3 text-[13px] leading-relaxed">
+      <span className="text-gray-400">{label}</span>
+      <span className="break-words text-gray-800">{value}</span>
+    </div>
   );
 }
 
@@ -166,7 +216,7 @@ function CopyableId({ label, value }: { label: string; value: string }) {
           setTimeout(() => setCopied(false), 1500);
         });
       }}
-      className="mt-2 flex w-full items-center gap-1.5 text-left text-[11px] text-gray-500 transition-colors hover:text-gray-700"
+      className="flex w-full items-center gap-1.5 text-left text-xs text-gray-500 transition-colors hover:text-gray-700"
     >
       <span className="shrink-0">{label}</span>
       <span className="truncate font-mono text-[10px] text-gray-400">
@@ -187,38 +237,6 @@ function isPurchaseTimeline(v: string): v is PurchaseTimeline {
 
 function isNewOrUsedPreference(v: string): v is NewOrUsedPreference {
   return v === "new" || v === "used" || v === "refurbished" || v === "no_preference";
-}
-
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="mt-5">
-      <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
-        {title}
-      </div>
-      <div className="space-y-1">{children}</div>
-    </div>
-  );
-}
-
-// The label floats left so the value starts on the SAME line as it and wraps to
-// the full width BELOW the label when long (rather than being clipped by
-// `truncate` in this narrow w-80 sidebar). `overflow-hidden` on the row contains
-// the float so it can't bleed into the next row. Used for every field in the
-// brief — short labels keep the value on one line; long ones wrap underneath.
-function Field({ label, value }: { label: string; value: string }) {
-  if (!value) return null;
-  return (
-    <div className="overflow-hidden text-xs">
-      <span className="float-left mr-2 text-gray-400">{label}</span>
-      <span className="break-words font-medium text-gray-800">{value}</span>
-    </div>
-  );
 }
 
 // Technical-spec keys come from two sources: curated CSV data points (already
