@@ -81,6 +81,15 @@ Focus ring: `ring-[#0F2747]` (midnight navy) on all variants.
 - AI-related: `bg-[#DCE8F8] text-[#0F2747] ring-[#BFD3F0]` (Supplier Matching uses this — it's the soft AI accent)
 - Functional Tailwind tints for non-AI states: `emerald-*` for Quote Ready, `amber-*` for Negotiating, etc.
 
+### Dashboard primitives (components/dashboard/)
+
+- **Nav rail** (`DashboardSidebar`): white `w-60` column, `border-r border-gray-200`. Active item: `bg-[#DCE8F8]/60 text-[#0F2747]` (powder blue wash + navy text); inactive: `text-gray-700 hover:bg-gray-50`. Count badges are `rounded-full text-[10px]` — `bg-gray-100 text-gray-600`, inverting to `bg-[#0F2747] text-white` on the active item.
+- **Stat card** (`StatCard`): white `rounded-2xl border border-gray-200 p-5` card with a `text-3xl font-semibold` value and a 36px circular icon chip top-right. Chip tones stay in-palette: `navy` = powder blue + midnight navy (the brand/AI stat), plus functional `amber` / `emerald` / `gray` tints.
+- **Data table** (`RfqTable`): lives inside a white `rounded-2xl border` card with its own header row (title left, filter pills right). `<table>` wrapped in `overflow-x-auto`; header cells `text-[11px] uppercase tracking-wider text-gray-400`; body rows `border-b border-gray-50 hover:bg-gray-50/70 cursor-pointer`. Filter pills: active `bg-[#0F2747] text-white`, inactive `text-gray-500 hover:bg-gray-50`. Paged client-side at 10 rows; the pager footer ("Showing X–Y of Z" + circular chevron prev/next buttons) sits inside the card behind a `border-t border-gray-100`, and only renders when there's more than one page.
+- **Buyer avatar**: initials in a `rounded-full bg-[#DCE8F8] text-[#0F2747]` circle (powder blue — buyers arrive via the AI funnel).
+- **Search input**: `rounded-full border-gray-200` with a left `Search` icon, focus ring `ring-[#0F2747]/15` — same treatment as the header language selector.
+- **Overview canvas**: the overview scroll area uses `bg-[#F7F8FA]` with white cards on top; chat/brief views stay on white.
+
 ### Loading indicator (agent typing)
 - Three small dots in agent bubble, `animate-bounce` with staggered delays (`0.15s`, `0.3s`)
 

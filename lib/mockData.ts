@@ -1,4 +1,3 @@
-import type { SourcingRequest } from "@/types/dashboard";
 import type { ChatSession } from "@/types/chat";
 
 export const SUGGESTED_PROMPTS = [
@@ -243,41 +242,3 @@ export const MOCK_CHAT_SESSIONS: ChatSession[] = [
   },
 ];
 
-export const MOCK_REQUESTS: SourcingRequest[] = [
-  {
-    id: "REQ-0042",
-    title: "PET Bottle Blowing Machine",
-    category: "Packaging Machinery",
-    status: "Supplier Matching",
-    updatedAt: "12 min ago",
-    matchedSuppliers: 4,
-    quoteCount: 0,
-  },
-  {
-    id: "REQ-0041",
-    title: "Injection Molding Line — 200T",
-    category: "Plastic Machinery",
-    status: "Quote Ready",
-    updatedAt: "2 hours ago",
-    matchedSuppliers: 3,
-    quoteCount: 3,
-  },
-  {
-    id: "REQ-0040",
-    title: "CNC Lathe — Stainless, 400mm swing",
-    category: "CNC / Metalworking",
-    status: "Awaiting Specifications",
-    updatedAt: "Yesterday",
-    matchedSuppliers: 0,
-    quoteCount: 0,
-  },
-  {
-    id: "REQ-0039",
-    title: "Industrial Embroidery — 12 head",
-    category: "Textile Machinery",
-    status: "Negotiating",
-    updatedAt: "2 days ago",
-    matchedSuppliers: 2,
-    quoteCount: 2,
-  },
-];

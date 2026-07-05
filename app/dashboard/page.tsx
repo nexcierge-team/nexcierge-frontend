@@ -1,49 +1,34 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
-import {
-  Inbox,
-  MapPin,
-  Loader2,
-  ArrowLeft,
-  Languages,
-  ChevronDown,
-  GraduationCap,
-  Check,
-  Copy,
-  X,
-  Pencil,
-  SlidersHorizontal,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { ChatComposer } from "@/components/chat/ChatComposer";
-import { MessageBubble } from "@/components/chat/MessageBubble";
+import { Loader2 } from "lucide-react";
 import { AuthModal } from "@/components/auth/AuthModal";
-import { AccountMenu } from "@/components/auth/AccountMenu";
-import { TypingIndicator } from "@/components/chat/MessageBubble";
+import {
+  DashboardSidebar,
+  type DashboardView,
+} from "@/components/dashboard/DashboardSidebar";
+import { GateScreen } from "@/components/dashboard/GateScreen";
+import { OverviewPane } from "@/components/dashboard/OverviewPane";
+import { BriefPane } from "@/components/dashboard/BriefPane";
+import { LessonsPane } from "@/components/dashboard/LessonsPane";
+import { SettingsPane } from "@/components/dashboard/SettingsPane";
+import {
+  rowToMessage,
+  type InboxBrief,
+  type OpenBrief,
+} from "@/components/dashboard/types";
 import { getSupabaseBrowser } from "@/lib/supabase/browser";
 import { useRealtimeChat } from "@/lib/useRealtimeChat";
 import type {
   AgentLessonsRow,
   ChatMessagesRow,
-  ChatSenderType,
   LeadQuality,
   RfqsRow,
-  RfqStatus,
 } from "@/lib/supabase/types";
-import type {
-  Message,
-  MessageFrom,
-  ChatRole,
-  PurchaseTimeline,
-  NewOrUsedPreference,
-} from "@/types/chat";
+import type { Message } from "@/types/chat";
 import {
-  attachmentsFromMetadata,
   isAllowedAttachment,
   humanFileSize,
-  ATTACHMENT_ACCEPT,
   MAX_ATTACHMENT_BYTES,
   MAX_ATTACHMENTS_PER_MESSAGE,
 } from "@/lib/attachments";
@@ -51,68 +36,12 @@ import {
   uploadAttachment,
   type PendingAttachment,
 } from "@/lib/storage/attachments";
-import { cn } from "@/lib/utils";
-import { cardStrings } from "@/lib/cardStrings";
-import { amBriefStrings, type AmBriefStrings } from "@/lib/amBriefStrings";
 import { AM_DISPLAY_LANGUAGES } from "@/lib/amLanguages";
-import { GEMINI_MODELS, PILLS_THINKING_LEVELS } from "@/lib/models";
 
-interface InboxBrief {
-  id: string;
-  status: "in_handoff";
-  handoff_requested_at: string | null;
-  assigned_am_user_id: string | null;
-  title: string | null;
-  updated_at: string;
-  // Embedded rfq via PostgREST nested select — comes back as an array
-  // even though chat_session→rfqs is 1:1.
-  rfqs: Pick<
-    RfqsRow,
-    | "full_name"
-    | "company_name"
-    | "business_email"
-    | "machine_type"
-    | "intended_application"
-    | "delivery_country"
-    | "purchase_timeline"
-    | "hubspot_deal_id"
-  >[];
-}
-
-interface OpenBrief {
-  sessionId: string;
-  assignedToMe: boolean;
-  rfq: RfqsRow;
-  messages: Message[];
-}
-
-function rowToMessage(row: ChatMessagesRow): Message {
-  const senderRoleMap: Record<ChatSenderType, ChatRole> = {
-    user: "user",
-    ai: "agent",
-    account_manager: "agent",
-    system: "divider",
-  };
-  const from: MessageFrom | undefined =
-    row.sender_type === "account_manager" ? "account_manager" : undefined;
-  // AM-dashboard translations cached on the row (metadata.translations),
-  // keyed by ISO 639-1 code. Hydrated so an already-translated thread
-  // renders in the AM's language with no extra backend calls on reload.
-  const cached = (
-    row.metadata as { translations?: Record<string, string> } | null
-  )?.translations;
-  return {
-    id: row.id,
-    role: senderRoleMap[row.sender_type],
-    content: row.content,
-    from,
-    readAt: row.read_at,
-    translations:
-      cached && typeof cached === "object" ? { ...cached } : undefined,
-    attachments: attachmentsFromMetadata(row.metadata),
-  };
-}
-
+// The dashboard page is the state + data orchestrator: inbox loading,
+// the open brief's realtime chat, attachments, translations, rating,
+// and navigation between views. All rendering lives in the
+// components/dashboard/* modules.
 export default function DashboardPage() {
   const [briefs, setBriefs] = useState<InboxBrief[]>([]);
   const [inboxLoading, setInboxLoading] = useState(true);
@@ -123,10 +52,9 @@ export default function DashboardPage() {
   >(null);
   const [open, setOpen] = useState<OpenBrief | null>(null);
   const [openLoading, setOpenLoading] = useState(false);
-  // Lessons review queue view — mutually exclusive with an open brief.
-  const [lessonsView, setLessonsView] = useState(false);
-  // Model-config settings view — also mutually exclusive with an open brief.
-  const [settingsView, setSettingsView] = useState(false);
+  // Which main view is showing when no brief is open. An open brief
+  // renders on top of (and returns to) the current view.
+  const [view, setView] = useState<DashboardView>("overview");
   const [composer, setComposer] = useState("");
   const [sending, setSending] = useState(false);
   // Documents / media the AM has queued for the current reply. Each is
@@ -136,7 +64,11 @@ export default function DashboardPage() {
   const [pending, setPending] = useState<PendingAttachment[]>([]);
   const pendingRef = useRef<PendingAttachment[]>([]);
   const [meId, setMeId] = useState<string | null>(null);
+  const [meEmail, setMeEmail] = useState<string | null>(null);
   const [authPromptOpen, setAuthPromptOpen] = useState(false);
+  // Proposed-lessons count for the sidebar badge + attention card.
+  // Purely informational — LessonsPane fetches its own full list.
+  const [lessonsCount, setLessonsCount] = useState<number | null>(null);
   // AM's chosen working language for reading the thread. "" = original
   // only. Read straight from localStorage so it persists across briefs.
   // Lazy init (not an effect) is safe from hydration mismatch because the
@@ -170,7 +102,7 @@ export default function DashboardPage() {
   }, [open?.messages.length]);
 
   // Resolve who we are so we can decide "assigned to me" + render
-  // outgoing AM bubbles correctly.
+  // outgoing AM bubbles correctly (email feeds the overview greeting).
   useEffect(() => {
     (async () => {
       try {
@@ -179,6 +111,7 @@ export default function DashboardPage() {
           data: { user },
         } = await supabase.auth.getUser();
         setMeId(user?.id ?? null);
+        setMeEmail(user?.email ?? null);
       } catch (e) {
         console.error("user lookup failed:", e);
       }
@@ -216,11 +149,28 @@ export default function DashboardPage() {
     void loadInbox();
   }, [loadInbox]);
 
+  // Best-effort proposed-lessons count. Never blocks the dashboard.
+  const refreshLessonsCount = useCallback(async () => {
+    try {
+      const res = await fetch("/api/am/lessons");
+      if (!res.ok) return;
+      const data = (await res.json()) as { lessons: AgentLessonsRow[] };
+      setLessonsCount(
+        (data.lessons ?? []).filter((l) => l.status === "proposed").length,
+      );
+    } catch {
+      /* informational only */
+    }
+  }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch; state lands after the response, not synchronously
+    if (!inboxLoading && inboxBlocked === null) void refreshLessonsCount();
+  }, [inboxLoading, inboxBlocked, refreshLessonsCount]);
+
   const openBrief = useCallback(
     async (sessionId: string) => {
       setOpenLoading(true);
-      setLessonsView(false);
-      setSettingsView(false);
       // Drop any files queued against the previously-open brief.
       setPending([]);
       setComposer("");
@@ -245,6 +195,22 @@ export default function DashboardPage() {
       }
     },
     [meId],
+  );
+
+  const closeBrief = useCallback(() => {
+    setOpen(null);
+    setPending([]);
+    setComposer("");
+  }, []);
+
+  const navigate = useCallback(
+    (next: DashboardView) => {
+      setView(next);
+      closeBrief();
+      // Lessons may have been reviewed/generated since the last count.
+      if (next === "overview") void refreshLessonsCount();
+    },
+    [closeBrief, refreshLessonsCount],
   );
 
   // Realtime via the shared hook. Both this AM dashboard and the
@@ -319,13 +285,13 @@ export default function DashboardPage() {
     if (translatingRef.current) return;
     const lang = amLanguage;
     const sessionId = open.sessionId;
-    const pending = open.messages.some(
+    const needed = open.messages.some(
       (m) =>
         m.role !== "divider" &&
         m.content &&
         m.translations?.[lang] === undefined,
     );
-    if (!pending) return;
+    if (!needed) return;
     // Snapshot which messages we're asking about so a message that
     // arrives mid-flight isn't wrongly marked "resolved" by our merge.
     const requestedIds = new Set(open.messages.map((m) => m.id));
@@ -427,12 +393,13 @@ export default function DashboardPage() {
       );
       if (!res.ok) return null;
       const data = (await res.json()) as { lessons: AgentLessonsRow[] };
+      void refreshLessonsCount();
       return data.lessons.length;
     } catch (e) {
       console.error("lesson generation failed:", e);
       return null;
     }
-  }, [open]);
+  }, [open, refreshLessonsCount]);
 
   async function claim() {
     if (!open) return;
@@ -647,28 +614,11 @@ export default function DashboardPage() {
 
   return (
     <div className="flex h-screen bg-white">
-      <InboxPane
-        briefs={briefs}
-        loading={inboxLoading}
-        activeId={open?.sessionId}
-        meId={meId}
-        onSelect={openBrief}
-        lessonsActive={lessonsView}
-        onOpenLessons={() => {
-          setLessonsView(true);
-          setSettingsView(false);
-          setOpen(null);
-          setPending([]);
-          setComposer("");
-        }}
-        settingsActive={settingsView}
-        onOpenSettings={() => {
-          setSettingsView(true);
-          setLessonsView(false);
-          setOpen(null);
-          setPending([]);
-          setComposer("");
-        }}
+      <DashboardSidebar
+        active={open ? "overview" : view}
+        onNavigate={navigate}
+        inboxCount={briefs.length}
+        lessonsCount={lessonsCount}
       />
       <main className="flex h-full min-w-0 flex-1 flex-col">
         {open ? (
@@ -681,11 +631,7 @@ export default function DashboardPage() {
             otherIsTyping={otherIsTyping}
             onClaim={claim}
             onSend={sendReply}
-            onClose={() => {
-              setOpen(null);
-              setPending([]);
-              setComposer("");
-            }}
+            onClose={closeBrief}
             endRef={endRef}
             amLanguage={amLanguage}
             onAmLanguageChange={setAmLanguage}
@@ -696,1416 +642,29 @@ export default function DashboardPage() {
             onSaveRating={saveRating}
             onGenerateLessons={generateLessons}
           />
-        ) : lessonsView ? (
-          <LessonsPane onBack={() => setLessonsView(false)} />
-        ) : settingsView ? (
-          <SettingsPane onBack={() => setSettingsView(false)} />
+        ) : openLoading ? (
+          <div className="flex h-full items-center justify-center text-sm text-gray-500">
+            <span className="inline-flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.75} />
+              Loading brief…
+            </span>
+          </div>
+        ) : view === "lessons" ? (
+          <LessonsPane onBack={() => navigate("overview")} />
+        ) : view === "models" ? (
+          <SettingsPane onBack={() => navigate("overview")} />
         ) : (
-          <EmptyState loading={openLoading} />
+          <OverviewPane
+            briefs={briefs}
+            loading={inboxLoading}
+            meId={meId}
+            meEmail={meEmail}
+            lessonsCount={lessonsCount}
+            onSelectBrief={openBrief}
+            onOpenLessons={() => navigate("lessons")}
+          />
         )}
       </main>
-    </div>
-  );
-}
-
-
-function GateScreen({
-  title,
-  body,
-  actionLabel,
-  onAction,
-}: {
-  title: string;
-  body: string;
-  actionLabel?: string;
-  onAction?: () => void;
-}) {
-  return (
-    <div className="flex h-screen items-center justify-center bg-white px-6">
-      <div className="max-w-md rounded-2xl border border-gray-200 bg-white px-7 py-7 text-center shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
-        <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-          Nexcierge · Account manager
-        </div>
-        <h1 className="mt-2 text-lg font-semibold tracking-[-0.01em] text-gray-900">
-          {title}
-        </h1>
-        <p className="mt-2 text-sm leading-relaxed text-gray-600">{body}</p>
-        {actionLabel && onAction && (
-          <Button
-            type="button"
-            variant="primary"
-            className="mt-5"
-            onClick={onAction}
-          >
-            {actionLabel}
-          </Button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-
-// ──────────────────────────────────────────────────────────────
-// Inbox list (left pane)
-// ──────────────────────────────────────────────────────────────
-
-function InboxPane({
-  briefs,
-  loading,
-  activeId,
-  meId,
-  onSelect,
-  lessonsActive,
-  onOpenLessons,
-  settingsActive,
-  onOpenSettings,
-}: {
-  briefs: InboxBrief[];
-  loading: boolean;
-  activeId: string | undefined;
-  meId: string | null;
-  onSelect: (id: string) => void;
-  lessonsActive: boolean;
-  onOpenLessons: () => void;
-  settingsActive: boolean;
-  onOpenSettings: () => void;
-}) {
-  return (
-    <aside className="hidden h-full w-80 shrink-0 flex-col border-r border-gray-200 bg-[#F7F8FA] md:flex">
-      <div className="border-b border-gray-200 px-5 py-4">
-        <Link
-          href="/"
-          className="font-semibold tracking-[0.16em] text-[14px] text-gray-900"
-        >
-          NEXCIERGE
-        </Link>
-        <p className="mt-1 text-[11px] uppercase tracking-wider text-gray-400">
-          Account manager
-        </p>
-      </div>
-
-      <div className="flex items-center justify-between border-b border-gray-200 px-5 py-3 text-[11px] font-medium uppercase tracking-wider text-gray-500">
-        <span className="inline-flex items-center gap-1.5">
-          <Inbox className="h-3.5 w-3.5" strokeWidth={1.75} />
-          Inbox · {briefs.length}
-        </span>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={onOpenLessons}
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium uppercase tracking-wider transition-colors",
-              lessonsActive
-                ? "bg-[#0F2747] text-white"
-                : "text-gray-500 hover:bg-white hover:text-gray-900",
-            )}
-          >
-            <GraduationCap className="h-3.5 w-3.5" strokeWidth={1.75} />
-            Lessons
-          </button>
-          <button
-            onClick={onOpenSettings}
-            aria-label="Model settings"
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium uppercase tracking-wider transition-colors",
-              settingsActive
-                ? "bg-[#0F2747] text-white"
-                : "text-gray-500 hover:bg-white hover:text-gray-900",
-            )}
-          >
-            <SlidersHorizontal className="h-3.5 w-3.5" strokeWidth={1.75} />
-            Models
-          </button>
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto px-3 py-4">
-        {loading ? (
-          <div className="px-3 py-6 text-xs text-gray-400">Loading inbox…</div>
-        ) : briefs.length === 0 ? (
-          <div className="px-3 py-6 text-xs text-gray-400">
-            No new briefs. Incoming requests will appear here.
-          </div>
-        ) : (
-          <ul className="space-y-1">
-            {briefs.map((b) => {
-              const r = b.rfqs?.[0];
-              const mine = b.assigned_am_user_id === meId;
-              const unclaimed = !b.assigned_am_user_id;
-              return (
-                <li key={b.id}>
-                  <button
-                    onClick={() => onSelect(b.id)}
-                    className={cn(
-                      "block w-full rounded-lg px-3 py-3 text-left transition-colors",
-                      b.id === activeId
-                        ? "bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
-                        : "hover:bg-white/60",
-                    )}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm font-medium text-gray-900">
-                          {r?.machine_type || b.title || "New brief"}
-                        </div>
-                        <div className="mt-0.5 truncate text-xs text-gray-500">
-                          {r?.company_name || r?.full_name || r?.business_email}
-                        </div>
-                        {r?.delivery_country && (
-                          <div className="mt-1 inline-flex items-center gap-1 text-[11px] text-gray-400">
-                            <MapPin
-                              className="h-3 w-3"
-                              strokeWidth={1.5}
-                            />
-                            {r.delivery_country}
-                          </div>
-                        )}
-                      </div>
-                      {unclaimed ? (
-                        <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800">
-                          Unclaimed
-                        </span>
-                      ) : mine ? (
-                        <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-800">
-                          Mine
-                        </span>
-                      ) : (
-                        <span className="shrink-0 rounded-full bg-gray-200 px-2 py-0.5 text-[10px] font-medium text-gray-600">
-                          Other AM
-                        </span>
-                      )}
-                    </div>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
-
-      <div className="border-t border-gray-200 px-5 py-4">
-        <div className="mb-1 text-[10px] uppercase tracking-wider text-gray-400">
-          Account manager
-        </div>
-        <AccountMenu variant="compact" redirectTo="/dashboard" />
-      </div>
-    </aside>
-  );
-}
-
-
-// ──────────────────────────────────────────────────────────────
-// Brief detail + chat (right pane)
-// ──────────────────────────────────────────────────────────────
-
-function BriefPane({
-  brief,
-  sending,
-  composer,
-  setComposer,
-  onComposerChange,
-  otherIsTyping,
-  onClaim,
-  onSend,
-  onClose,
-  endRef,
-  amLanguage,
-  onAmLanguageChange,
-  amTranslating,
-  pending,
-  onAttach,
-  onRemoveAttachment,
-  onSaveRating,
-  onGenerateLessons,
-}: {
-  brief: OpenBrief;
-  sending: boolean;
-  composer: string;
-  setComposer: (v: string) => void;
-  onComposerChange: () => void;
-  otherIsTyping: boolean;
-  onClaim: () => void;
-  onSend: () => void;
-  onClose: () => void;
-  endRef: React.RefObject<HTMLDivElement | null>;
-  amLanguage: string;
-  onAmLanguageChange: (lang: string) => void;
-  amTranslating: boolean;
-  pending: PendingAttachment[];
-  onAttach: (files: File[]) => void;
-  onRemoveAttachment: (id: string) => void;
-  onSaveRating: (input: {
-    quality: LeadQuality;
-    issues: string[];
-    notes: string;
-  }) => Promise<boolean>;
-  onGenerateLessons: () => Promise<number | null>;
-}) {
-  const chrome = amBriefStrings(amLanguage);
-  const { rfq, messages, assignedToMe } = brief;
-  const uploading = pending.some((p) => p.uploading);
-  const hasReadyAttachment = pending.some((p) => p.uploaded);
-  const atAttachmentCap = pending.length >= MAX_ATTACHMENTS_PER_MESSAGE;
-
-  return (
-    <>
-      <header className="flex items-center justify-between border-b border-gray-200 bg-white/85 px-6 py-4 backdrop-blur-xl">
-        <div className="flex min-w-0 items-center gap-3">
-          <button
-            onClick={onClose}
-            aria-label="Back to inbox"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 md:hidden"
-          >
-            <ArrowLeft className="h-4 w-4" strokeWidth={1.5} />
-          </button>
-          <div className="min-w-0">
-            <h1 className="truncate text-sm font-semibold text-gray-900">
-              {rfq.machine_type || "Sourcing brief"} ·{" "}
-              <span className="font-normal text-gray-600">
-                {rfq.company_name || rfq.full_name || rfq.business_email}
-              </span>
-            </h1>
-            <p className="truncate text-xs text-gray-500">
-              {rfq.intended_application} · {rfq.delivery_city_or_port},{" "}
-              {rfq.delivery_country}
-            </p>
-          </div>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <LanguageSelector
-            value={amLanguage}
-            onChange={onAmLanguageChange}
-            translating={amTranslating}
-          />
-          {!assignedToMe && (
-            <Button size="sm" variant="primary" onClick={onClaim}>
-              {chrome.claimBrief}
-            </Button>
-          )}
-        </div>
-      </header>
-
-      <div className="flex flex-1 min-h-0">
-        <div className="flex min-w-0 flex-1 flex-col">
-          <div className="flex-1 overflow-y-auto px-6 py-6">
-            <div className="mx-auto max-w-3xl space-y-5">
-              {messages.map((m) => (
-                <MessageBubble
-                  key={m.id}
-                  message={m}
-                  viewerRole="account_manager"
-                  amDisplayLanguage={amLanguage}
-                />
-              ))}
-              {otherIsTyping && <TypingIndicator />}
-              <div ref={endRef} />
-            </div>
-          </div>
-
-          {assignedToMe ? (
-            <div className="border-t border-gray-200 bg-white px-6 py-4">
-              <div className="mx-auto max-w-3xl">
-                <ChatComposer
-                  value={composer}
-                  onChange={(v) => {
-                    setComposer(v);
-                    if (v) onComposerChange();
-                  }}
-                  onSubmit={onSend}
-                  disabled={sending}
-                  placeholder={
-                    sending ? "Sending…" : "Message the buyer…"
-                  }
-                  onAttach={onAttach}
-                  attachAccept={ATTACHMENT_ACCEPT}
-                  pendingAttachments={pending}
-                  onRemoveAttachment={onRemoveAttachment}
-                  attachDisabled={atAttachmentCap}
-                  allowEmptySubmit={hasReadyAttachment}
-                  submitDisabled={uploading}
-                />
-                <div className="mt-2 text-center text-[11px] text-gray-400">
-                  Press Enter to send · Attach documents or media · Buyer sees
-                  your reply in realtime
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="border-t border-gray-200 bg-amber-50 px-6 py-3 text-center text-xs text-amber-800">
-              Claim this brief to reply.
-            </div>
-          )}
-        </div>
-
-        <BriefSummary
-          rfq={rfq}
-          sessionId={brief.sessionId}
-          language={amLanguage}
-          canRate={assignedToMe}
-          onSaveRating={onSaveRating}
-          onGenerateLessons={onGenerateLessons}
-        />
-      </div>
-    </>
-  );
-}
-
-
-// Header control letting the AM read the whole thread in their working
-// language. "" = original only; "en"/"zh"/"hi" translate every message
-// and show the translation under each original. The choice is global
-// (lifted to DashboardPage + persisted), so it sticks across briefs.
-function LanguageSelector({
-  value,
-  onChange,
-  translating,
-}: {
-  value: string;
-  onChange: (lang: string) => void;
-  translating: boolean;
-}) {
-  return (
-    <div className="flex items-center gap-1.5">
-      {translating && (
-        <Loader2
-          className="h-3.5 w-3.5 animate-spin text-gray-400"
-          strokeWidth={1.75}
-          aria-label="Translating…"
-        />
-      )}
-      <label className="relative inline-flex items-center">
-        <Languages
-          className="pointer-events-none absolute left-2.5 h-3.5 w-3.5 text-gray-400"
-          strokeWidth={1.75}
-        />
-        <select
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          aria-label="Read this thread in"
-          className="appearance-none rounded-full border border-gray-200 bg-white py-1.5 pl-8 pr-7 text-xs font-medium text-gray-700 shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-colors hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0F2747]/15"
-        >
-          <option value="">Original only</option>
-          <option value="en">English</option>
-          <option value="zh">中文 (Chinese)</option>
-          <option value="hi">हिन्दी (Hindi)</option>
-        </select>
-        <ChevronDown
-          className="pointer-events-none absolute right-2.5 h-3.5 w-3.5 text-gray-400"
-          strokeWidth={1.75}
-        />
-      </label>
-    </div>
-  );
-}
-
-
-function BriefSummary({
-  rfq,
-  sessionId,
-  language,
-  canRate,
-  onSaveRating,
-  onGenerateLessons,
-}: {
-  rfq: RfqsRow;
-  sessionId: string;
-  language: string;
-  canRate: boolean;
-  onSaveRating: (input: {
-    quality: LeadQuality;
-    issues: string[];
-    notes: string;
-  }) => Promise<boolean>;
-  onGenerateLessons: () => Promise<number | null>;
-}) {
-  // Section titles + field labels + the timeline/condition enum tables are
-  // shared with the buyer-facing ProfileSummaryCard (lib/cardStrings.ts).
-  // The brief itself is ALWAYS rendered in English — titles, labels, and
-  // enum values stay canonical regardless of the AM's display language, so
-  // the brief matches HubSpot/CRM records and the buyer's submitted data.
-  // Only AM-only chrome (CRM section, status pill, rating card) from
-  // lib/amBriefStrings.ts localizes to the AM's chosen `language`. The
-  // brief's free-text values are shown exactly as the buyer submitted them
-  // — we no longer translate the brief itself (a future "download in
-  // language X" export can translate on demand).
-  const t = cardStrings("en");
-  const chrome = amBriefStrings(language);
-  // English chrome for strings that live inside the brief reading surface
-  // (panel header, empty-specs placeholder) — they follow the brief, not
-  // the AM language.
-  const chromeEn = amBriefStrings("");
-  const machineType = rfq.machine_type;
-  const application = rfq.intended_application;
-  const notes = rfq.additional_notes;
-  const specs = Object.entries(rfq.technical_specifications ?? {});
-
-  return (
-    <aside className="hidden w-80 shrink-0 overflow-y-auto border-l border-gray-200 bg-[#F7F8FA] px-5 py-6 lg:block">
-      <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
-        {chromeEn.briefDetailsTitle}
-      </div>
-
-      <Section title={t.sectionBuyer}>
-        <Field label={t.labelName} value={rfq.full_name} />
-        <Field label={t.labelCompany} value={rfq.company_name} />
-        <Field label={t.labelEmail} value={rfq.business_email} />
-        <Field label={t.labelPhone} value={rfq.phone_number} />
-        <Field label={t.labelRole} value={rfq.job_role} />
-      </Section>
-
-      <Section title={t.sectionMachine}>
-        <Field label={t.labelType} value={machineType} />
-        <Field label={t.labelApplication} value={application} />
-        <Field label={t.labelQuantity} value={rfq.quantity} />
-        <Field
-          label={t.labelNewUsed}
-          value={
-            isNewOrUsedPreference(rfq.new_or_used_preference)
-              ? t.condition[rfq.new_or_used_preference]
-              : rfq.new_or_used_preference
-          }
-        />
-      </Section>
-
-      <Section title={t.sectionDelivery}>
-        <Field label={t.labelCountry} value={rfq.delivery_country} />
-        <Field label={t.labelCityPort} value={rfq.delivery_city_or_port} />
-        <Field
-          label={t.labelTimeline}
-          value={
-            isPurchaseTimeline(rfq.purchase_timeline)
-              ? t.timeline[rfq.purchase_timeline]
-              : rfq.purchase_timeline
-          }
-        />
-        <Field label={t.labelBudget} value={rfq.budget_range} />
-      </Section>
-
-      <Section title={t.sectionSpecs}>
-        {specs.length === 0 ? (
-          <p className="text-[11px] italic text-gray-400">
-            {chromeEn.noSpecsCaptured}
-          </p>
-        ) : (
-          specs.map(([k, v]) => (
-            <Field
-              key={k}
-              label={humanizeKey(k)}
-              value={String(v)}
-            />
-          ))
-        )}
-        {rfq.compliance_requirements.length > 0 && (
-          <Field
-            label={t.labelCompliance}
-            value={rfq.compliance_requirements.join(", ")}
-          />
-        )}
-      </Section>
-
-      {notes && (
-        <Section title={t.sectionNotes}>
-          <p className="text-xs leading-relaxed text-gray-700">{notes}</p>
-        </Section>
-      )}
-
-      <Section title={chrome.sectionCrm}>
-        <StatusPill status={rfq.status} chrome={chrome} />
-        {rfq.hubspot_deal_id ? (
-          <p className="mt-2 text-[11px] text-gray-500">
-            {chrome.hubspotDealPrefix} {rfq.hubspot_deal_id}
-          </p>
-        ) : (
-          <p className="mt-2 text-[11px] italic text-gray-400">
-            {chrome.notPushedToHubspot}
-          </p>
-        )}
-        <CopyableId label={chrome.sessionIdLabel} value={sessionId} />
-      </Section>
-
-      <Section title={chrome.sectionRating}>
-        {canRate ? (
-          <RatingSection
-            key={rfq.id}
-            rfq={rfq}
-            chrome={chrome}
-            onSave={onSaveRating}
-            onGenerate={onGenerateLessons}
-          />
-        ) : (
-          <p className="text-[11px] italic text-gray-400">
-            {chrome.claimToRate}
-          </p>
-        )}
-      </Section>
-    </aside>
-  );
-}
-
-// Click-to-copy id row (CRM section). AMs need the session UUID for SQL
-// forensics — clearing a cached translation, querying chat_messages —
-// without digging it out of devtools network calls.
-function CopyableId({ label, value }: { label: string; value: string }) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <button
-      type="button"
-      title={value}
-      onClick={() => {
-        void navigator.clipboard?.writeText(value).then(() => {
-          setCopied(true);
-          setTimeout(() => setCopied(false), 1500);
-        });
-      }}
-      className="mt-2 flex w-full items-center gap-1.5 text-left text-[11px] text-gray-500 transition-colors hover:text-gray-700"
-    >
-      <span className="shrink-0">{label}</span>
-      <span className="truncate font-mono text-[10px] text-gray-400">
-        {value}
-      </span>
-      {copied ? (
-        <Check className="h-3 w-3 shrink-0 text-emerald-600" strokeWidth={2} />
-      ) : (
-        <Copy className="h-3 w-3 shrink-0" strokeWidth={1.75} />
-      )}
-    </button>
-  );
-}
-
-// ──────────────────────────────────────────────────────────────
-// Lead rating + lesson generation (sidebar card)
-// ──────────────────────────────────────────────────────────────
-
-// Which brief areas the AM can flag as wrong/missing. Slugs must stay in
-// sync with FIELD_ISSUES in app/api/am/sessions/[id]/rating/route.ts.
-function issueOptions(
-  chrome: AmBriefStrings,
-): { slug: string; label: string }[] {
-  return [
-    { slug: "machine_type", label: chrome.issueMachineType },
-    { slug: "specs", label: chrome.issueSpecs },
-    { slug: "quantity", label: chrome.issueQuantity },
-    { slug: "delivery", label: chrome.issueDelivery },
-    { slug: "timeline", label: chrome.issueTimeline },
-    { slug: "contact", label: chrome.issueContact },
-  ];
-}
-
-const QUALITY_CHIP: Record<LeadQuality, string> = {
-  qualified: "bg-emerald-100 text-emerald-800",
-  partial: "bg-amber-100 text-amber-800",
-  junk: "bg-red-100 text-red-800",
-};
-
-// Keyed by rfq.id in the parent so all state resets when the AM switches
-// briefs. Two modes: editing (fresh or via Edit) shows the full form;
-// rated shows the verdict chip + the Generate-lessons button.
-function RatingSection({
-  rfq,
-  chrome,
-  onSave,
-  onGenerate,
-}: {
-  rfq: RfqsRow;
-  chrome: AmBriefStrings;
-  onSave: (input: {
-    quality: LeadQuality;
-    issues: string[];
-    notes: string;
-  }) => Promise<boolean>;
-  onGenerate: () => Promise<number | null>;
-}) {
-  const [editing, setEditing] = useState(!rfq.lead_quality);
-  const [quality, setQuality] = useState<LeadQuality | null>(
-    rfq.lead_quality,
-  );
-  const [issues, setIssues] = useState<Set<string>>(
-    () => new Set(rfq.lead_quality_field_issues ?? []),
-  );
-  const [note, setNote] = useState(rfq.lead_quality_notes ?? "");
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState(false);
-  const [genState, setGenState] = useState<"idle" | "running" | "error">(
-    "idle",
-  );
-  const [genCount, setGenCount] = useState<number | null>(null);
-
-  const qualityLabel: Record<LeadQuality, string> = {
-    qualified: chrome.qualityQualified,
-    partial: chrome.qualityPartial,
-    junk: chrome.qualityJunk,
-  };
-
-  function toggleIssue(slug: string) {
-    setIssues((prev) => {
-      const next = new Set(prev);
-      if (next.has(slug)) next.delete(slug);
-      else next.add(slug);
-      return next;
-    });
-  }
-
-  async function save() {
-    if (!quality || saving) return;
-    setSaving(true);
-    setSaveError(false);
-    const ok = await onSave({
-      quality,
-      issues: [...issues],
-      notes: note.trim(),
-    });
-    setSaving(false);
-    if (ok) setEditing(false);
-    else setSaveError(true);
-  }
-
-  async function generate() {
-    if (genState === "running") return;
-    setGenState("running");
-    setGenCount(null);
-    const count = await onGenerate();
-    if (count === null) {
-      setGenState("error");
-    } else {
-      setGenState("idle");
-      setGenCount(count);
-    }
-  }
-
-  if (!editing && rfq.lead_quality) {
-    return (
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <span
-            className={cn(
-              "inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium",
-              QUALITY_CHIP[rfq.lead_quality],
-            )}
-          >
-            {qualityLabel[rfq.lead_quality]}
-          </span>
-          <button
-            onClick={() => setEditing(true)}
-            className="inline-flex items-center gap-1 text-[11px] text-gray-500 hover:text-gray-900"
-          >
-            <Pencil className="h-3 w-3" strokeWidth={1.75} />
-            {chrome.editRating}
-          </button>
-        </div>
-        {rfq.lead_quality_field_issues.length > 0 && (
-          <p className="text-[11px] text-gray-500">
-            {issueOptions(chrome)
-              .filter((o) => rfq.lead_quality_field_issues.includes(o.slug))
-              .map((o) => o.label)
-              .join(", ")}
-          </p>
-        )}
-        {rfq.lead_quality_notes && (
-          <p className="text-[11px] italic text-gray-500">
-            {rfq.lead_quality_notes}
-          </p>
-        )}
-        <Button
-          size="sm"
-          variant="secondary"
-          className="w-full"
-          onClick={generate}
-          disabled={genState === "running"}
-        >
-          {genState === "running" ? (
-            <span className="inline-flex items-center gap-1.5">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} />
-              {chrome.generatingLessons}
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1.5">
-              <GraduationCap className="h-3.5 w-3.5" strokeWidth={1.75} />
-              {chrome.generateLessons}
-            </span>
-          )}
-        </Button>
-        {genState === "error" && (
-          <p className="text-[11px] text-red-600">{chrome.lessonsFailed}</p>
-        )}
-        {genCount !== null &&
-          (genCount > 0 ? (
-            <p className="text-[11px] text-emerald-700">
-              {genCount} {chrome.lessonsProposedSuffix}
-            </p>
-          ) : (
-            <p className="text-[11px] text-gray-500">
-              {chrome.noLessonsProposed}
-            </p>
-          ))}
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-3">
-      <p className="text-[11px] text-gray-500">{chrome.ratingQuestion}</p>
-      <div className="flex gap-1.5">
-        {(["qualified", "partial", "junk"] as LeadQuality[]).map((q) => (
-          <button
-            key={q}
-            onClick={() => setQuality(q)}
-            className={cn(
-              "flex-1 rounded-full border px-2 py-1 text-[11px] font-medium transition-colors",
-              quality === q
-                ? cn("border-transparent", QUALITY_CHIP[q])
-                : "border-gray-200 bg-white text-gray-600 hover:border-gray-300",
-            )}
-          >
-            {qualityLabel[q]}
-          </button>
-        ))}
-      </div>
-      <div>
-        <p className="mb-1.5 text-[11px] text-gray-500">
-          {chrome.issuesQuestion}
-        </p>
-        <div className="grid grid-cols-2 gap-x-2 gap-y-1">
-          {issueOptions(chrome).map((o) => (
-            <label
-              key={o.slug}
-              className="inline-flex cursor-pointer items-center gap-1.5 text-[11px] text-gray-700"
-            >
-              <input
-                type="checkbox"
-                checked={issues.has(o.slug)}
-                onChange={() => toggleIssue(o.slug)}
-                className="h-3 w-3 rounded border-gray-300 accent-[#0F2747]"
-              />
-              {o.label}
-            </label>
-          ))}
-        </div>
-      </div>
-      <div>
-        <p className="mb-1 text-[11px] text-gray-500">{chrome.noteLabel}</p>
-        <textarea
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          placeholder={chrome.notePlaceholder}
-          rows={2}
-          maxLength={2000}
-          className="w-full resize-none rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-[11px] text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0F2747]/15"
-        />
-      </div>
-      <Button
-        size="sm"
-        variant="primary"
-        className="w-full"
-        onClick={save}
-        disabled={!quality || saving}
-      >
-        {saving ? chrome.savingRating : chrome.saveRating}
-      </Button>
-      {saveError && (
-        <p className="text-[11px] text-red-600">{chrome.ratingFailed}</p>
-      )}
-    </div>
-  );
-}
-
-
-function isPurchaseTimeline(v: string): v is PurchaseTimeline {
-  return v === "urgent_less_than_30_days" || v === "1_to_3_months" || v === "3_to_6_months" || v === "just_researching";
-}
-
-
-function isNewOrUsedPreference(v: string): v is NewOrUsedPreference {
-  return v === "new" || v === "used" || v === "refurbished" || v === "no_preference";
-}
-
-
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="mt-5">
-      <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
-        {title}
-      </div>
-      <div className="space-y-1">{children}</div>
-    </div>
-  );
-}
-
-
-// The label floats left so the value starts on the SAME line as it and wraps to
-// the full width BELOW the label when long (rather than being clipped by
-// `truncate` in this narrow w-80 sidebar). `overflow-hidden` on the row contains
-// the float so it can't bleed into the next row. Used for every field in the
-// brief — short labels keep the value on one line; long ones wrap underneath.
-function Field({ label, value }: { label: string; value: string }) {
-  if (!value) return null;
-  return (
-    <div className="overflow-hidden text-xs">
-      <span className="float-left mr-2 text-gray-400">{label}</span>
-      <span className="break-words font-medium text-gray-800">{value}</span>
-    </div>
-  );
-}
-
-
-// Technical-spec keys come from two sources: curated CSV data points (already
-// nicely phrased, e.g. "Film Width & Layer Configuration") and the agent's own
-// snake_case keys (e.g. "target_output"). Normalise the latter to Title Case
-// for display; leave already-spaced labels untouched.
-function humanizeKey(key: string): string {
-  if (/[_-]/.test(key)) {
-    return key
-      .replace(/[_-]+/g, " ")
-      .replace(/\b\w/g, (c) => c.toUpperCase())
-      .trim();
-  }
-  return key;
-}
-
-
-function StatusPill({
-  status,
-  chrome,
-}: {
-  status: RfqStatus;
-  chrome: AmBriefStrings;
-}) {
-  const map: Record<RfqStatus, { label: string; className: string }> = {
-    in_progress: {
-      label: chrome.statusInProgress,
-      className: "bg-blue-100 text-blue-800",
-    },
-    submitted: {
-      label: chrome.statusSubmitted,
-      className: "bg-emerald-100 text-emerald-800",
-    },
-    won: { label: chrome.statusWon, className: "bg-emerald-100 text-emerald-800" },
-    lost: { label: chrome.statusLost, className: "bg-gray-200 text-gray-700" },
-  };
-  const v = map[status];
-  return (
-    <span
-      className={cn(
-        "inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium",
-        v.className,
-      )}
-    >
-      {v.label}
-    </span>
-  );
-}
-
-
-// ──────────────────────────────────────────────────────────────
-// Lessons review queue (main pane)
-// ──────────────────────────────────────────────────────────────
-
-// Machine-drafted improvement lessons awaiting human review. Approve
-// (optionally after editing), or reject. English-only chrome, same as
-// the inbox — the AM language selector only localizes brief details.
-function LessonsPane({ onBack }: { onBack: () => void }) {
-  const [lessons, setLessons] = useState<AgentLessonsRow[] | null>(null);
-  const [loadFailed, setLoadFailed] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [draft, setDraft] = useState("");
-  const [busyId, setBusyId] = useState<string | null>(null);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch("/api/am/lessons");
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = (await res.json()) as { lessons: AgentLessonsRow[] };
-        setLessons(data.lessons ?? []);
-      } catch (e) {
-        console.error("lessons load failed:", e);
-        setLoadFailed(true);
-      }
-    })();
-  }, []);
-
-  async function review(
-    id: string,
-    action: "approve" | "reject",
-    editedText?: string,
-  ) {
-    if (busyId) return;
-    setBusyId(id);
-    try {
-      const res = await fetch(`/api/am/lessons/${encodeURIComponent(id)}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action,
-          ...(editedText !== undefined ? { lesson_text: editedText } : {}),
-        }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = (await res.json()) as { lesson: AgentLessonsRow };
-      setLessons((prev) =>
-        prev
-          ? prev.map((l) => (l.id === id ? data.lesson : l))
-          : prev,
-      );
-      if (editingId === id) setEditingId(null);
-    } catch (e) {
-      console.error("lesson review failed:", e);
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  const proposed = (lessons ?? []).filter((l) => l.status === "proposed");
-  const reviewed = (lessons ?? []).filter((l) => l.status !== "proposed");
-
-  return (
-    <div className="flex h-full flex-col">
-      <header className="flex items-center gap-3 border-b border-gray-200 bg-white/85 px-6 py-4 backdrop-blur-xl">
-        <button
-          onClick={onBack}
-          aria-label="Back to inbox"
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 md:hidden"
-        >
-          <ArrowLeft className="h-4 w-4" strokeWidth={1.5} />
-        </button>
-        <div>
-          <h1 className="text-sm font-semibold text-gray-900">
-            Agent lessons
-          </h1>
-          <p className="text-xs text-gray-500">
-            Drafted from your brief ratings. Approved lessons feed the next
-            prompt update — nothing changes the agent until you approve.
-          </p>
-        </div>
-      </header>
-
-      <div className="flex-1 overflow-y-auto px-6 py-6">
-        <div className="mx-auto max-w-3xl">
-          {loadFailed ? (
-            <p className="text-sm text-gray-500">
-              Lessons couldn&apos;t load. Refresh the page to try again.
-            </p>
-          ) : lessons === null ? (
-            <p className="inline-flex items-center gap-2 text-sm text-gray-500">
-              <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.75} />
-              Loading lessons…
-            </p>
-          ) : lessons.length === 0 ? (
-            <p className="text-sm text-gray-500">
-              No lessons yet. Rate a brief, then hit Generate lessons.
-            </p>
-          ) : (
-            <>
-              <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-                Needs review · {proposed.length}
-              </div>
-              {proposed.length === 0 ? (
-                <p className="mb-6 text-xs text-gray-400">
-                  Nothing waiting on you.
-                </p>
-              ) : (
-                <ul className="mb-8 space-y-3">
-                  {proposed.map((l) => (
-                    <li
-                      key={l.id}
-                      className="rounded-xl border border-gray-200 bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.03)]"
-                    >
-                      {editingId === l.id ? (
-                        <textarea
-                          value={draft}
-                          onChange={(e) => setDraft(e.target.value)}
-                          rows={3}
-                          maxLength={1000}
-                          autoFocus
-                          className="w-full resize-none rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0F2747]/15"
-                        />
-                      ) : (
-                        <p className="text-sm font-medium text-gray-900">
-                          {l.lesson_text}
-                        </p>
-                      )}
-                      {l.rationale && (
-                        <p className="mt-1.5 text-xs leading-relaxed text-gray-500">
-                          {l.rationale}
-                        </p>
-                      )}
-                      <div className="mt-3 flex items-center gap-2">
-                        {editingId === l.id ? (
-                          <>
-                            <Button
-                              size="sm"
-                              variant="primary"
-                              disabled={busyId === l.id || !draft.trim()}
-                              onClick={() => review(l.id, "approve", draft.trim())}
-                            >
-                              <Check className="h-3.5 w-3.5" strokeWidth={2} />
-                              Approve edited
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => setEditingId(null)}
-                            >
-                              Cancel
-                            </Button>
-                          </>
-                        ) : (
-                          <>
-                            <Button
-                              size="sm"
-                              variant="primary"
-                              disabled={busyId === l.id}
-                              onClick={() => review(l.id, "approve")}
-                            >
-                              <Check className="h-3.5 w-3.5" strokeWidth={2} />
-                              Approve
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              disabled={busyId === l.id}
-                              onClick={() => {
-                                setEditingId(l.id);
-                                setDraft(l.lesson_text);
-                              }}
-                            >
-                              <Pencil className="h-3.5 w-3.5" strokeWidth={1.75} />
-                              Edit
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              disabled={busyId === l.id}
-                              onClick={() => review(l.id, "reject")}
-                            >
-                              <X className="h-3.5 w-3.5" strokeWidth={2} />
-                              Reject
-                            </Button>
-                          </>
-                        )}
-                        {busyId === l.id && (
-                          <Loader2
-                            className="h-3.5 w-3.5 animate-spin text-gray-400"
-                            strokeWidth={1.75}
-                          />
-                        )}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-
-              {reviewed.length > 0 && (
-                <>
-                  <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-                    Reviewed · {reviewed.length}
-                  </div>
-                  <ul className="space-y-2">
-                    {reviewed.map((l) => (
-                      <li
-                        key={l.id}
-                        className="flex items-start gap-2.5 rounded-lg bg-gray-50 px-3.5 py-2.5"
-                      >
-                        <span
-                          className={cn(
-                            "mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium",
-                            l.status === "approved"
-                              ? "bg-emerald-100 text-emerald-800"
-                              : "bg-gray-200 text-gray-600",
-                          )}
-                        >
-                          {l.status === "approved" ? "Approved" : "Rejected"}
-                        </span>
-                        <p
-                          className={cn(
-                            "text-xs leading-relaxed",
-                            l.status === "approved"
-                              ? "text-gray-700"
-                              : "text-gray-400 line-through",
-                          )}
-                        >
-                          {l.lesson_text}
-                        </p>
-                      </li>
-                    ))}
-                  </ul>
-                </>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-
-// ──────────────────────────────────────────────────────────────
-// Model settings (global live config)
-// ──────────────────────────────────────────────────────────────
-
-interface ModelConfigView {
-  interview_model: string;
-  pills_model: string;
-  translate_model: string;
-  pills_thinking: string;
-  updated_at: string | null;
-  updated_by_name: string | null;
-}
-
-function ConfigSelect({
-  label,
-  hint,
-  value,
-  onChange,
-  disabled,
-  options,
-  showIds = false,
-}: {
-  label: string;
-  hint: string;
-  value: string;
-  onChange: (v: string) => void;
-  disabled: boolean;
-  options: { id: string; label: string }[];
-  showIds?: boolean;
-}) {
-  // If the stored value predates the curated list (e.g. an old env id), keep
-  // it selectable so we never silently swap the live value out from under it.
-  const known = options.some((o) => o.id === value);
-  return (
-    <div>
-      <label className="block text-sm font-medium text-gray-900">{label}</label>
-      <p className="mt-0.5 text-xs text-gray-500">{hint}</p>
-      <div className="relative mt-2">
-        <select
-          value={value}
-          disabled={disabled}
-          onChange={(e) => onChange(e.target.value)}
-          className="w-full appearance-none rounded-lg border border-gray-200 bg-white px-3 py-2 pr-9 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0F2747]/15 disabled:opacity-50"
-        >
-          {!known && value && (
-            <option value={value}>{value} (current — not in list)</option>
-          )}
-          {options.map((o) => (
-            <option key={o.id} value={o.id}>
-              {showIds ? `${o.label} · ${o.id}` : o.label}
-            </option>
-          ))}
-        </select>
-        <ChevronDown
-          className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
-          strokeWidth={1.75}
-        />
-      </div>
-    </div>
-  );
-}
-
-function SettingsPane({ onBack }: { onBack: () => void }) {
-  const [config, setConfig] = useState<ModelConfigView | null>(null);
-  const [loadFailed, setLoadFailed] = useState(false);
-  const [interview, setInterview] = useState("");
-  const [pills, setPills] = useState("");
-  const [translate, setTranslate] = useState("");
-  const [pillsThinking, setPillsThinking] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const [justSaved, setJustSaved] = useState(false);
-
-  function hydrate(c: ModelConfigView) {
-    setConfig(c);
-    setInterview(c.interview_model);
-    setPills(c.pills_model);
-    setTranslate(c.translate_model);
-    setPillsThinking(c.pills_thinking);
-  }
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch("/api/am/config");
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = (await res.json()) as { config: ModelConfigView };
-        hydrate(data.config);
-      } catch (e) {
-        console.error("model config load failed:", e);
-        setLoadFailed(true);
-      }
-    })();
-  }, []);
-
-  const dirty =
-    !!config &&
-    (interview !== config.interview_model ||
-      pills !== config.pills_model ||
-      translate !== config.translate_model ||
-      pillsThinking !== config.pills_thinking);
-
-  async function save() {
-    if (saving || !dirty) return;
-    setSaving(true);
-    setSaveError(null);
-    setJustSaved(false);
-    try {
-      const res = await fetch("/api/am/config", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          interview_model: interview,
-          pills_model: pills,
-          translate_model: translate,
-          pills_thinking: pillsThinking,
-        }),
-      });
-      const data = (await res.json()) as {
-        config?: ModelConfigView;
-        error?: string;
-      };
-      if (!res.ok || !data.config) {
-        throw new Error(data.error || `HTTP ${res.status}`);
-      }
-      hydrate(data.config);
-      setJustSaved(true);
-    } catch (e) {
-      console.error("model config save failed:", e);
-      setSaveError(e instanceof Error ? e.message : "Save failed");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <div className="flex h-full flex-col">
-      <header className="flex items-center gap-3 border-b border-gray-200 bg-white/85 px-6 py-4 backdrop-blur-xl">
-        <button
-          onClick={onBack}
-          aria-label="Back to inbox"
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 md:hidden"
-        >
-          <ArrowLeft className="h-4 w-4" strokeWidth={1.5} />
-        </button>
-        <div>
-          <h1 className="text-sm font-semibold text-gray-900">Models</h1>
-          <p className="text-xs text-gray-500">
-            The live Gemini models for buyer chat. Saving changes them for every
-            conversation immediately — compare performance in PostHog.
-          </p>
-        </div>
-      </header>
-
-      <div className="flex-1 overflow-y-auto px-6 py-6">
-        <div className="mx-auto max-w-xl">
-          {loadFailed ? (
-            <p className="text-sm text-gray-500">
-              Settings couldn&apos;t load. Refresh the page to try again.
-            </p>
-          ) : config === null ? (
-            <p className="inline-flex items-center gap-2 text-sm text-gray-500">
-              <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.75} />
-              Loading settings…
-            </p>
-          ) : (
-            <>
-              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-                <p className="text-xs leading-relaxed text-amber-800">
-                  Global &amp; live: these apply to <strong>all</strong>{" "}
-                  buyer chats, not a sandbox. There&apos;s no per-tester
-                  isolation — buyers chat anonymously before a manager is
-                  assigned.
-                </p>
-              </div>
-
-              <div className="mt-6 space-y-6">
-                <ConfigSelect
-                  label="Interview model"
-                  hint="Buyer interview turn + lesson drafting (GEMINI_MODEL)."
-                  value={interview}
-                  onChange={setInterview}
-                  disabled={saving}
-                  options={GEMINI_MODELS}
-                  showIds
-                />
-                <ConfigSelect
-                  label="Pills model"
-                  hint="Quick-reply suggestion pass (GEMINI_PILLS_MODEL)."
-                  value={pills}
-                  onChange={setPills}
-                  disabled={saving}
-                  options={GEMINI_MODELS}
-                  showIds
-                />
-                <ConfigSelect
-                  label="Pills thinking"
-                  hint="Reasoning effort on the pills pass — runs every turn, so higher = more cost + latency. Off/Low are the cheap/fast picks."
-                  value={pillsThinking}
-                  onChange={setPillsThinking}
-                  disabled={saving}
-                  options={PILLS_THINKING_LEVELS}
-                />
-                <ConfigSelect
-                  label="Translate model"
-                  hint="AM-side language detection + translation (GEMINI_TRANSLATE_MODEL)."
-                  value={translate}
-                  onChange={setTranslate}
-                  disabled={saving}
-                  options={GEMINI_MODELS}
-                  showIds
-                />
-              </div>
-
-              <div className="mt-7 flex items-center gap-3">
-                <Button
-                  type="button"
-                  variant="primary"
-                  disabled={!dirty || saving}
-                  onClick={save}
-                >
-                  {saving ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} />
-                  ) : (
-                    <Check className="h-3.5 w-3.5" strokeWidth={2} />
-                  )}
-                  {saving ? "Saving…" : "Save"}
-                </Button>
-                {saveError ? (
-                  <span className="text-xs text-red-600">{saveError}</span>
-                ) : justSaved && !dirty ? (
-                  <span className="text-xs text-emerald-700">Saved.</span>
-                ) : null}
-              </div>
-
-              {config.updated_at && (
-                <p className="mt-4 text-[11px] text-gray-400">
-                  Last saved {new Date(config.updated_at).toLocaleString()}
-                  {config.updated_by_name ? ` by ${config.updated_by_name}` : ""}.
-                </p>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-
-function EmptyState({ loading }: { loading: boolean }) {
-  return (
-    <div className="flex h-full items-center justify-center text-center text-sm text-gray-500">
-      {loading ? (
-        <span className="inline-flex items-center gap-2">
-          <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.75} />
-          Loading brief…
-        </span>
-      ) : (
-        <span>Pick a brief from the inbox to start replying.</span>
-      )}
     </div>
   );
 }

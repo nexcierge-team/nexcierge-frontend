@@ -25,7 +25,9 @@ app/
 ├── globals.css
 ├── page.tsx                Landing
 ├── chat/page.tsx           Buyer chat — uses `useChat` hook
-├── dashboard/page.tsx      Account-manager inbox + reply UI (role-gated)
+├── dashboard/page.tsx      Account-manager dashboard orchestrator (role-gated) — state, data
+│                             fetching, realtime; renders components/dashboard/* views:
+│                             Overview (stats + briefs table) / open brief / Lessons / Models
 ├── about/page.tsx
 ├── contact/page.tsx
 ├── auth/
@@ -62,7 +64,20 @@ components/
 │   │                         drives the buyer's translated/original dual render;
 │   │                         `amDisplayLanguage` drives the AM's original/translated dual render
 │   └── ProfileSummaryCard.tsx
-└── dashboard/              (legacy mock components — kept for reference, not used by /dashboard)
+└── dashboard/              AM dashboard UI modules (all state + data fetching stays in app/dashboard/page.tsx)
+    ├── types.ts            InboxBrief / OpenBrief / ClaimStatus + rowToMessage
+    ├── DashboardSidebar.tsx  Left nav rail: Overview / Lessons / Models + AccountMenu footer
+    ├── GateScreen.tsx      401 / 403 / load-failure full-screen gates
+    ├── OverviewPane.tsx    Landing view: greeting, search, stat cards, briefs table, attention strip
+    ├── StatCard.tsx        Headline stat card (label + value + toned icon chip)
+    ├── RfqTable.tsx        Incoming-briefs table — All/Mine/Unclaimed tabs + client-side search + 10-per-page pager
+    ├── AttentionCards.tsx  Actionable "needs your attention" cards (unclaimed / lessons / mine)
+    ├── BriefPane.tsx       Open brief: chat thread + composer + claim CTA + BriefSummary
+    ├── BriefSummary.tsx    Brief-details sidebar (buyer / machine / delivery / specs / CRM / rating)
+    ├── RatingSection.tsx   Lead-quality rating + Generate-lessons card
+    ├── LanguageSelector.tsx  AM working-language dropdown
+    ├── LessonsPane.tsx     Lessons review queue
+    └── SettingsPane.tsx    Live Gemini model config
 
 lib/
 ├── utils.ts
@@ -97,8 +112,7 @@ supabase/
 └── README.md               Step-by-step setup the human operator does once
 
 types/
-├── chat.ts                 Message / BuyerProfile / ChatRole / MessageFrom (UI types)
-└── dashboard.ts            (legacy mock types)
+└── chat.ts                 Message / BuyerProfile / ChatRole / MessageFrom (UI types)
 
 instrumentation-client.ts   PostHog bootstrap (Next.js convention — runs pre-hydration).
                             Autocapture + SPA pageviews on by default; init is skipped
@@ -233,7 +247,7 @@ There is no language picker — Gemini mirrors the buyer's language naturally. T
 
 **AM display language (buyer/AI/AM → AM).** Separately, the AM dashboard lets the AM read a brief's **chat thread** in a chosen working language (`en`/`zh`/`hi`, or "Original only"; the set lives in `lib/amLanguages.ts`). `POST /api/am/sessions/[id]/translate` translates each message into that language on demand and caches the result in `chat_messages.metadata.translations[lang]` (admin client; never re-translated). `MessageBubble` in the AM view shows the original as primary and the translation below — but only when there IS one: a message already in the working language (e.g. the AM's own `zh` reply while reading in `zh`) is echoed verbatim by the backend and skipped, so it renders with no redundant secondary line.
 
-The **"Brief details" sidebar is not translated — the brief reads in English regardless of the AM display language.** Its free-text `rfqs` values (`machine_type`, `intended_application`, `additional_notes`, each `technical_specifications` value) render exactly as the buyer submitted them, in the buyer's own conversation language — `BriefSummary` (`app/dashboard/page.tsx`) reads them straight off the row. Sourcing brief content is shown as-is; a future "download brief in language X" export can translate on demand. (The old `translate-brief` route and the `rfqs.translations` cache column were removed — migration `0012` drops the column added in `0011`.) The brief's reading surface is **pinned to English** so it stays canonical against HubSpot/CRM records: section titles + field labels + the `timeline`/`condition` enum tables come from `cardStrings("en")`, and the in-brief chrome ("Brief details" title, empty-specs placeholder) from `amBriefStrings("")`. Only the AM-workflow chrome below the brief — the CRM section (status pill, HubSpot copy) and the lead-rating / lesson-generation card — localizes to the AM's chosen language via `lib/amBriefStrings.ts`, scoped to just `en`/`zh`/`hi`.
+The **"Brief details" sidebar is not translated — the brief reads in English regardless of the AM display language.** Its free-text `rfqs` values (`machine_type`, `intended_application`, `additional_notes`, each `technical_specifications` value) render exactly as the buyer submitted them, in the buyer's own conversation language — `BriefSummary` (`components/dashboard/BriefSummary.tsx`) reads them straight off the row. Sourcing brief content is shown as-is; a future "download brief in language X" export can translate on demand. (The old `translate-brief` route and the `rfqs.translations` cache column were removed — migration `0012` drops the column added in `0011`.) The brief's reading surface is **pinned to English** so it stays canonical against HubSpot/CRM records: section titles + field labels + the `timeline`/`condition` enum tables come from `cardStrings("en")`, and the in-brief chrome ("Brief details" title, empty-specs placeholder) from `amBriefStrings("")`. Only the AM-workflow chrome below the brief — the CRM section (status pill, HubSpot copy) and the lead-rating / lesson-generation card — localizes to the AM's chosen language via `lib/amBriefStrings.ts`, scoped to just `en`/`zh`/`hi`.
 
 The selector sits in the brief header and persists in `localStorage`. Cost control: cache forever, skip when source == target (or the model echoes the input), Flash-Lite only, per-AM rate limit — see API_INTEGRATION.md.
 
@@ -297,7 +311,7 @@ The user-scoped client (`getSupabaseServer()`) respects RLS. The admin client (`
 
 The interview agent is prompt-driven and stateless, so it only "learns" through curated prompt changes. The dashboard feeds that loop with ground-truth labels and machine-drafted candidates:
 
-1. **Rate** — after claiming a handed-off brief, the AM rates the AI interview's output in the brief sidebar (`RatingSection` in `app/dashboard/page.tsx`): `lead_quality` (`qualified` / `partial` / `junk`), flagged-field checkboxes (enum slugs: `machine_type`, `specs`, `quantity`, `delivery`, `timeline`, `contact`), and an optional free-text note. `POST /api/am/sessions/[id]/rating` writes these onto the `rfqs` row (migration 0014). Only the assigned AM can rate (409 otherwise); re-rating overwrites. This label is deliberately distinct from `rfqs.status` (won/lost) — it judges the *interview*, not the deal.
+1. **Rate** — after claiming a handed-off brief, the AM rates the AI interview's output in the brief sidebar (`components/dashboard/RatingSection.tsx`): `lead_quality` (`qualified` / `partial` / `junk`), flagged-field checkboxes (enum slugs: `machine_type`, `specs`, `quantity`, `delivery`, `timeline`, `contact`), and an optional free-text note. `POST /api/am/sessions/[id]/rating` writes these onto the `rfqs` row (migration 0014). Only the assigned AM can rate (409 otherwise); re-rating overwrites. This label is deliberately distinct from `rfqs.status` (won/lost) — it judges the *interview*, not the deal.
 2. **Generate** — the rated card unlocks **Generate lessons**. `POST /api/am/sessions/[id]/lessons` loads the AI-interview transcript (user + ai messages only), sends it with the rating to FastAPI `POST /draft-lessons` (`prompt_type: lesson_draft` — see `backend/docs/API.md`), and inserts the 0-3 returned drafts into `agent_lessons` as `proposed`. Rate-limited (20/h per AM); requires claim + rating (409 otherwise).
 3. **Review** — the **Lessons** view (button in the inbox header → `LessonsPane`) lists proposed lessons with their rationale. The AM approves (optionally editing the text first), or rejects. `PATCH /api/am/lessons/[id]` records the decision + reviewer; `GET /api/am/lessons` feeds the list. `agent_lessons` is AM-only under RLS (`is_account_manager()`).
 4. **Apply** — *manual, by design.* Nothing consumes approved lessons automatically: they are the curated input for the next `backend/app/prompts.py` change (each applied lesson should also gain a few-shot + a `test_scope.py` case per the testing policy). If/when runtime lesson injection is built, only `approved` rows may ever reach the prompt, and never in a way that can touch the critical constraints.
@@ -306,7 +320,7 @@ The interview agent is prompt-driven and stateless, so it only "learns" through 
 
 - New page → place under `app/`. Server Component by default; `"use client"` only if it needs state/effects.
 - New chat-affecting state → update `lib/useChat.ts` AND, if the AM dashboard needs the same data, mirror in `app/dashboard/page.tsx`.
-- New profile field → update `types/chat.ts` BuyerProfile, `ProfileSummaryCard`, `app/dashboard/page.tsx` BriefSummary, the backend (`_empty_profile` + tool + prompt), the `rfqs` migration, `lib/db/rfqs.ts` converters, and the HubSpot mapping in `lib/hubspot/sync.ts`.
+- New profile field → update `types/chat.ts` BuyerProfile, `ProfileSummaryCard`, `components/dashboard/BriefSummary.tsx`, the backend (`_empty_profile` + tool + prompt), the `rfqs` migration, `lib/db/rfqs.ts` converters, and the HubSpot mapping in `lib/hubspot/sync.ts`.
 - New AM-only route → put under `app/api/am/*`, gate with `requireAccountManager()` at the top of the handler.
 - **New feature → decide its tracking before shipping** (see § Analytics). Add a PostHog event when the feature is (a) a buyer funnel step (creation / completion / conversion), (b) an AM productivity action, or (c) an operational failure worth alarming on. Pure reads and internal refactors don't get events. Server-side: `captureServer(userId, "event_name", props)`; browser-only interactions: `posthog.capture(...)`. Conventions: snake_case past-tense names (`review_requested`, not `RequestReview`), distinct_id = Supabase user id, props limited to ids + enums/booleans — never emails or free text. Then add a row to the event table in § Analytics; an undocumented event is a future mystery.
 - **Always update `docs/ARCHITECTURE.md` when adding a route, changing the state machine, or changing the API integration pattern.**

@@ -20,8 +20,8 @@ export async function GET() {
       `
       id, status, handoff_requested_at, assigned_am_user_id, title, updated_at,
       rfqs:rfqs(full_name, company_name, business_email, machine_type,
-                intended_application, delivery_country, purchase_timeline,
-                hubspot_deal_id)
+                intended_application, quantity, delivery_country,
+                delivery_city_or_port, purchase_timeline, hubspot_deal_id)
     `,
     )
     .eq("status", "in_handoff")
