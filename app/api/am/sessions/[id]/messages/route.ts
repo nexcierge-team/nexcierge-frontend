@@ -5,7 +5,7 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { insertMessage, listMessages } from "@/lib/db/messages";
 import { getSession, setSessionLanguage } from "@/lib/db/sessions";
 import { translateText, detectLanguage } from "@/lib/translate";
-import { checkRateLimit, rateLimited429 } from "@/lib/rateLimit";
+import { checkRateLimit, RATE_LIMITS, rateLimited429 } from "@/lib/rateLimit";
 import { captureServer } from "@/lib/analytics";
 import { validateAttachments } from "@/lib/attachments";
 import type { Attachment } from "@/types/chat";
@@ -71,10 +71,12 @@ export async function POST(
   }
   const { id } = await ctx.params;
 
-  // Per-AM cap on outbound messages. Each send may trigger a Gemini
-  // translation call (paid), so we bound it. 120/min is generous —
-  // AMs are humans, not scripts.
-  const amLimit = await checkRateLimit(`am-msg:user:${gate.userId}`, 120, 60);
+  // Per-AM cap on outbound messages — each send may trigger a paid
+  // Gemini translation call (limit rationale in RATE_LIMITS).
+  const amLimit = await checkRateLimit(
+    `am-msg:user:${gate.userId}`,
+    RATE_LIMITS.amMessages,
+  );
   if (!amLimit.allowed) return rateLimited429(amLimit);
 
   let body: PostBody;

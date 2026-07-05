@@ -5,7 +5,7 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { listMessages, cacheMessageTranslation } from "@/lib/db/messages";
 import { getSession } from "@/lib/db/sessions";
 import { translateText } from "@/lib/translate";
-import { checkRateLimit, rateLimited429 } from "@/lib/rateLimit";
+import { checkRateLimit, RATE_LIMITS, rateLimited429 } from "@/lib/rateLimit";
 import { AM_DISPLAY_LANGUAGES } from "@/lib/amLanguages";
 
 // Translate uncached messages a few at a time so a long thread's first
@@ -62,13 +62,10 @@ export async function POST(
   }
 
   // Each uncached message may trigger a paid Gemini call, so bound how
-  // fast an AM can fan these out. Generous — opening a few briefs and
-  // toggling between display languages stays well under the limit because
-  // translations are cached after the first pass.
+  // fast an AM can fan these out (limit rationale in RATE_LIMITS).
   const limit = await checkRateLimit(
     `am-translate:user:${gate.userId}`,
-    60,
-    60,
+    RATE_LIMITS.amTranslate,
   );
   if (!limit.allowed) return rateLimited429(limit);
 

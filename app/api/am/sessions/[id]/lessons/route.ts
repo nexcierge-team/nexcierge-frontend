@@ -4,7 +4,7 @@ import { getSupabaseServer } from "@/lib/supabase/server";
 import { getSession } from "@/lib/db/sessions";
 import { getRfq, rfqRowToProfile } from "@/lib/db/rfqs";
 import { listMessages } from "@/lib/db/messages";
-import { checkRateLimit, rateLimited429 } from "@/lib/rateLimit";
+import { checkRateLimit, RATE_LIMITS, rateLimited429 } from "@/lib/rateLimit";
 import { captureServer } from "@/lib/analytics";
 import { getModelConfig } from "@/lib/modelConfig";
 import type { AgentLessonsRow } from "@/lib/supabase/types";
@@ -38,7 +38,10 @@ export async function POST(
   const { id } = await ctx.params;
 
   // Each click is a paid Gemini call over a full transcript — bound it.
-  const limit = await checkRateLimit(`am-lessons:user:${gate.userId}`, 20, 3600);
+  const limit = await checkRateLimit(
+    `am-lessons:user:${gate.userId}`,
+    RATE_LIMITS.amLessons,
+  );
   if (!limit.allowed) return rateLimited429(limit);
 
   const supabase = await getSupabaseServer();

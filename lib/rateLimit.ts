@@ -13,6 +13,35 @@ import { captureServer } from "@/lib/analytics";
 // the actual value. Each (scope, dim, id) tuple gets one window in the
 // table. Same identifier under different scopes counts independently.
 
+export interface RateLimitConfig {
+  max: number;
+  windowSeconds: number;
+}
+
+// Per-route rate-limit policy — the single place limits are defined.
+// Property names mirror the key scope each route uses (see the keying
+// convention above); the call site still builds the full key string.
+export const RATE_LIMITS = {
+  // POST /api/chat, per user. Generous for a human typing but tight
+  // enough to bound automated amplification of Gemini spend.
+  chat: { max: 40, windowSeconds: 60 },
+  // POST /api/chat/start, per IP. Caps anonymous auth.users creation
+  // at ~1500/day per source IP.
+  chatStart: { max: 60, windowSeconds: 3600 },
+  // POST /api/request-review, per user. Stops accidental
+  // double-clicks-after-422 from creating a CRM mess.
+  requestReview: { max: 5, windowSeconds: 3600 },
+  // POST /api/am/sessions/[id]/messages, per AM. Each message can
+  // trigger a paid translation call; AMs are humans, not scripts.
+  amMessages: { max: 120, windowSeconds: 60 },
+  // POST /api/am/sessions/[id]/translate, per AM. Toggling display
+  // languages stays well under this because translations are cached.
+  amTranslate: { max: 60, windowSeconds: 60 },
+  // POST /api/am/sessions/[id]/lessons, per AM. Each click is a paid
+  // Gemini call over a full transcript.
+  amLessons: { max: 20, windowSeconds: 3600 },
+} as const satisfies Record<string, RateLimitConfig>;
+
 export interface RateLimitResult {
   allowed: boolean;
   remaining: number;
@@ -27,8 +56,7 @@ interface CheckRateLimitRow {
 
 export async function checkRateLimit(
   key: string,
-  max: number,
-  windowSeconds: number,
+  { max, windowSeconds }: RateLimitConfig,
 ): Promise<RateLimitResult> {
   const admin = getSupabaseAdmin();
   // `as never` on the args: the admin client is created without the

@@ -250,16 +250,18 @@ Defence in depth against (a) anonymous-signup spam filling `auth.users` and (b) 
 - `public.check_rate_limit(p_key, p_max, p_window_seconds) returns (allowed, remaining, reset_at)` — `security definer` UPSERT-and-increment in a single statement so two concurrent callers can't both see "under the limit"
 - RLS on the table is closed; all access goes through the RPC
 
-`lib/rateLimit.ts` wraps the RPC and exposes `checkRateLimit(key, max, windowSeconds)`, `rateLimited429(result)`, and `getClientIp(req)`. Failure mode: **fails OPEN** on RPC error with a loud `console.error` — a broken rate-limit table should never wedge the app.
+`lib/rateLimit.ts` wraps the RPC and exposes `checkRateLimit(key, config)`, `rateLimited429(result)`, and `getClientIp(req)`. Failure mode: **fails OPEN** on RPC error with a loud `console.error` — a broken rate-limit table should never wedge the app.
 
-**Per-route caps (the policy):**
+**Per-route caps (the policy):** all limits live in the `RATE_LIMITS` constant in `lib/rateLimit.ts` — change them there, not at call sites. Current values:
 
-| Route | Key | Limit |
-|---|---|---|
-| `GET /api/chat/start` | IP | 60 / hour |
-| `POST /api/chat` | user_id | 40 / min |
-| `POST /api/request-review` | user_id | 5 / hour |
-| `POST /api/am/sessions/[id]/messages` | AM user_id | 120 / min |
+| Route | Key | `RATE_LIMITS` entry | Limit |
+|---|---|---|---|
+| `GET /api/chat/start` | IP | `chatStart` | 60 / hour |
+| `POST /api/chat` | user_id | `chat` | 40 / min |
+| `POST /api/request-review` | user_id | `requestReview` | 5 / hour |
+| `POST /api/am/sessions/[id]/messages` | AM user_id | `amMessages` | 120 / min |
+| `POST /api/am/sessions/[id]/translate` | AM user_id | `amTranslate` | 60 / min |
+| `POST /api/am/sessions/[id]/lessons` | AM user_id | `amLessons` | 20 / hour |
 
 `/api/chat/start` is the critical one — its check runs **before** `getOrCreateUser()` so we never create the anon `auth.users` row we're trying to prevent. All others run after auth resolution and key on the resolved user.
 

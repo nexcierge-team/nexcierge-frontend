@@ -13,7 +13,7 @@ import {
 } from "@/lib/constants";
 import { hubspotEnabled } from "@/lib/hubspot/client";
 import { HubspotValidationError, syncBriefToHubspot } from "@/lib/hubspot/sync";
-import { checkRateLimit, rateLimited429 } from "@/lib/rateLimit";
+import { checkRateLimit, RATE_LIMITS, rateLimited429 } from "@/lib/rateLimit";
 import { captureServer } from "@/lib/analytics";
 import { translateText } from "@/lib/translate";
 
@@ -40,13 +40,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Auth failure" }, { status: 500 });
   }
 
-  // Per-user cap on handoff attempts. HubSpot deal creation is non-
-  // idempotent in the failure path and audited; 5/hour stops accidental
-  // double-clicks-after-422 from creating a CRM mess.
+  // Per-user cap on handoff attempts — HubSpot deal creation is non-
+  // idempotent in the failure path (limit rationale in RATE_LIMITS).
   const handoffLimit = await checkRateLimit(
     `request-review:user:${auth.userId}`,
-    5,
-    3600,
+    RATE_LIMITS.requestReview,
   );
   if (!handoffLimit.allowed) return rateLimited429(handoffLimit);
 
