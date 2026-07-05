@@ -116,9 +116,10 @@ export function BriefSummary({
 
         <PanelSection title={chrome.sectionCrm}>
           {rfq.hubspot_deal_id ? (
-            <p className="text-xs text-gray-500">
-              {chrome.hubspotDealPrefix} {rfq.hubspot_deal_id}
-            </p>
+            <CopyableId
+              label={chrome.hubspotDealPrefix}
+              value={rfq.hubspot_deal_id}
+            />
           ) : (
             <p className="text-xs italic text-gray-400">
               {chrome.notPushedToHubspot}
@@ -225,9 +226,10 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-// Click-to-copy id row (CRM section). AMs need the session UUID for SQL
-// forensics — clearing a cached translation, querying chat_messages —
-// without digging it out of devtools network calls.
+// Click-to-copy id row (CRM section) — HubSpot deal id and session UUID.
+// AMs need these for HubSpot lookups and SQL forensics — clearing a cached
+// translation, querying chat_messages — without digging them out of
+// devtools network calls.
 function CopyableId({ label, value }: { label: string; value: string }) {
   const [copied, setCopied] = useState(false);
   return (
