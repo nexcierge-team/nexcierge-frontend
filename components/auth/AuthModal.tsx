@@ -13,6 +13,11 @@ interface AuthModalProps {
   // Path the user lands on after sign-in. Defaults to the current chat
   // page with a resume flag so the interrupted handoff click auto-fires.
   redirectTo?: string;
+  // Heading + supporting copy. Defaults to the handoff context ("save your
+  // sourcing request"); the guest signup gate passes its own message-limit
+  // copy. The auth flows themselves (Google / magic link) are identical.
+  title?: string;
+  description?: string;
 }
 
 type FlowState =
@@ -42,6 +47,8 @@ export function AuthModal({
   open,
   onClose,
   redirectTo,
+  title = "Save your sourcing request",
+  description = "Create your free Nexcierge account to send this brief to our account manager and keep track of progress.",
 }: AuthModalProps) {
   const [email, setEmail] = useState("");
   const [flow, setFlow] = useState<FlowState>({ kind: "idle" });
@@ -171,11 +178,10 @@ export function AuthModal({
                 id="auth-modal-title"
                 className="text-lg font-semibold tracking-[-0.01em] text-gray-900"
               >
-                Save your sourcing request
+                {title}
               </h2>
               <p className="mt-1.5 text-sm leading-relaxed text-gray-500">
-                Create your free Nexcierge account to send this brief to our
-                account manager and keep track of progress.
+                {description}
               </p>
 
               {flow.kind === "magic_link_sent" ? (

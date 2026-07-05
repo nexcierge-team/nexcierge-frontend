@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, Sparkles, X } from "lucide-react";
+import { ArrowRight, Lock, Sparkles, X } from "lucide-react";
 import { useChat } from "@/lib/useChat";
 import { ChatComposer } from "@/components/chat/ChatComposer";
 import {
@@ -25,6 +25,7 @@ export function HeroChatModal({
   onClose,
 }: HeroChatModalProps) {
   const {
+    sessionId,
     messages,
     loading,
     sendMessage,
@@ -34,6 +35,10 @@ export function HeroChatModal({
     requestReview,
     authPromptOpen,
     dismissAuthPrompt,
+    signupRequired,
+    signupGateOpen,
+    openSignupGate,
+    dismissSignupGate,
     otherIsTyping,
     notifyTyping,
     language,
@@ -81,6 +86,10 @@ export function HeroChatModal({
 
   function handleSubmit() {
     if (!input.trim() || loading) return;
+    if (signupRequired) {
+      openSignupGate();
+      return;
+    }
     sendMessage(input);
     setInput("");
   }
@@ -173,7 +182,7 @@ export function HeroChatModal({
                       retryDisabled={loading}
                       sessionLanguage={language}
                       onSuggestion={
-                        i === messages.length - 1 && !loading
+                        i === messages.length - 1 && !loading && !signupRequired
                           ? sendMessage
                           : undefined
                       }
@@ -187,27 +196,56 @@ export function HeroChatModal({
 
             {/* Composer */}
             <div className="border-t border-gray-200 bg-white px-6 py-4">
-              <ChatComposer
-                value={input}
-                onChange={(v) => {
-                  setInput(v);
-                  if (v) notifyTyping();
-                }}
-                onSubmit={handleSubmit}
-                disabled={loading}
-                placeholder={
-                  reviewRequested
-                    ? "Message your account manager…"
-                    : "Message Nexcierge…"
-                }
-                autoFocus
-              />
+              {signupRequired ? (
+                // Guest hit the free-message limit — lock the composer behind
+                // a signup CTA (same gate as the full chat view).
+                <button
+                  type="button"
+                  onClick={openSignupGate}
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl border border-[#0F2747]/20 bg-[#0F2747]/[0.03] px-5 py-3.5 text-sm font-medium text-[#0F2747] transition-colors hover:border-[#0F2747]/40 hover:bg-[#0F2747]/[0.06]"
+                >
+                  <Lock className="h-4 w-4" strokeWidth={1.75} />
+                  Sign in to keep chatting
+                </button>
+              ) : (
+                <ChatComposer
+                  value={input}
+                  onChange={(v) => {
+                    setInput(v);
+                    if (v) notifyTyping();
+                  }}
+                  onSubmit={handleSubmit}
+                  disabled={loading}
+                  placeholder={
+                    reviewRequested
+                      ? "Message your account manager…"
+                      : "Message Nexcierge…"
+                  }
+                  autoFocus
+                />
+              )}
               <div className="mt-2 text-center text-[11px] text-gray-400">
-                Press Enter to send · Esc to close
+                {signupRequired
+                  ? "You've reached the free message limit for guests."
+                  : "Press Enter to send · Esc to close"}
               </div>
             </div>
           </motion.div>
-          <AuthModal open={authPromptOpen} onClose={dismissAuthPrompt} />
+          {/* Handoff gate — suppressed while the signup gate is up. */}
+          <AuthModal
+            open={authPromptOpen && !signupGateOpen}
+            onClose={dismissAuthPrompt}
+          />
+          {/* Guest signup gate. Sign-in triggers a full-page redirect, so we
+              send the buyer to the full /chat view on their same session
+              rather than back into this homepage overlay. */}
+          <AuthModal
+            open={signupGateOpen}
+            onClose={dismissSignupGate}
+            redirectTo={sessionId ? `/chat?session_id=${sessionId}` : "/chat"}
+            title="Create your free account to continue"
+            description="You've used your free preview messages. Sign in to keep chatting with your sourcing concierge — your conversation stays saved."
+          />
         </motion.div>
       )}
     </AnimatePresence>

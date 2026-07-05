@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import posthog from "posthog-js";
 import { useRealtimeChat } from "@/lib/useRealtimeChat";
 import { chatStrings } from "@/lib/chatStrings";
 import type {
@@ -18,6 +19,12 @@ import { attachmentsFromMetadata } from "@/lib/attachments";
 function newMessageId() {
   return Math.random().toString(36).slice(2);
 }
+
+// Free-preview allowance for anonymous (not-signed-in) buyers. After sending
+// this many messages, a signup gate blocks further chatting until they link
+// an identity (Google / magic link). Signed-in buyers are never gated. The
+// count is buyer turns only — AI replies don't consume the allowance.
+const FREE_MESSAGE_LIMIT = 3;
 
 // Idempotency key sent as client_message_id on POST /api/chat. One per
 // send; retry() reuses the failed send's key so a timed-out request
@@ -116,6 +123,11 @@ export function useChat(options: UseChatOptions = {}) {
   // Open AuthModal when /api/request-review returns 401 + auth_required.
   // The chat page renders the modal; we just signal here.
   const [authPromptOpen, setAuthPromptOpen] = useState(false);
+  // Guest signup gate: opens once an anonymous buyer exhausts their free
+  // preview (FREE_MESSAGE_LIMIT). Same AuthModal, different copy — see the
+  // chat page. Separate from authPromptOpen so the handoff gate and the
+  // message gate can't clobber each other's open state.
+  const [signupGateOpen, setSignupGateOpen] = useState(false);
   // Snapshot of the profile we last rendered as a card. Re-attach the
   // card on any subsequent reply where the profile content changed.
   const [lastAttachedProfile, setLastAttachedProfile] = useState<string | null>(
@@ -132,6 +144,21 @@ export function useChat(options: UseChatOptions = {}) {
 
   const sessionId = bootstrap?.sessionId ?? null;
   const reviewRequested = bootstrap?.reviewRequested ?? false;
+
+  // Guest signup gate. Anonymous buyers get FREE_MESSAGE_LIMIT free turns;
+  // past that we block sending until they sign in. Count is buyer turns only
+  // (role === "user"), which includes the optimistic bubble already on
+  // screen. `isAnonymous` defaults to true until bootstrap resolves so we
+  // never leak free turns during the initial load. reviewRequested implies a
+  // signed-in buyer (handoff is auth-gated), so it can't coincide, but the
+  // guard keeps the two states independent.
+  const isAnonymous = bootstrap?.isAnonymous ?? true;
+  const userMessageCount = messages.reduce(
+    (n, m) => (m.role === "user" ? n + 1 : n),
+    0,
+  );
+  const signupRequired =
+    isAnonymous && !reviewRequested && userMessageCount >= FREE_MESSAGE_LIMIT;
 
   // ── Bootstrap (initial mount + every in-place session switch) ──
   // Re-fires whenever `targetSessionId` changes. We DON'T clear
@@ -391,6 +418,13 @@ export function useChat(options: UseChatOptions = {}) {
   async function sendMessage(text: string): Promise<void> {
     const trimmed = text.trim();
     if (!trimmed || loading || !sessionId) return;
+    // Guest hit the free-message limit — surface the signup gate instead of
+    // sending. The composer is already locked in the UI, but a suggestion
+    // pill or a stray Enter could still reach here.
+    if (signupRequired) {
+      setSignupGateOpen(true);
+      return;
+    }
     const clientId = newClientMessageId();
     setLastUserMessage({ text: trimmed, clientId });
     setMessages((prev) => [
@@ -506,6 +540,32 @@ export function useChat(options: UseChatOptions = {}) {
     setAuthPromptOpen(false);
   }
 
+  const openSignupGate = useCallback(() => setSignupGateOpen(true), []);
+  const dismissSignupGate = useCallback(() => setSignupGateOpen(false), []);
+
+  // Proactively surface the signup gate the moment an anonymous buyer's free
+  // preview runs out — after their FREE_MESSAGE_LIMIT-th reply lands, not
+  // mid-turn while the AI is still typing (hence the !loading gate). Ref-guard
+  // so dismissing the modal doesn't immediately reopen it on the next render;
+  // it resets once the buyer signs in (isAnonymous flips false →
+  // signupRequired false) or otherwise leaves the gated state.
+  const gateAutoOpenedRef = useRef(false);
+  useEffect(() => {
+    if (!signupRequired) {
+      gateAutoOpenedRef.current = false;
+      return;
+    }
+    if (loading || gateAutoOpenedRef.current) return;
+    gateAutoOpenedRef.current = true;
+    setSignupGateOpen(true);
+    // Buyer funnel step: how many guests hit the wall (and, via auth_completed
+    // → the same person, how many convert). Browser-side capture, guarded like
+    // PostHogIdentify; number-only prop, no PII.
+    if (process.env.NEXT_PUBLIC_POSTHOG_KEY) {
+      posthog.capture("signup_gate_shown", { message_count: userMessageCount });
+    }
+  }, [signupRequired, loading, userMessageCount]);
+
   // Realtime: deduped INSERT + UPDATE handlers + typing presence.
   // Delegated to useRealtimeChat so the same logic powers both buyer
   // and AM views.
@@ -608,9 +668,13 @@ export function useChat(options: UseChatOptions = {}) {
     reviewRequested,
     reviewSubmitting,
     bootstrapError,
-    isAnonymous: bootstrap?.isAnonymous ?? true,
+    isAnonymous,
     authPromptOpen,
     dismissAuthPrompt,
+    signupRequired,
+    signupGateOpen,
+    openSignupGate,
+    dismissSignupGate,
     otherIsTyping,
     notifyTyping,
     sendMessage,

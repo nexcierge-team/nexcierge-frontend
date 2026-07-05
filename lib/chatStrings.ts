@@ -17,6 +17,10 @@ export interface ChatStrings {
   sendAria: string;
   historyAria: string;
   newChatAria: string;
+  // Guest signup gate: shown in place of the composer once an anonymous
+  // buyer has used up their free-preview messages (see useChat).
+  gateButton: string;
+  gateHint: string;
   errDelete: string;
   errBootstrap: string;
   errNoReply: string;
@@ -34,6 +38,8 @@ const en: ChatStrings = {
   sendAria: "Send message",
   historyAria: "Open chat history",
   newChatAria: "New conversation",
+  gateButton: "Sign in to keep chatting",
+  gateHint: "You've reached the free message limit for guests.",
   errDelete: "Couldn't delete that conversation. Please try again.",
   errBootstrap: "Couldn't start a chat session. Refresh to try again.",
   errNoReply: "The AI didn't return a reply. Please try again.",
@@ -54,6 +60,8 @@ const es: ChatStrings = {
   sendAria: "Enviar mensaje",
   historyAria: "Abrir historial de chat",
   newChatAria: "Nueva conversación",
+  gateButton: "Inicia sesión para seguir chateando",
+  gateHint: "Has alcanzado el límite de mensajes gratuitos para invitados.",
   errDelete: "No se pudo eliminar esa conversación. Inténtalo de nuevo.",
   errBootstrap:
     "No se pudo iniciar una sesión de chat. Actualiza para reintentar.",
@@ -75,6 +83,8 @@ const zh: ChatStrings = {
   sendAria: "发送消息",
   historyAria: "打开聊天记录",
   newChatAria: "新建对话",
+  gateButton: "登录以继续聊天",
+  gateHint: "您已达到访客的免费消息上限。",
   errDelete: "无法删除该对话，请重试。",
   errBootstrap: "无法启动聊天会话，请刷新重试。",
   errNoReply: "AI 未返回回复，请重试。",
@@ -92,6 +102,8 @@ const de: ChatStrings = {
   sendAria: "Nachricht senden",
   historyAria: "Chatverlauf öffnen",
   newChatAria: "Neue Unterhaltung",
+  gateButton: "Anmelden, um weiter zu chatten",
+  gateHint: "Sie haben das kostenlose Nachrichtenlimit für Gäste erreicht.",
   errDelete:
     "Diese Unterhaltung konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.",
   errBootstrap:
@@ -116,6 +128,8 @@ const fr: ChatStrings = {
   sendAria: "Envoyer le message",
   historyAria: "Ouvrir l'historique des discussions",
   newChatAria: "Nouvelle conversation",
+  gateButton: "Connectez-vous pour continuer à discuter",
+  gateHint: "Vous avez atteint la limite de messages gratuits pour les invités.",
   errDelete: "Impossible de supprimer cette conversation. Veuillez réessayer.",
   errBootstrap:
     "Impossible de démarrer une session de discussion. Actualisez pour réessayer.",
@@ -137,6 +151,8 @@ const ja: ChatStrings = {
   sendAria: "メッセージを送信",
   historyAria: "チャット履歴を開く",
   newChatAria: "新しい会話",
+  gateButton: "サインインしてチャットを続ける",
+  gateHint: "ゲスト向けの無料メッセージの上限に達しました。",
   errDelete: "その会話を削除できませんでした。もう一度お試しください。",
   errBootstrap:
     "チャットセッションを開始できませんでした。更新して再試行してください。",
@@ -158,6 +174,8 @@ const ko: ChatStrings = {
   sendAria: "메시지 보내기",
   historyAria: "채팅 기록 열기",
   newChatAria: "새 대화",
+  gateButton: "로그인하고 계속 채팅하기",
+  gateHint: "게스트용 무료 메시지 한도에 도달했습니다.",
   errDelete: "대화를 삭제할 수 없습니다. 다시 시도해 주세요.",
   errBootstrap:
     "채팅 세션을 시작할 수 없습니다. 새로고침 후 다시 시도해 주세요.",
@@ -178,6 +196,8 @@ const ar: ChatStrings = {
   sendAria: "إرسال الرسالة",
   historyAria: "فتح سجل المحادثات",
   newChatAria: "محادثة جديدة",
+  gateButton: "سجّل الدخول لمواصلة الدردشة",
+  gateHint: "لقد وصلت إلى الحد الأقصى للرسائل المجانية للضيوف.",
   errDelete: "تعذّر حذف هذه المحادثة. يرجى المحاولة مرة أخرى.",
   errBootstrap: "تعذّر بدء جلسة المحادثة. حدّث الصفحة وأعد المحاولة.",
   errNoReply: "لم يُرجع الذكاء الاصطناعي أي رد. يرجى المحاولة مرة أخرى.",
@@ -199,6 +219,8 @@ const ru: ChatStrings = {
   sendAria: "Отправить сообщение",
   historyAria: "Открыть историю чатов",
   newChatAria: "Новый разговор",
+  gateButton: "Войдите, чтобы продолжить общение",
+  gateHint: "Вы достигли лимита бесплатных сообщений для гостей.",
   errDelete: "Не удалось удалить этот разговор. Попробуйте ещё раз.",
   errBootstrap:
     "Не удалось начать сеанс чата. Обновите страницу и повторите.",
@@ -220,6 +242,8 @@ const pt: ChatStrings = {
   sendAria: "Enviar mensagem",
   historyAria: "Abrir histórico de conversas",
   newChatAria: "Nova conversa",
+  gateButton: "Entre para continuar conversando",
+  gateHint: "Você atingiu o limite de mensagens gratuitas para convidados.",
   errDelete: "Não foi possível excluir essa conversa. Tente novamente.",
   errBootstrap:
     "Não foi possível iniciar uma sessão de chat. Atualize para tentar de novo.",
@@ -241,6 +265,8 @@ const hi: ChatStrings = {
   sendAria: "संदेश भेजें",
   historyAria: "चैट इतिहास खोलें",
   newChatAria: "नई बातचीत",
+  gateButton: "चैट जारी रखने के लिए साइन इन करें",
+  gateHint: "आप अतिथियों के लिए निःशुल्क संदेश सीमा तक पहुँच गए हैं।",
   errDelete: "वह बातचीत हटाई नहीं जा सकी। कृपया फिर से प्रयास करें।",
   errBootstrap:
     "चैट सत्र शुरू नहीं हो सका। पुनः प्रयास के लिए रिफ़्रेश करें।",
@@ -262,6 +288,8 @@ const gu: ChatStrings = {
   sendAria: "સંદેશ મોકલો",
   historyAria: "ચેટ ઇતિહાસ ખોલો",
   newChatAria: "નવી વાતચીત",
+  gateButton: "ચેટ ચાલુ રાખવા સાઇન ઇન કરો",
+  gateHint: "તમે મહેમાનો માટેની મફત સંદેશ મર્યાદા સુધી પહોંચી ગયા છો.",
   errDelete: "તે વાતચીત કાઢી શકાઈ નહીં. કૃપા કરીને ફરી પ્રયાસ કરો.",
   errBootstrap: "ચેટ સત્ર શરૂ થઈ શક્યું નહીં. ફરી પ્રયાસ કરવા રિફ્રેશ કરો.",
   errNoReply: "AI એ કોઈ જવાબ આપ્યો નહીં. કૃપા કરીને ફરી પ્રયાસ કરો.",
@@ -283,6 +311,8 @@ const ta: ChatStrings = {
   sendAria: "செய்தி அனுப்பவும்",
   historyAria: "அரட்டை வரலாற்றைத் திறக்கவும்",
   newChatAria: "புதிய உரையாடல்",
+  gateButton: "அரட்டையைத் தொடர உள்நுழையவும்",
+  gateHint: "விருந்தினர்களுக்கான இலவச செய்தி வரம்பை அடைந்துவிட்டீர்கள்.",
   errDelete: "அந்த உரையாடலை நீக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.",
   errBootstrap:
     "அரட்டை அமர்வைத் தொடங்க முடியவில்லை. மீண்டும் முயற்சிக்க ரிஃப்ரெஷ் செய்யவும்.",
@@ -304,6 +334,8 @@ const bn: ChatStrings = {
   sendAria: "বার্তা পাঠান",
   historyAria: "চ্যাট ইতিহাস খুলুন",
   newChatAria: "নতুন কথোপকথন",
+  gateButton: "চ্যাট চালিয়ে যেতে সাইন ইন করুন",
+  gateHint: "আপনি অতিথিদের জন্য বিনামূল্যের বার্তার সীমায় পৌঁছেছেন।",
   errDelete: "সেই কথোপকথনটি মুছে ফেলা যায়নি। অনুগ্রহ করে আবার চেষ্টা করুন।",
   errBootstrap: "চ্যাট সেশন শুরু করা যায়নি। আবার চেষ্টা করতে রিফ্রেশ করুন।",
   errNoReply: "AI কোনো উত্তর দেয়নি। অনুগ্রহ করে আবার চেষ্টা করুন।",
@@ -324,6 +356,8 @@ const tr: ChatStrings = {
   sendAria: "Mesaj gönder",
   historyAria: "Sohbet geçmişini aç",
   newChatAria: "Yeni sohbet",
+  gateButton: "Sohbete devam etmek için oturum açın",
+  gateHint: "Misafirler için ücretsiz mesaj sınırına ulaştınız.",
   errDelete: "Bu sohbet silinemedi. Lütfen tekrar deneyin.",
   errBootstrap: "Sohbet oturumu başlatılamadı. Yenileyip tekrar deneyin.",
   errNoReply: "Yapay zekâ yanıt döndürmedi. Lütfen tekrar deneyin.",
@@ -344,6 +378,8 @@ const id: ChatStrings = {
   sendAria: "Kirim pesan",
   historyAria: "Buka riwayat obrolan",
   newChatAria: "Percakapan baru",
+  gateButton: "Masuk untuk terus mengobrol",
+  gateHint: "Anda telah mencapai batas pesan gratis untuk tamu.",
   errDelete: "Tidak dapat menghapus percakapan itu. Silakan coba lagi.",
   errBootstrap:
     "Tidak dapat memulai sesi obrolan. Muat ulang untuk mencoba lagi.",
@@ -365,6 +401,8 @@ const vi: ChatStrings = {
   sendAria: "Gửi tin nhắn",
   historyAria: "Mở lịch sử trò chuyện",
   newChatAria: "Cuộc trò chuyện mới",
+  gateButton: "Đăng nhập để tiếp tục trò chuyện",
+  gateHint: "Bạn đã đạt đến giới hạn tin nhắn miễn phí dành cho khách.",
   errDelete: "Không thể xóa cuộc trò chuyện đó. Vui lòng thử lại.",
   errBootstrap:
     "Không thể bắt đầu phiên trò chuyện. Tải lại trang để thử lại.",

@@ -3,7 +3,7 @@
 import { Suspense, useState, useRef, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, Sparkles } from "lucide-react";
+import { Lock, Menu, Sparkles } from "lucide-react";
 import { ChatSidebar } from "@/components/chat/ChatSidebar";
 import { ChatComposer } from "@/components/chat/ChatComposer";
 import {
@@ -52,6 +52,10 @@ function ChatPageInner() {
     bootstrapError,
     authPromptOpen,
     dismissAuthPrompt,
+    signupRequired,
+    signupGateOpen,
+    openSignupGate,
+    dismissSignupGate,
     otherIsTyping,
     notifyTyping,
     sendMessage,
@@ -102,6 +106,12 @@ function ChatPageInner() {
   async function send(text: string) {
     const trimmed = text.trim();
     if (!trimmed || loading) return;
+    // Guest out of free messages — open the signup gate instead of sending
+    // (keeps the typed text; the composer is locked anyway).
+    if (signupRequired) {
+      openSignupGate();
+      return;
+    }
     setInput("");
     await sendMessage(trimmed);
   }
@@ -236,7 +246,7 @@ function ChatPageInner() {
                         retryDisabled={loading}
                         sessionLanguage={language}
                         onSuggestion={
-                          i === messages.length - 1 && !loading
+                          i === messages.length - 1 && !loading && !signupRequired
                             ? send
                             : undefined
                         }
@@ -257,25 +267,55 @@ function ChatPageInner() {
           // would override py-3 instead of adding to it.
           <div className="border-t border-gray-200 bg-white pb-safe">
             <div className="mx-auto max-w-3xl px-4 py-3 sm:px-6 sm:py-4">
-              <ChatComposer
-                value={input}
-                onChange={setInput}
-                onSubmit={() => send(input)}
-                disabled={loading}
-                language={language}
-                placeholder={
-                  reviewRequested ? cs.composerHandoff : cs.composerReply
-                }
-              />
+              {signupRequired ? (
+                // Guest signup wall: the composer is replaced by a locked
+                // "sign in to continue" bar so no further messages can be sent
+                // without an account. Clicking it re-opens the AuthModal (which
+                // also auto-opens once, on hitting the limit).
+                <button
+                  type="button"
+                  onClick={openSignupGate}
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl border border-[#0F2747]/20 bg-[#0F2747]/[0.03] px-5 py-3.5 text-sm font-medium text-[#0F2747] transition-colors hover:border-[#0F2747]/40 hover:bg-[#0F2747]/[0.06]"
+                >
+                  <Lock className="h-4 w-4" strokeWidth={1.75} />
+                  {cs.gateButton}
+                </button>
+              ) : (
+                <ChatComposer
+                  value={input}
+                  onChange={setInput}
+                  onSubmit={() => send(input)}
+                  disabled={loading}
+                  language={language}
+                  placeholder={
+                    reviewRequested ? cs.composerHandoff : cs.composerReply
+                  }
+                />
+              )}
               <div className="mt-2 text-center text-[11px] text-gray-400">
-                {cs.composerHint}
+                {signupRequired ? cs.gateHint : cs.composerHint}
               </div>
             </div>
           </div>
         )}
       </div>
 
-      <AuthModal open={authPromptOpen} onClose={dismissAuthPrompt} />
+      {/* Handoff gate (401 on Request human review). Suppressed while the
+          signup gate is up so the two can't stack. */}
+      <AuthModal
+        open={authPromptOpen && !signupGateOpen}
+        onClose={dismissAuthPrompt}
+      />
+      {/* Guest signup gate (free-message limit). Returns the buyer to this
+          same session after sign-in — no resume=handoff, they just keep
+          chatting once isAnonymous flips false. */}
+      <AuthModal
+        open={signupGateOpen}
+        onClose={dismissSignupGate}
+        redirectTo={sessionId ? `/chat?session_id=${sessionId}` : "/chat"}
+        title="Create your free account to continue"
+        description="You've used your free preview messages. Sign in to keep chatting with your sourcing concierge — your conversation stays saved."
+      />
     </div>
   );
 }

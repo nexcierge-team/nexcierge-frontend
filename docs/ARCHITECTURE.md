@@ -140,6 +140,7 @@ Server-side events (funnel order):
 | Event | Where | Notes |
 |---|---|---|
 | `chat_session_started` | `/api/chat/start`, `/api/chat/sessions` POST | `source`: bootstrap / homepage_new / sidebar_new |
+| `signup_gate_shown` | `lib/useChat.ts` (**browser**) | anonymous buyer exhausted the free preview (`FREE_MESSAGE_LIMIT`) and the signup wall opened; `message_count`. The one browser-side custom capture — guarded on `NEXT_PUBLIC_POSTHOG_KEY` like `PostHogIdentify`, fires once per session |
 | `profile_completed` | `/api/chat` | fires on the turn `rfqs.is_complete` flips false→true |
 | `auth_completed` | `/auth/callback` | `method`: google_oauth / magic_link |
 | `review_blocked` | `/api/request-review` | buyer clicked handoff but was blocked; `reason`: missing_fields (409) / auth_required (401) — the funnel drop-off `review_requested` can't show |
@@ -215,6 +216,19 @@ Frontend appends → CTA replaced by "Transferring…" badge → composer mode s
    ▼
 Supabase Realtime channel pushes any subsequent AM reply (typed in /dashboard) into the buyer's chat
 ```
+
+## Guest message limit (signup gate)
+
+Anonymous buyers get a **free preview of `FREE_MESSAGE_LIMIT` (3) messages** before a signup wall blocks further chatting. This sits on top of the anonymous-first flow above — the buyer still starts instantly with no signup, but conversion to a permanent account is now forced mid-interview instead of only at handoff.
+
+Owned entirely by `lib/useChat.ts` + `app/chat/page.tsx` (client-side; no new route, no schema change):
+
+- `useChat` counts buyer turns (`messages` with `role === "user"` — AI replies don't count) and derives `signupRequired = isAnonymous && !reviewRequested && userMessageCount >= FREE_MESSAGE_LIMIT`. `isAnonymous` defaults to `true` until bootstrap resolves, so no free turns leak during load.
+- When `signupRequired` first flips true **and the turn's reply has landed** (`!loading`), an effect auto-opens the gate once (ref-guarded so a dismissal doesn't reopen it every render) and fires `signup_gate_shown`.
+- The gate is the **same `AuthModal`** as the handoff flow, with message-limit copy (`title` / `description` props) and `redirectTo` = the current session (no `resume=handoff`). Both auth paths preserve `auth.users.id`, so after sign-in `isAnonymous` flips false, `signupRequired` goes false, and the buyer keeps chatting in the same session with all history intact.
+- The composer is **replaced** by a locked "sign in to keep chatting" bar (`cs.gateButton` / `cs.gateHint`, localized in `lib/chatStrings.ts`) whenever `signupRequired`, so the buyer can still read the conversation but cannot send. `sendMessage` (hook) and `send` (page) both hard-guard on `signupRequired` too, and suggestion pills are disabled — defense-in-depth against a stray Enter or pill click.
+
+Tune the allowance via `FREE_MESSAGE_LIMIT` in `lib/useChat.ts`. Signed-in buyers are never gated.
 
 ## HubSpot pipeline auto-advancement
 

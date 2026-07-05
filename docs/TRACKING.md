@@ -16,6 +16,7 @@ In buyer funnel order:
 |---|---|---|
 | `$pageview` / autocapture | any page load, click, form interaction (automatic) | url, browser, country |
 | `chat_session_started` | a new chat session is created | `source`: `bootstrap` (first `/chat` visit), `homepage_new` (marketing modal), `sidebar_new` (returning user) |
+| `signup_gate_shown` | an anonymous buyer uses up their free preview (3 messages) and the signup wall appears | `message_count` — the only browser-side custom event; pair with `auth_completed` (same person once they sign in) to measure wall → signup conversion |
 | `profile_completed` | the AI interview fills the last required field of the sourcing brief | `session_id` |
 | `auth_completed` | anonymous buyer signs in (Google or magic link) | `method`: `google_oauth` / `magic_link` |
 | `review_blocked` | buyer clicks *Request human review* but is turned away | `reason`: `missing_fields` (brief incomplete) / `auth_required` (still anonymous) — the drop-off `review_requested` can't capture |
