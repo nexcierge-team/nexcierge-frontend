@@ -155,6 +155,8 @@ Server-side events (funnel order):
 
 PostHog is for product analytics/dashboards only; exact LLM cost/latency auditing lives in Postgres `llm_call_logs` (migration 0013).
 
+**Autocapture PII guard.** Autocapture records clicked-element text, which can include buyer free-text. Every element rendering buyer-entered content carries `ph-no-capture` (PostHog ignores autocapture on it + its children): `MessageBubble`, `ProfileSummaryCard`, `BriefSummary`, `BriefPane`, `RfqTable` — placed so CTAs stay outside the tagged region and remain captured. `instrumentation-client.ts`'s `before_send` also strips URL query/hash (auth codes, tokens, session ids) from `$current_url`/`$referrer`. **New component rendering buyer content → add `ph-no-capture`** (see `docs/TRACKING.md` § Autocapture & PII).
+
 ## Auth flow — anonymous-first
 
 ```

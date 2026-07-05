@@ -74,7 +74,10 @@ export function BriefPane({
           >
             <ArrowLeft className="h-4 w-4" strokeWidth={1.5} />
           </button>
-          <div className="min-w-0">
+          {/* ph-no-capture: header renders buyer-entered machine type,
+              company, application, and destination. Keep it out of
+              autocapture; the Claim button sits outside this div. */}
+          <div className="ph-no-capture min-w-0">
             <h1 className="truncate text-sm font-semibold text-gray-900">
               {rfq.machine_type || "Sourcing brief"} ·{" "}
               <span className="font-normal text-gray-600">

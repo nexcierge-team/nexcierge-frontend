@@ -158,7 +158,9 @@ export function MessageBubble({
         {message.content && (
           <div
             className={cn(
-              "rounded-2xl px-4 py-3 text-[15px] leading-relaxed",
+              // ph-no-capture: keep buyer/AI message text out of PostHog
+              // autocapture (see docs/TRACKING.md § Autocapture & PII).
+              "ph-no-capture rounded-2xl px-4 py-3 text-[15px] leading-relaxed",
               isUser
                 ? "bg-[#0F2747] text-white whitespace-pre-wrap"
                 : isAiInAmView

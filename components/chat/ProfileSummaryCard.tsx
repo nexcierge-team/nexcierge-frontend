@@ -46,7 +46,10 @@ export function ProfileSummaryCard({
         </div>
       </div>
 
-      <div className="grid gap-5 px-5 py-4 sm:grid-cols-2">
+      {/* ph-no-capture: brief field values are buyer-entered — keep them
+          out of autocapture. The footer CTA sits outside this grid so
+          "Request human review" clicks are still captured. */}
+      <div className="ph-no-capture grid gap-5 px-5 py-4 sm:grid-cols-2">
         <Section title={t.sectionBuyer}>
           <Field label={t.labelName} value={buyer_info.full_name} />
           <Field label={t.labelCompany} value={buyer_info.company_name} />

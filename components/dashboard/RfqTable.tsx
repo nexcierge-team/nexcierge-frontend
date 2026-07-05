@@ -173,7 +173,10 @@ export function RfqTable({
                   <tr
                     key={b.id}
                     onClick={() => onSelect(b.id)}
-                    className="cursor-pointer border-b border-gray-50 transition-colors last:border-b-0 hover:bg-gray-50/70"
+                    // ph-no-capture: rows render buyer name, company, and
+                    // machine type. Opening a brief isn't a tracked CTA, so
+                    // dropping the row's autocapture click costs no analytics.
+                    className="ph-no-capture cursor-pointer border-b border-gray-50 transition-colors last:border-b-0 hover:bg-gray-50/70"
                   >
                     <td className="max-w-[280px] px-5 py-3.5">
                       <div className="truncate text-sm font-medium text-gray-900">

@@ -35,6 +35,15 @@ In buyer funnel order:
 
 **Identity:** anonymous buyers stay anonymous in PostHog. The moment they sign in, `posthog.identify()` ties their browsing history, server events, and AI calls to one person (the Supabase user id). AMs are identified the same way on the dashboard.
 
+### Autocapture & PII (buyer content)
+
+Autocapture (`$autocapture`) records the **text** of clicked elements. That text can include buyer free-text — chat messages, machine type, company, notes — which violates the "never free text" rule. Two guards keep it out:
+
+1. **`ph-no-capture` class** on every element that renders buyer-entered content. PostHog ignores autocapture (and rageclick) on a tagged element *and its children*. Currently tagged: chat/AI message bubbles (`MessageBubble`), the buyer brief card (`ProfileSummaryCard`), and on the AM side the brief panel values + machine-type heading + notes (`BriefSummary`), the brief detail header (`BriefPane`), and inbox lead rows (`RfqTable`). Tags are placed so CTAs (Request human review, Save rating, Claim this brief) stay *outside* the tagged region and are still captured.
+2. **`before_send` URL scrub** (`instrumentation-client.ts`) strips query strings + hashes from `$current_url` / `$referrer` on every event — so auth codes (`/auth/callback?code=…`), magic-link tokens, and session ids never reach PostHog. UTM attribution is unaffected (those are extracted into their own props before `before_send`).
+
+**RULE — any new component that renders buyer-entered content in the DOM must carry `ph-no-capture` on the text element** (or a wrapper that excludes nearby CTAs). This is surgical, not global: we keep autocapture on for button/CTA analysis. If you ever need a hard guarantee instead, `autocapture: { mask_all_text: true }` masks *all* element text project-wide (but then click insights lose their labels and the "Start sourcing" action must switch to a CSS-selector match).
+
 ### LLM audit log (Postgres: `llm_call_logs`)
 
 One row per Gemini call with the full detail PostHog doesn't get: exact input/output/**thinking** token counts, input/output/total cost in USD (computed from a pricing table at call time), latency, success/failure with the actual error code and message, and which conversation + user caused the call.
@@ -156,7 +165,8 @@ GROUP BY model;
 
 | Piece | Where |
 |---|---|
-| Browser init + autocapture + exception autocapture | `frontend/instrumentation-client.ts` |
+| Browser init + autocapture + exception autocapture + URL scrub (`before_send`) | `frontend/instrumentation-client.ts` |
+| Autocapture PII guard (`ph-no-capture`) | `MessageBubble`, `ProfileSummaryCard`, `BriefSummary`, `BriefPane`, `RfqTable` |
 | Identify / reset on auth changes | `frontend/components/analytics/PostHogIdentify.tsx` |
 | Server-side event capture | `captureServer()` in `frontend/lib/analytics.ts` |
 | Server-side exception capture | `captureServerException()` in `frontend/lib/analytics.ts` |

@@ -56,7 +56,7 @@ export function BriefSummary({
   return (
     <aside className="hidden w-80 shrink-0 flex-col border-l border-gray-200 bg-white lg:flex">
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-5 pb-4 pt-5">
-        <h2 className="text-sm font-semibold tracking-[-0.01em] text-gray-900">
+        <h2 className="ph-no-capture text-sm font-semibold tracking-[-0.01em] text-gray-900">
           {rfq.machine_type || "Sourcing brief"}
         </h2>
         <StatusPill status={rfq.status} chrome={chrome} />
@@ -108,7 +108,7 @@ export function BriefSummary({
 
         {rfq.additional_notes && (
           <PanelSection title={t.sectionNotes}>
-            <p className="text-xs leading-relaxed text-gray-700">
+            <p className="ph-no-capture text-xs leading-relaxed text-gray-700">
               {rfq.additional_notes}
             </p>
           </PanelSection>
@@ -218,8 +218,10 @@ function PanelSection({
 // (the old float-left variant packed everything onto one line).
 function Row({ label, value }: { label: string; value: string }) {
   if (!value) return null;
+  // ph-no-capture: row values carry buyer-entered content — keep the whole
+  // row out of autocapture (labels are static, but the values aren't).
   return (
-    <div className="grid grid-cols-[92px_1fr] gap-x-3 text-xs leading-relaxed">
+    <div className="ph-no-capture grid grid-cols-[92px_1fr] gap-x-3 text-xs leading-relaxed">
       <span className="text-gray-400">{label}</span>
       <span className="break-words text-gray-800">{value}</span>
     </div>

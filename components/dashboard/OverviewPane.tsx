@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   BadgeCheck,
   FileText,
@@ -13,21 +13,13 @@ import { RfqTable, type BriefTab } from "./RfqTable";
 import { AttentionCards } from "./AttentionCards";
 import { claimStatus, inboxRfq, type InboxBrief } from "./types";
 
-// Turn "aniruddh@motorollubes.com" into "Aniruddh" for the greeting.
-function nameFromEmail(email: string | null): string {
-  const local = email?.split("@")[0] ?? "";
-  if (!local) return "";
-  return local.charAt(0).toUpperCase() + local.slice(1);
-}
-
-// Overview landing view: greeting, headline stats, the full briefs
-// table, and an actionable "needs your attention" strip. Everything is
-// derived client-side from the inbox payload — no extra endpoints.
+// Overview landing view: headline stats, the full briefs table, and an
+// actionable "needs your attention" strip. Everything is derived
+// client-side from the inbox payload — no extra endpoints.
 export function OverviewPane({
   briefs,
   loading,
   meId,
-  meEmail,
   lessonsCount,
   onSelectBrief,
   onOpenLessons,
@@ -35,23 +27,12 @@ export function OverviewPane({
   briefs: InboxBrief[];
   loading: boolean;
   meId: string | null;
-  meEmail: string | null;
   lessonsCount: number | null;
   onSelectBrief: (sessionId: string) => void;
   onOpenLessons: () => void;
 }) {
   const [tab, setTab] = useState<BriefTab>("all");
   const [query, setQuery] = useState("");
-  // Time-of-day greeting is set post-mount so the server-rendered HTML
-  // (which has no reliable clock for the viewer) never mismatches.
-  const [greeting, setGreeting] = useState("Welcome back");
-  useEffect(() => {
-    const h = new Date().getHours();
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot post-mount clock read; runs once, no cascade
-    setGreeting(
-      h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening",
-    );
-  }, []);
 
   const unclaimed = briefs.filter(
     (b) => claimStatus(b, meId) === "unclaimed",
@@ -60,7 +41,6 @@ export function OverviewPane({
   const inHubspot = briefs.filter(
     (b) => inboxRfq(b)?.hubspot_deal_id,
   ).length;
-  const name = nameFromEmail(meEmail);
 
   return (
     <div className="h-full overflow-y-auto bg-[#F7F8FA]">
@@ -68,8 +48,7 @@ export function OverviewPane({
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-semibold tracking-[-0.015em] text-gray-900">
-              {greeting}
-              {name ? `, ${name}` : ""} 👋
+              Dashboard
             </h1>
             <p className="mt-1 text-sm text-gray-500">
               Here&apos;s what&apos;s happening with your sourcing briefs

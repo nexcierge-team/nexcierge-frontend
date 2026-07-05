@@ -64,7 +64,6 @@ export default function DashboardPage() {
   const [pending, setPending] = useState<PendingAttachment[]>([]);
   const pendingRef = useRef<PendingAttachment[]>([]);
   const [meId, setMeId] = useState<string | null>(null);
-  const [meEmail, setMeEmail] = useState<string | null>(null);
   const [authPromptOpen, setAuthPromptOpen] = useState(false);
   // Proposed-lessons count for the sidebar badge + attention card.
   // Purely informational — LessonsPane fetches its own full list.
@@ -111,7 +110,6 @@ export default function DashboardPage() {
           data: { user },
         } = await supabase.auth.getUser();
         setMeId(user?.id ?? null);
-        setMeEmail(user?.email ?? null);
       } catch (e) {
         console.error("user lookup failed:", e);
       }
@@ -658,7 +656,6 @@ export default function DashboardPage() {
             briefs={briefs}
             loading={inboxLoading}
             meId={meId}
-            meEmail={meEmail}
             lessonsCount={lessonsCount}
             onSelectBrief={openBrief}
             onOpenLessons={() => navigate("lessons")}
