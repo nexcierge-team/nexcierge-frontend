@@ -50,6 +50,32 @@ function suggestionsFromMetadata(
   return out.length > 0 ? out : undefined;
 }
 
+// Mirrors the backend's pre-handoff follow-ups check (`_profile_state_note`
+// in backend/app/chatbot.py): after the required fields complete, the agent
+// still asks about technical specs, facility power supply, and compliance —
+// optional fields that never gate handoff but must be ASKED. While any is
+// pending, the agent's reply is a question, so attaching the "brief is
+// ready" card to it reads as a premature close (and buries the question's
+// quick-reply pills). We hold the card back until the follow-ups are
+// captured — the backend's "unsure" fallbacks store non-empty sentinel
+// values, so an unsure buyer still converges in one ask per field.
+function followupsPending(profile: BuyerProfile): boolean {
+  const pr = profile.purchase_request;
+  if (
+    pr.machine_type &&
+    Object.keys(pr.technical_specifications ?? {}).length === 0
+  ) {
+    return true;
+  }
+  if (
+    pr.delivery_country &&
+    (!pr.electrical_requirements || pr.compliance_requirements.length === 0)
+  ) {
+    return true;
+  }
+  return false;
+}
+
 // Translate a DB chat_messages row into the UI's Message shape.
 function rowToMessage(row: ChatMessagesRow): Message {
   const senderRoleMap: Record<ChatSenderType, ChatRole> = {
@@ -193,8 +219,21 @@ export function useChat(options: UseChatOptions = {}) {
         // this is the most recent AI reply; post-handoff this is the
         // hard-coded HANDOFF_REPLY close. Either way, it's a stable
         // anchor that doesn't move as the conversation continues.
+        // Hold the card back while pre-handoff follow-ups are still being
+        // asked — unless review was already requested (legacy sessions that
+        // handed off before follow-ups existed must keep their card), or the
+        // last AI reply asks nothing (the agent already closed — possibly
+        // early, despite pending follow-ups; same safety valve as the live
+        // path, so a reload reproduces what the buyer saw).
         let attached = false;
-        if (data.profile_complete && initialMessages.length > 0) {
+        const lastAi = [...initialMessages]
+          .reverse()
+          .find((m) => m.role === "agent" && !m.from);
+        const bootstrapCardReady =
+          data.review_requested ||
+          !followupsPending(data.profile as BuyerProfile) ||
+          (lastAi ? !/[?？؟]/.test(lastAi.content) : false);
+        if (data.profile_complete && bootstrapCardReady && initialMessages.length > 0) {
           for (let i = initialMessages.length - 1; i >= 0; i--) {
             const m = initialMessages[i];
             if (m.role === "agent" && !m.from) {
@@ -339,9 +378,20 @@ export function useChat(options: UseChatOptions = {}) {
         const profile = data.profile as BuyerProfile | undefined;
         const nowComplete = Boolean(data.profile_complete);
         const profileSnapshot = profile ? JSON.stringify(profile) : null;
+        // Safety valve: if the model delivered a closing line (a reply that
+        // asks nothing) despite pending follow-ups, still show the card —
+        // "your brief is ready below" pointing at nothing is a dead-end.
+        // Question marks (ASCII / fullwidth / Arabic) cover how every
+        // supported language writes a question.
+        const asksQuestion = /[?？؟]/.test(replyText);
         const attachCard =
           Boolean(profile) &&
           nowComplete &&
+          // Not while the agent is still asking the pre-handoff follow-ups
+          // (specs / power / compliance) — the card marks the actual close.
+          (reviewRequested ||
+            !followupsPending(profile as BuyerProfile) ||
+            !asksQuestion) &&
           profileSnapshot !== lastAttachedProfile;
         if (attachCard) setLastAttachedProfile(profileSnapshot);
         const suggestions = Array.isArray(data.suggestions)

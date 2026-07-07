@@ -21,6 +21,7 @@ export function emptyRfqFields(): Partial<RfqsRow> {
     delivery_city_or_port: "",
     purchase_timeline: "",
     budget_range: "",
+    electrical_requirements: "",
     compliance_requirements: [],
     new_or_used_preference: "",
     additional_notes: "",
@@ -110,6 +111,7 @@ export async function updateRfqFields(
     delivery_city_or_port: rfq.delivery_city_or_port,
     purchase_timeline: rfq.purchase_timeline,
     budget_range: rfq.budget_range,
+    electrical_requirements: rfq.electrical_requirements,
     compliance_requirements: rfq.compliance_requirements,
     new_or_used_preference: rfq.new_or_used_preference,
     additional_notes: rfq.additional_notes,
@@ -153,6 +155,7 @@ export interface ProfileShape {
     delivery_city_or_port: string;
     purchase_timeline: string;
     budget_range: string;
+    electrical_requirements: string;
     compliance_requirements: string[];
     new_or_used_preference: string;
   };
@@ -179,6 +182,7 @@ export function rfqRowToProfile(row: RfqsRow): ProfileShape {
       delivery_city_or_port: row.delivery_city_or_port,
       purchase_timeline: row.purchase_timeline,
       budget_range: row.budget_range,
+      electrical_requirements: row.electrical_requirements,
       compliance_requirements: row.compliance_requirements,
       new_or_used_preference: row.new_or_used_preference,
     },
@@ -203,6 +207,7 @@ export function profileToRfqUpdate(profile: ProfileShape): Partial<RfqsRow> {
     delivery_city_or_port: profile.purchase_request.delivery_city_or_port,
     purchase_timeline: profile.purchase_request.purchase_timeline,
     budget_range: profile.purchase_request.budget_range,
+    electrical_requirements: profile.purchase_request.electrical_requirements,
     compliance_requirements: profile.purchase_request.compliance_requirements,
     new_or_used_preference: profile.purchase_request.new_or_used_preference,
     additional_notes: profile.service_preferences.additional_notes,

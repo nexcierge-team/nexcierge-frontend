@@ -184,7 +184,16 @@ Returns: user, session, [], empty profile, profile_complete=false
 [Buyer chats N turns — POST /api/chat each turn, persist + call FastAPI + persist + return]
    │
    ▼
-profile.is_complete flips true → ProfileSummaryCard attached → CTA appears
+profile.is_complete flips true AND pre-handoff follow-ups captured → ProfileSummaryCard attached → CTA appears
+   │  (follow-ups = technical specs + facility power + compliance; `followupsPending()` in
+   │   lib/useChat.ts mirrors the backend's `[PRE-HANDOFF FOLLOW-UPS]` injection, so the card
+   │   lands on the agent's actual closing message, not mid-question. "Unsure" answers store
+   │   sentinel values, so the card always arrives. Sessions with review_requested keep their
+   │   card regardless. Safety valve: a reply with no question mark (ASCII/fullwidth/Arabic)
+   │   counts as a close and attaches the card even with follow-ups pending — the model
+   │   occasionally closes early, and a "brief is ready below" line pointing at nothing is a
+   │   dead-end. Same check on the bootstrap path so reloads reproduce what the buyer saw.
+   │   Pills render ABOVE the card in MessageBubble — they belong to the question.)
    │
    ▼
 Buyer clicks Request human review → POST /api/request-review

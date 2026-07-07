@@ -87,6 +87,7 @@ export function BriefSummary({
           {specs.map(([k, v]) => (
             <Row key={k} label={humanizeKey(k)} value={String(v)} />
           ))}
+          <Row label={t.labelElectrical} value={rfq.electrical_requirements} />
           {rfq.compliance_requirements.length > 0 && (
             <Row
               label={t.labelCompliance}

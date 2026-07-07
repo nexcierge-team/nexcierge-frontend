@@ -194,6 +194,7 @@ export async function syncBriefToHubspot(
     delivery_city_or_port: rfq.delivery_city_or_port,
     purchase_timeline: rfq.purchase_timeline,
     quantity: rfq.quantity,
+    electrical_requirements: rfq.electrical_requirements,
     compliance_requirements: rfq.compliance_requirements.join(", "),
     new_or_used_preference: rfq.new_or_used_preference,
     technical_specifications: JSON.stringify(

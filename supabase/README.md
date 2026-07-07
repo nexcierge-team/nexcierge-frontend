@@ -39,6 +39,13 @@ Easiest path — paste each `.sql` file's contents into the SQL editor in the Su
                                   switching to DB-driven config is a no-op)
 0016_app_settings_pills_thinking.sql  (adds app_settings.pills_thinking — the pills reasoning level
                                   off/low/medium/high; default 'low' = prior behaviour, so a no-op)
+0017_lock_users_role.sql         (revokes client UPDATE on public.users + trigger blocking role/id
+                                  changes — closes the self-promotion privilege-escalation hole)
+0018_chat_messages_client_message_id.sql  (adds chat_messages.client_message_id for send dedup)
+0019_rfq_electrical_requirements.sql  (adds rfqs.electrical_requirements — buyer facility power
+                                  supply, e.g. "480V 3-phase 60Hz"; optional, does not affect the
+                                  is_complete handoff gate. Also create the matching HubSpot deal
+                                  property — see § HubSpot custom deal properties)
 ```
 
 > **Model config is now DB-driven.** After `0015`, the live interview/pills/translate models are set from the AM dashboard (**Models** pane) and stored in `app_settings`; the backend's `GEMINI_*_MODEL` env vars are only the fallback. No operator step is required beyond running the migration — but confirm the seed values equal what Render currently runs so no buyer-facing model silently changes on deploy.
@@ -123,6 +130,25 @@ Migration `0010_chat_attachments.sql` creates everything needed for account mana
 Buyers' browsers upload nothing here; only AMs do. Files are never public — the app serves them via short-lived signed URLs. To confirm it applied, check **Storage → Buckets** for `chat-attachments` (private) and **Storage → Policies** for the two `chat_attach_*` policies.
 
 If you ever rename the bucket, update `ATTACHMENT_BUCKET` in `frontend/lib/attachments.ts` to match.
+
+## HubSpot custom deal properties
+
+`lib/hubspot/sync.ts` writes these **custom Deal properties** when `/api/request-review` pushes a brief to HubSpot. They must be pre-created in the HubSpot UI (**Settings → Properties → Deal properties → Create property**, group "Deal information", type *single-line text* unless noted) or deal creation fails with `PROPERTY_DOESNT_EXIST` (non-fatal to the review request, but the deal is silently not created):
+
+| Internal name | Type |
+|---|---|
+| `machine_type` | single-line text |
+| `intended_application` | single-line text |
+| `delivery_country` | single-line text |
+| `delivery_city_or_port` | single-line text |
+| `purchase_timeline` | single-line text |
+| `quantity` | single-line text |
+| `electrical_requirements` | single-line text |
+| `compliance_requirements` | single-line text |
+| `new_or_used_preference` | single-line text |
+| `technical_specifications` | multi-line text |
+
+The **internal name** must match exactly (it's the API field name); the display label is free.
 
 ## Manual AM promotion
 

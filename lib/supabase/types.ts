@@ -78,6 +78,7 @@ export interface RfqsRow {
   delivery_city_or_port: string;
   purchase_timeline: string;
   budget_range: string;
+  electrical_requirements: string;
   compliance_requirements: string[];
   new_or_used_preference: string;
   additional_notes: string;
@@ -205,6 +206,7 @@ export type Database = {
           delivery_city_or_port?: string;
           purchase_timeline?: string;
           budget_range?: string;
+          electrical_requirements?: string;
           compliance_requirements?: string[];
           new_or_used_preference?: string;
           additional_notes?: string;
@@ -232,6 +234,7 @@ export type Database = {
           delivery_city_or_port?: string;
           purchase_timeline?: string;
           budget_range?: string;
+          electrical_requirements?: string;
           compliance_requirements?: string[];
           new_or_used_preference?: string;
           additional_notes?: string;

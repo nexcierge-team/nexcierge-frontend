@@ -40,6 +40,7 @@ export interface CardStrings {
   labelCityPort: string;
   labelTimeline: string;
   labelBudget: string;
+  labelElectrical: string;
   labelCompliance: string;
   timeline: Record<PurchaseTimeline, string>;
   condition: Record<NewOrUsedPreference, string>;
@@ -75,6 +76,7 @@ const en: CardStrings = {
   labelCityPort: "City / port",
   labelTimeline: "Timeline",
   labelBudget: "Budget",
+  labelElectrical: "Power supply",
   labelCompliance: "Compliance",
   timeline: {
     urgent_less_than_30_days: "Urgent — under 30 days",
@@ -117,6 +119,7 @@ const es: CardStrings = {
   labelCityPort: "Ciudad / puerto",
   labelTimeline: "Plazo",
   labelBudget: "Presupuesto",
+  labelElectrical: "Suministro eléctrico",
   labelCompliance: "Cumplimiento",
   timeline: {
     urgent_less_than_30_days: "Urgente — menos de 30 días",
@@ -159,6 +162,7 @@ const zh: CardStrings = {
   labelCityPort: "城市 / 港口",
   labelTimeline: "时间安排",
   labelBudget: "预算",
+  labelElectrical: "电源规格",
   labelCompliance: "合规要求",
   timeline: {
     urgent_less_than_30_days: "紧急 — 30 天内",
@@ -201,6 +205,7 @@ const de: CardStrings = {
   labelCityPort: "Stadt / Hafen",
   labelTimeline: "Zeitrahmen",
   labelBudget: "Budget",
+  labelElectrical: "Stromversorgung",
   labelCompliance: "Compliance",
   timeline: {
     urgent_less_than_30_days: "Dringend — unter 30 Tagen",
@@ -243,6 +248,7 @@ const fr: CardStrings = {
   labelCityPort: "Ville / port",
   labelTimeline: "Délai",
   labelBudget: "Budget",
+  labelElectrical: "Alimentation électrique",
   labelCompliance: "Conformité",
   timeline: {
     urgent_less_than_30_days: "Urgent — moins de 30 jours",
@@ -285,6 +291,7 @@ const ja: CardStrings = {
   labelCityPort: "都市 / 港",
   labelTimeline: "希望時期",
   labelBudget: "予算",
+  labelElectrical: "電源仕様",
   labelCompliance: "コンプライアンス",
   timeline: {
     urgent_less_than_30_days: "緊急 — 30日以内",
@@ -327,6 +334,7 @@ const ko: CardStrings = {
   labelCityPort: "도시 / 항구",
   labelTimeline: "일정",
   labelBudget: "예산",
+  labelElectrical: "전원 사양",
   labelCompliance: "규정 준수",
   timeline: {
     urgent_less_than_30_days: "긴급 — 30일 이내",
@@ -369,6 +377,7 @@ const ar: CardStrings = {
   labelCityPort: "المدينة / الميناء",
   labelTimeline: "الإطار الزمني",
   labelBudget: "الميزانية",
+  labelElectrical: "مواصفات الكهرباء",
   labelCompliance: "الامتثال",
   timeline: {
     urgent_less_than_30_days: "عاجل — أقل من 30 يومًا",
@@ -411,6 +420,7 @@ const ru: CardStrings = {
   labelCityPort: "Город / порт",
   labelTimeline: "Сроки",
   labelBudget: "Бюджет",
+  labelElectrical: "Электропитание",
   labelCompliance: "Соответствие",
   timeline: {
     urgent_less_than_30_days: "Срочно — менее 30 дней",
@@ -453,6 +463,7 @@ const pt: CardStrings = {
   labelCityPort: "Cidade / porto",
   labelTimeline: "Prazo",
   labelBudget: "Orçamento",
+  labelElectrical: "Alimentação elétrica",
   labelCompliance: "Conformidade",
   timeline: {
     urgent_less_than_30_days: "Urgente — menos de 30 dias",
@@ -495,6 +506,7 @@ const hi: CardStrings = {
   labelCityPort: "शहर / बंदरगाह",
   labelTimeline: "समय-सीमा",
   labelBudget: "बजट",
+  labelElectrical: "बिजली आपूर्ति",
   labelCompliance: "अनुपालन",
   timeline: {
     urgent_less_than_30_days: "अत्यावश्यक — 30 दिन से कम",
@@ -537,6 +549,7 @@ const gu: CardStrings = {
   labelCityPort: "શહેર / બંદર",
   labelTimeline: "સમયમર્યાદા",
   labelBudget: "બજેટ",
+  labelElectrical: "વીજ પુરવઠો",
   labelCompliance: "અનુપાલન",
   timeline: {
     urgent_less_than_30_days: "તાત્કાલિક — 30 દિવસથી ઓછું",
@@ -579,6 +592,7 @@ const ta: CardStrings = {
   labelCityPort: "நகரம் / துறைமுகம்",
   labelTimeline: "காலக்கெடு",
   labelBudget: "பட்ஜெட்",
+  labelElectrical: "மின் வழங்கல்",
   labelCompliance: "இணக்கம்",
   timeline: {
     urgent_less_than_30_days: "அவசரம் — 30 நாட்களுக்குள்",
@@ -622,6 +636,7 @@ const bn: CardStrings = {
   labelCityPort: "শহর / বন্দর",
   labelTimeline: "সময়সীমা",
   labelBudget: "বাজেট",
+  labelElectrical: "বিদ্যুৎ সরবরাহ",
   labelCompliance: "কমপ্লায়েন্স",
   timeline: {
     urgent_less_than_30_days: "জরুরি — 30 দিনের কম",
@@ -665,6 +680,7 @@ const tr: CardStrings = {
   labelCityPort: "Şehir / liman",
   labelTimeline: "Zaman çizelgesi",
   labelBudget: "Bütçe",
+  labelElectrical: "Güç kaynağı",
   labelCompliance: "Uyumluluk",
   timeline: {
     urgent_less_than_30_days: "Acil — 30 günden az",
@@ -707,6 +723,7 @@ const id: CardStrings = {
   labelCityPort: "Kota / pelabuhan",
   labelTimeline: "Jadwal",
   labelBudget: "Anggaran",
+  labelElectrical: "Catu daya",
   labelCompliance: "Kepatuhan",
   timeline: {
     urgent_less_than_30_days: "Mendesak — kurang dari 30 hari",
@@ -749,6 +766,7 @@ const vi: CardStrings = {
   labelCityPort: "Thành phố / cảng",
   labelTimeline: "Thời gian",
   labelBudget: "Ngân sách",
+  labelElectrical: "Nguồn điện",
   labelCompliance: "Tuân thủ",
   timeline: {
     urgent_less_than_30_days: "Khẩn cấp — dưới 30 ngày",

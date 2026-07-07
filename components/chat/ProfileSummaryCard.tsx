@@ -97,6 +97,10 @@ export function ProfileSummaryCard({
           ) : (
             <EmptyHint>{t.emptySpecs}</EmptyHint>
           )}
+          <Field
+            label={t.labelElectrical}
+            value={purchase_request.electrical_requirements}
+          />
           {compliance.length > 0 && (
             <Field label={t.labelCompliance} value={compliance.join(", ")} />
           )}

@@ -97,6 +97,7 @@ export interface BuyerProfile {
     delivery_city_or_port: string;
     purchase_timeline: PurchaseTimeline | "";
     budget_range: string;
+    electrical_requirements: string;
     compliance_requirements: string[];
     new_or_used_preference: NewOrUsedPreference | "";
   };

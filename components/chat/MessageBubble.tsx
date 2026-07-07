@@ -241,20 +241,14 @@ export function MessageBubble({
           />
         )}
 
-        {message.profileCard && (
-          <ProfileSummaryCard
-            profile={message.profileCard}
-            reviewRequested={reviewRequested}
-            reviewSubmitting={reviewSubmitting}
-            onRequestReview={onRequestReview}
-            language={sessionLanguage}
-          />
-        )}
-
         {/* Quick-reply pills — only rendered when the parent passes an
             onSuggestion handler (which it only does for the latest
             agent message). Clicking sends the pill text as a regular
-            user message. */}
+            user message. Rendered BEFORE the profile card so the pills
+            sit directly under the question they answer — a turn can
+            carry both (the agent keeps asking optional follow-ups after
+            the required set completes), and pills below the card read
+            as orphaned. */}
         {!isUser &&
           !isAccountManager &&
           !message.error &&
@@ -274,6 +268,16 @@ export function MessageBubble({
               ))}
             </div>
           )}
+
+        {message.profileCard && (
+          <ProfileSummaryCard
+            profile={message.profileCard}
+            reviewRequested={reviewRequested}
+            reviewSubmitting={reviewSubmitting}
+            onRequestReview={onRequestReview}
+            language={sessionLanguage}
+          />
+        )}
 
         {/* Read receipt under outgoing messages only — incoming bubbles
             don't need to tell the sender "I've read this". */}
