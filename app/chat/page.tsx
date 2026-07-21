@@ -15,6 +15,17 @@ import { SUGGESTED_PROMPTS } from "@/lib/mockData";
 import { useChat } from "@/lib/useChat";
 import { chatStrings } from "@/lib/chatStrings";
 
+// Cycled by the empty-state composer as an animated placeholder — one phrase
+// per target buyer language (en, de, zh, hi, es) to signal "type in your own
+// language" before the per-session language detection kicks in.
+const HERO_PLACEHOLDERS = [
+  "Tell us what machinery you're looking for…",
+  "Sagen Sie uns, welche Maschinen Sie suchen…",
+  "告诉我们您在寻找什么机械设备…",
+  "हमें बताएं कि आपको कौन-सी मशीनरी चाहिए…",
+  "Cuéntanos qué maquinaria estás buscando…",
+];
+
 export default function ChatPage() {
   // useSearchParams forces client-side rendering for this route, so we
   // wrap the inner component in Suspense to satisfy Next's CSR-bailout
@@ -204,6 +215,7 @@ function ChatPageInner() {
                       }}
                         onSubmit={() => send(input)}
                         placeholder="Tell us what machinery you're looking for…"
+                        rotatingPlaceholders={HERO_PLACEHOLDERS}
                         disabled={loading}
                         autoFocus
                         rows={2}

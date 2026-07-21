@@ -1,6 +1,7 @@
 "use client";
 
-import { FormEvent, useEffect, useRef } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { ArrowUp, Paperclip, X, Loader2, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { chatStrings } from "@/lib/chatStrings";
@@ -13,6 +14,12 @@ interface ChatComposerProps {
   onSubmit: () => void;
   disabled?: boolean;
   placeholder?: string;
+  // When set, replaces the static placeholder with a cycling animated one
+  // (fade/slide through each phrase). The native placeholder attribute can't
+  // animate, so this renders a pointer-events-none overlay while the textarea
+  // is empty. `placeholder` (or the localized default) still backs the
+  // textarea's aria-label for screen readers.
+  rotatingPlaceholders?: string[];
   autoFocus?: boolean;
   rows?: number;
   // Buyer's display language (ISO 639-1). Localizes the default placeholder
@@ -45,6 +52,7 @@ export function ChatComposer({
   onSubmit,
   disabled,
   placeholder,
+  rotatingPlaceholders,
   autoFocus,
   rows = 1,
   language,
@@ -67,6 +75,20 @@ export function ChatComposer({
     el.style.height = "auto";
     el.style.height = Math.min(el.scrollHeight, 240) + "px";
   }, [value]);
+
+  // Animated placeholder rotation. The interval only runs while the overlay
+  // is visible (rotation enabled + textarea empty) so we don't tick forever
+  // behind typed text.
+  const rotating = (rotatingPlaceholders?.length ?? 0) > 0;
+  const [phraseIndex, setPhraseIndex] = useState(0);
+  useEffect(() => {
+    if (!rotating || value !== "" || rotatingPlaceholders!.length < 2) return;
+    const id = setInterval(
+      () => setPhraseIndex((i) => (i + 1) % rotatingPlaceholders!.length),
+      3000,
+    );
+    return () => clearInterval(id);
+  }, [rotating, value, rotatingPlaceholders]);
 
   const hasText = value.trim().length > 0;
   const canSubmit =
@@ -142,7 +164,8 @@ export function ChatComposer({
             submit();
           }
         }}
-        placeholder={placeholder ?? cs.composerDefault}
+        placeholder={rotating ? undefined : (placeholder ?? cs.composerDefault)}
+        aria-label={placeholder ?? cs.composerDefault}
         // Auto direction so RTL languages (e.g. Arabic) align the placeholder
         // and the buyer's typing to the right without a hard-coded dir.
         dir="auto"
@@ -158,6 +181,30 @@ export function ChatComposer({
           "scrollbar-none [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]",
         )}
       />
+      {rotating && value === "" && (
+        // Mirrors the textarea's padding + type scale so each phrase sits
+        // exactly where the native placeholder would.
+        <span
+          aria-hidden
+          className={cn(
+            "pointer-events-none absolute right-14 top-3.5 overflow-hidden text-base text-gray-400 sm:text-[15px]",
+            showAttach ? "left-12" : "left-5",
+          )}
+        >
+          <AnimatePresence mode="wait">
+            <motion.span
+              key={phraseIndex}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+              className="block truncate"
+            >
+              {rotatingPlaceholders![phraseIndex % rotatingPlaceholders!.length]}
+            </motion.span>
+          </AnimatePresence>
+        </span>
+      )}
       <button
         type="submit"
         disabled={!canSubmit}
