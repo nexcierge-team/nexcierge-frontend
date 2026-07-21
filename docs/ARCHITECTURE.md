@@ -52,7 +52,7 @@ app/
 components/
 ├── ui/                     shadcn-style primitives (Button, Input, Textarea, Accordion)
 ├── layout/                 Header / Footer for marketing
-├── landing/                Marketing sections + HeroChatModal + FloatingChatButton (uses `useChat({ forceNew: true })` so every entry from the homepage starts on a blank slate)
+├── landing/                Marketing sections + HeroChatPreview (mock chat card — every chat entry point on the homepage navigates to `/chat?new=1`, category pills/cards adding `&seed=<prompt>`, so each entry starts a fresh session; no embedded chat modal)
 ├── auth/
 │   └── AuthModal.tsx       Google + magic-link, opens on 401 from /api/request-review
 ├── chat/
