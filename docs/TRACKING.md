@@ -15,7 +15,7 @@ In buyer funnel order:
 | Event | Fires when | Useful properties |
 |---|---|---|
 | `$pageview` / autocapture | any page load, click, form interaction (automatic) | url, browser, country |
-| `chat_session_started` | a new chat session is created | `source`: `bootstrap` (first `/chat` visit), `homepage_new` (marketing modal), `sidebar_new` (returning user) |
+| `chat_session_started` | a new chat session row is inserted | `source`: `bootstrap` (first `/chat` visit), `homepage_new` (marketing modal), `sidebar_new` (returning user). Blank-slate requests that reuse an existing never-started session do **not** re-fire this, so counts aren't inflated by repeat homepage visits |
 | `signup_gate_shown` | an anonymous buyer uses up their free preview (3 messages) and the signup wall appears | `message_count` — the only browser-side custom event; pair with `auth_completed` (same person once they sign in) to measure wall → signup conversion |
 | `profile_completed` | the AI interview fills the last required field of the sourcing brief | `session_id` |
 | `auth_completed` | anonymous buyer signs in (Google or magic link) | `method`: `google_oauth` / `magic_link` |

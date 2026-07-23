@@ -109,7 +109,15 @@ export function ChatSidebar({
   // Live deltas: new chat created anywhere (sidebar "+", seed flow,
   // useChat bootstrap, or a second browser tab) → INSERT. Title /
   // status / language change → UPDATE. Row deleted → DELETE.
+  //
+  // Never-started sessions (title still null) are kept out of the list,
+  // matching the server-side filter in listSessionsForUser — a chat only
+  // earns a sidebar row once the buyer sends something. That first
+  // message fires a chat_sessions UPDATE (the DB trigger sets the
+  // title), so the UPDATE handler upserts rather than only patching
+  // rows it already has.
   const handleRealtimeInsert = useCallback((row: ChatSessionsRow) => {
+    if (!row.title) return;
     const next = toSidebarSession(row);
     setSessions((prev) => {
       if (prev.some((s) => s.id === next.id)) return prev;
@@ -118,11 +126,15 @@ export function ChatSidebar({
   }, []);
 
   const handleRealtimeUpdate = useCallback((row: ChatSessionsRow) => {
+    if (!row.title) return;
     const next = toSidebarSession(row);
-    setSessions((prev) => {
-      if (!prev.some((s) => s.id === next.id)) return prev;
-      return sortByRecent(prev.map((s) => (s.id === next.id ? next : s)));
-    });
+    setSessions((prev) =>
+      sortByRecent(
+        prev.some((s) => s.id === next.id)
+          ? prev.map((s) => (s.id === next.id ? next : s))
+          : [next, ...prev],
+      ),
+    );
   }, []);
 
   const handleRealtimeDelete = useCallback(
@@ -165,10 +177,9 @@ export function ChatSidebar({
       const data = await res.json();
       const session = data?.session as SidebarSessionSource | undefined;
       if (!session?.id) return;
-      // Optimistic same-tab update. The Realtime INSERT for this row
-      // dedups against the id check in handleRealtimeInsert, so this is
-      // a no-op for other tabs (they get the row via Realtime).
-      handleRealtimeInsert(session as ChatSessionsRow);
+      // No optimistic list insert — the session has no title yet, so it
+      // stays out of the sidebar until the first message names it (the
+      // Realtime UPDATE handler upserts it then).
       onNew(session.id);
       onClose?.();
     } catch (e) {

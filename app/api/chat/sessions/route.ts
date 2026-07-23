@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { getOrCreateUser } from "@/lib/supabase/route";
 import { getSupabaseServer } from "@/lib/supabase/server";
-import { createSession, listSessionsForUser } from "@/lib/db/sessions";
+import {
+  createSession,
+  findNeverStartedSession,
+  listSessionsForUser,
+} from "@/lib/db/sessions";
 import { createRfq } from "@/lib/db/rfqs";
 import { captureServer } from "@/lib/analytics";
 
@@ -25,20 +29,26 @@ export async function GET() {
   });
 }
 
-// POST /api/chat/sessions  → create a fresh chat_session + rfq, return it.
-// Used by the "New conversation" sidebar button.
+// POST /api/chat/sessions  → return a blank chat_session + rfq.
+// Used by the "New conversation" sidebar button. Reuses the user's
+// existing never-started session (opened but nothing sent) when there
+// is one — repeated clicks of "+" must not stack empty rows — and only
+// creates (and instruments) a fresh session + rfq otherwise.
 export async function POST() {
   const auth = await getOrCreateUser();
   if (!auth) {
     return NextResponse.json({ error: "Auth failure" }, { status: 500 });
   }
   const supabase = await getSupabaseServer();
-  const session = await createSession(supabase, auth.userId);
-  await createRfq(supabase, { sessionId: session.id, userId: auth.userId });
-  captureServer(auth.userId, "chat_session_started", {
-    session_id: session.id,
-    source: "sidebar_new",
-  });
+  let session = await findNeverStartedSession(supabase, auth.userId);
+  if (!session) {
+    session = await createSession(supabase, auth.userId);
+    await createRfq(supabase, { sessionId: session.id, userId: auth.userId });
+    captureServer(auth.userId, "chat_session_started", {
+      session_id: session.id,
+      source: "sidebar_new",
+    });
+  }
   return NextResponse.json({
     session: {
       id: session.id,

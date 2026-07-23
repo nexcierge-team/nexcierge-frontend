@@ -4,6 +4,7 @@ import { getOrCreateUser } from "@/lib/supabase/route";
 import {
   createSession,
   findActiveSession,
+  findNeverStartedSession,
   getSession,
 } from "@/lib/db/sessions";
 import { createRfq, getRfq, rfqRowToProfile } from "@/lib/db/rfqs";
@@ -49,15 +50,17 @@ export async function GET(req: Request) {
   const supabase = await getSupabaseServer();
   const url = new URL(req.url);
   const requestedId = url.searchParams.get("session_id");
-  // ?new=1 forces a brand-new chat_session even if the user already has
-  // an active one. Used by the marketing-site chat preview / FAB so every
-  // entry from the homepage starts on a blank slate.
+  // ?new=1 forces a blank-slate chat_session even if the user already has
+  // an active one with messages. Used by the marketing-site chat preview /
+  // FAB so every entry from the homepage starts fresh. A leftover
+  // never-started session IS a blank slate, so we reuse it rather than
+  // stacking another empty row per homepage visit.
   const forceNew = url.searchParams.get("new") === "1";
 
   let session = requestedId
     ? await getSession(supabase, requestedId)
     : forceNew
-      ? null
+      ? await findNeverStartedSession(supabase, auth.userId)
       : await findActiveSession(supabase, auth.userId);
 
   if (requestedId && (!session || session.user_id !== auth.userId)) {

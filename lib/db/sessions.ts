@@ -24,6 +24,28 @@ export async function findActiveSession(
   return data;
 }
 
+// Returns the user's most-recent never-started session — status 'ai'
+// and no title. The title is only ever set by the first user message
+// (DB trigger in 0002), so `title IS NULL` means "opened but nothing
+// sent". The bootstrap + new-conversation paths reuse this row instead
+// of inserting another, so abandoned blank chats can't pile up.
+export async function findNeverStartedSession(
+  supabase: Client,
+  userId: string,
+): Promise<ChatSessionsRow | null> {
+  const { data, error } = await supabase
+    .from("chat_sessions")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("status", "ai")
+    .is("title", null)
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
 export async function createSession(
   supabase: Client,
   userId: string,
@@ -50,6 +72,10 @@ export async function getSession(
   return data;
 }
 
+// Sidebar list. Never-started sessions (title IS NULL — see
+// findNeverStartedSession) are excluded: a chat only earns a sidebar
+// row once the buyer actually sends something. The active blank chat
+// the buyer is currently looking at doesn't need a list entry.
 export async function listSessionsForUser(
   supabase: Client,
   userId: string,
@@ -58,6 +84,7 @@ export async function listSessionsForUser(
     .from("chat_sessions")
     .select("*")
     .eq("user_id", userId)
+    .not("title", "is", null)
     .order("updated_at", { ascending: false })
     .limit(50);
   if (error) throw error;

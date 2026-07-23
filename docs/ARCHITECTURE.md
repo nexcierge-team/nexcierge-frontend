@@ -37,7 +37,7 @@ app/
     │   ├── start/route.ts                       GET — bootstrap on mount (creates anon session if needed)
     │   ├── route.ts                             POST — persist user msg, call FastAPI, persist ai reply
     │   └── sessions/
-    │       ├── route.ts                         GET (list) + POST (create new)
+    │       ├── route.ts                         GET (list; hides never-started sessions) + POST (new — reuses the user's never-started session if one exists)
     │       └── [id]/
     │           ├── route.ts                     DELETE — soft-delete a session
     │           └── mark-read/route.ts           POST — buyer-side read receipts
@@ -52,7 +52,7 @@ app/
 components/
 ├── ui/                     shadcn-style primitives (Button, Input, Textarea, Accordion)
 ├── layout/                 Header / Footer for marketing
-├── landing/                Marketing sections + HeroChatPreview (mock chat card — every chat entry point on the homepage navigates to `/chat?new=1`, category pills/cards adding `&seed=<prompt>`, so each entry starts a fresh session; no embedded chat modal)
+├── landing/                Marketing sections + HeroChatPreview (mock chat card — every chat entry point on the homepage navigates to `/chat?new=1`, category pills/cards adding `&seed=<prompt>`, so each entry lands on a blank slate; `?new=1` reuses the user's never-started session when one exists rather than minting a new row per visit; no embedded chat modal)
 ├── auth/
 │   └── AuthModal.tsx       Google + magic-link, opens on 401 from /api/request-review
 ├── chat/
@@ -139,7 +139,7 @@ Server-side events (funnel order):
 
 | Event | Where | Notes |
 |---|---|---|
-| `chat_session_started` | `/api/chat/start`, `/api/chat/sessions` POST | `source`: bootstrap / homepage_new / sidebar_new |
+| `chat_session_started` | `/api/chat/start`, `/api/chat/sessions` POST | `source`: bootstrap / homepage_new / sidebar_new; fires only when a row is actually inserted — reusing a never-started session doesn't re-fire |
 | `signup_gate_shown` | `lib/useChat.ts` (**browser**) | anonymous buyer exhausted the free preview (`FREE_MESSAGE_LIMIT`) and the signup wall opened; `message_count`. The one browser-side custom capture — guarded on `NEXT_PUBLIC_POSTHOG_KEY` like `PostHogIdentify`, fires once per session |
 | `profile_completed` | `/api/chat` | fires on the turn `rfqs.is_complete` flips false→true |
 | `auth_completed` | `/auth/callback` | `method`: google_oauth / magic_link |
@@ -323,7 +323,9 @@ Two tables are published to `supabase_realtime`: `chat_messages` (per-session li
 - POST responses add the returned message id to the set before the realtime event arrives.
 - The realtime handler checks `seenIds.has(row.id)` and skips if already rendered.
 
-**Per-user channel — `chat_sessions`** (`lib/useRealtimeSessions.ts`). The chat sidebar subscribes filtered by `user_id`. INSERT lights up new conversations the moment they're created (sidebar `+` button, homepage seed flow, or any other tab). UPDATE re-renders the row's title and subtitle live when the AI generates a title, when status flips `ai → in_handoff → closed`, or when language changes. DELETE removes the row across every tab and falls back to `onDeleteActive` if the deleted session was active. The sidebar does one cold GET on mount; everything after is event-driven, no polling, no `refreshKey` plumbing.
+**Per-user channel — `chat_sessions`** (`lib/useRealtimeSessions.ts`). The chat sidebar subscribes filtered by `user_id`. Never-started sessions (`title IS NULL` — the title is only set by the DB trigger on the first user message) are invisible to the sidebar: the cold GET filters them server-side (`listSessionsForUser`) and the INSERT handler skips them, so a blank chat doesn't appear in the list until the buyer actually sends something. That first message bumps the session's title via trigger, which arrives as an UPDATE — the UPDATE handler therefore **upserts** (adds the row if it wasn't in the list yet) as well as re-rendering title/subtitle live when status flips `ai → in_handoff → closed` or language changes. DELETE removes the row across every tab and falls back to `onDeleteActive` if the deleted session was active. The sidebar does one cold GET on mount; everything after is event-driven, no polling, no `refreshKey` plumbing.
+
+**Never-started session reuse.** To stop abandoned blank chats piling up as duplicate rows, every "give me a blank chat" path (`GET /api/chat/start?new=1` from homepage entries, `POST /api/chat/sessions` from the sidebar `+`) first looks for the user's newest `status='ai'`, `title IS NULL` session (`findNeverStartedSession` in `lib/db/sessions.ts`) and reuses it; a fresh row is only inserted when none exists. A never-started session is guaranteed untouched — the rfq can only change via `/api/chat` turns, which require a user message, which would have set the title.
 
 No polling. No SSE. Tab-visibility-aware reconnect is not yet wired (Step 7 polish).
 
