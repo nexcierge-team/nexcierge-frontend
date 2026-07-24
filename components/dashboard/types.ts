@@ -4,6 +4,10 @@ import type {
   RfqsRow,
 } from "@/lib/supabase/types";
 import type { ChatRole, Message, MessageFrom } from "@/types/chat";
+import type {
+  SourcingStage,
+  SourcingStageHistory,
+} from "@/lib/sourcingStages";
 import { attachmentsFromMetadata } from "@/lib/attachments";
 
 export type InboxRfq = Pick<
@@ -46,6 +50,8 @@ export interface OpenBrief {
   assignedToMe: boolean;
   rfq: RfqsRow;
   messages: Message[];
+  sourcingStage: SourcingStage | null;
+  sourcingStageHistory: SourcingStageHistory;
 }
 
 // Who holds a brief, relative to the signed-in AM. Drives the status

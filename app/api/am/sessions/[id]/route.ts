@@ -36,6 +36,8 @@ export async function GET(
       assigned_am_user_id: session.assigned_am_user_id,
       title: session.title,
       handoff_requested_at: session.handoff_requested_at,
+      sourcing_stage: session.sourcing_stage ?? null,
+      sourcing_stage_history: session.sourcing_stage_history ?? {},
     },
     rfq,
     profile: rfqRowToProfile(rfq),

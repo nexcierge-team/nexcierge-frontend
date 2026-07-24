@@ -13,7 +13,12 @@ import type {
 import type {
   ChatMessagesRow,
   ChatSenderType,
+  ChatSessionStatus,
 } from "@/lib/supabase/types";
+import type {
+  SourcingStage,
+  SourcingStageHistory,
+} from "@/lib/sourcingStages";
 import { attachmentsFromMetadata } from "@/lib/attachments";
 
 function newMessageId() {
@@ -107,6 +112,14 @@ interface BootstrapState {
   profileComplete: boolean;
   reviewRequested: boolean;
   language: string;
+  // Session metadata for the progress rail. /api/chat/start returns all
+  // of these; realtime UPDATEs on the active session override them at
+  // the page level (see app/chat/page.tsx activeRow).
+  status: ChatSessionStatus;
+  title: string | null;
+  handoffRequestedAt: string | null;
+  sourcingStage: SourcingStage | null;
+  sourcingStageHistory: SourcingStageHistory;
 }
 
 /**
@@ -254,6 +267,11 @@ export function useChat(options: UseChatOptions = {}) {
           profileComplete: data.profile_complete,
           reviewRequested: data.review_requested,
           language: data.session.language ?? "en",
+          status: data.session.status ?? "ai",
+          title: data.session.title ?? null,
+          handoffRequestedAt: data.session.handoff_requested_at ?? null,
+          sourcingStage: data.session.sourcing_stage ?? null,
+          sourcingStageHistory: data.session.sourcing_stage_history ?? {},
         });
       } catch (e) {
         if (cancelled) return;
@@ -569,7 +587,21 @@ export function useChat(options: UseChatOptions = {}) {
         ...prev.filter((m) => !insertedIds.has(m.id)),
         ...inserted.map(rowToMessage),
       ]);
-      setBootstrap({ ...bootstrap, reviewRequested: true });
+      // Optimistic: the server just flipped the session to in_handoff and
+      // stamped the first sourcing stage — mirror it so the progress rail
+      // updates without waiting for a realtime echo.
+      setBootstrap({
+        ...bootstrap,
+        reviewRequested: true,
+        status: "in_handoff",
+        sourcingStage: "brief_submitted",
+        handoffRequestedAt:
+          bootstrap.handoffRequestedAt ?? new Date().toISOString(),
+        sourcingStageHistory: {
+          brief_submitted: new Date().toISOString(),
+          ...bootstrap.sourcingStageHistory,
+        },
+      });
     } catch (e) {
       console.error("request review failed:", e);
       setMessages((prev) => [
@@ -732,5 +764,12 @@ export function useChat(options: UseChatOptions = {}) {
     requestReview,
     switchSession,
     language: bootstrap?.language ?? "en",
+    // Progress-rail data (bootstrap baseline; the page overlays live
+    // realtime values for the active session on top of these).
+    sessionStatus: bootstrap?.status ?? "ai",
+    sessionTitle: bootstrap?.title ?? null,
+    handoffRequestedAt: bootstrap?.handoffRequestedAt ?? null,
+    sourcingStage: bootstrap?.sourcingStage ?? null,
+    sourcingStageHistory: bootstrap?.sourcingStageHistory ?? {},
   };
 }

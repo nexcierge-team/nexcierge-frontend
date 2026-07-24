@@ -22,9 +22,11 @@ import { useRealtimeChat } from "@/lib/useRealtimeChat";
 import type {
   AgentLessonsRow,
   ChatMessagesRow,
+  ChatSessionsRow,
   LeadQuality,
   RfqsRow,
 } from "@/lib/supabase/types";
+import type { SourcingStage } from "@/lib/sourcingStages";
 import type { Message } from "@/types/chat";
 import {
   isAllowedAttachment,
@@ -185,6 +187,8 @@ export default function DashboardPage() {
           assignedToMe: data.session.assigned_am_user_id === meId,
           rfq: data.rfq,
           messages: msgs,
+          sourcingStage: data.session.sourcing_stage ?? null,
+          sourcingStageHistory: data.session.sourcing_stage_history ?? {},
         });
       } catch (e) {
         console.error("brief load failed:", e);
@@ -379,6 +383,43 @@ export default function DashboardPage() {
     [open],
   );
 
+  // Persist a manual sourcing-stage change (stage picker in the brief
+  // sidebar). The route returns the updated session row; its stage +
+  // history replace the open brief's copy. The buyer's progress rail
+  // picks the same change up live via chat_sessions realtime.
+  const saveStage = useCallback(
+    async (stage: SourcingStage): Promise<boolean> => {
+      if (!open) return false;
+      const sessionId = open.sessionId;
+      try {
+        const res = await fetch(
+          `/api/am/sessions/${encodeURIComponent(sessionId)}/stage`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ stage }),
+          },
+        );
+        if (!res.ok) return false;
+        const data = (await res.json()) as { session: ChatSessionsRow };
+        setOpen((prev) =>
+          prev && prev.sessionId === sessionId
+            ? {
+                ...prev,
+                sourcingStage: data.session.sourcing_stage,
+                sourcingStageHistory: data.session.sourcing_stage_history ?? {},
+              }
+            : prev,
+        );
+        return true;
+      } catch (e) {
+        console.error("stage save failed:", e);
+        return false;
+      }
+    },
+    [open],
+  );
+
   // Run the rated transcript through Gemini (backend /draft-lessons via
   // our lessons route). Returns the number of proposed lessons written
   // to agent_lessons, or null on failure.
@@ -408,7 +449,16 @@ export default function DashboardPage() {
       );
       const data = await res.json();
       if (res.ok && data.claimed) {
-        setOpen({ ...open, assignedToMe: true });
+        // The claim route also moves the sourcing stage to in_review;
+        // mirror what it returned so the stage picker is current.
+        setOpen({
+          ...open,
+          assignedToMe: true,
+          sourcingStage: data.session?.sourcing_stage ?? "in_review",
+          sourcingStageHistory:
+            data.session?.sourcing_stage_history ??
+            open.sourcingStageHistory,
+        });
         await loadInbox();
       } else {
         // Someone else got there first — refresh the inbox.
@@ -637,6 +687,7 @@ export default function DashboardPage() {
             pending={pending}
             onAttach={addFiles}
             onRemoveAttachment={removeAttachment}
+            onSaveStage={saveStage}
             onSaveRating={saveRating}
             onGenerateLessons={generateLessons}
           />

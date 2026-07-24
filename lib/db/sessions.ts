@@ -1,5 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ChatSessionsRow } from "@/lib/supabase/types";
+import type {
+  SourcingStage,
+  SourcingStageHistory,
+} from "@/lib/sourcingStages";
 
 // See note in lib/db/messages.ts about the untyped client. Same applies here.
 type Client = SupabaseClient;
@@ -121,11 +125,16 @@ export async function tryClaimHandoff(
   supabase: Client,
   sessionId: string,
 ): Promise<boolean> {
+  const now = new Date().toISOString();
   const { data, error } = await supabase
     .from("chat_sessions")
     .update({
       status: "in_handoff",
-      handoff_requested_at: new Date().toISOString(),
+      handoff_requested_at: now,
+      // First sourcing stage. History is empty pre-handoff, so a plain
+      // overwrite is safe here — no merge needed.
+      sourcing_stage: "brief_submitted",
+      sourcing_stage_history: { brief_submitted: now },
     })
     .eq("id", sessionId)
     .eq("status", "ai")
@@ -148,10 +157,44 @@ export async function revertHandoff(
     .update({
       status: "ai",
       handoff_requested_at: null,
+      sourcing_stage: null,
+      sourcing_stage_history: {},
     })
     .eq("id", sessionId)
     .eq("status", "in_handoff");
   if (error) throw error;
+}
+
+// Set the session's sourcing stage and stamp it into the history map.
+// supabase-js can't express jsonb_set, so this is a read-modify-write:
+// acceptable because writers are one buyer handoff + one assigned AM.
+// Returns the updated row, or null when the update matched nothing
+// (RLS blocked it — e.g. an AM who hasn't claimed the session).
+export async function updateSourcingStage(
+  supabase: Client,
+  sessionId: string,
+  stage: SourcingStage,
+): Promise<ChatSessionsRow | null> {
+  const { data: current, error: readError } = await supabase
+    .from("chat_sessions")
+    .select("sourcing_stage_history")
+    .eq("id", sessionId)
+    .maybeSingle();
+  if (readError) throw readError;
+  if (!current) return null;
+
+  const history: SourcingStageHistory = {
+    ...(current.sourcing_stage_history ?? {}),
+    [stage]: new Date().toISOString(),
+  };
+  const { data, error } = await supabase
+    .from("chat_sessions")
+    .update({ sourcing_stage: stage, sourcing_stage_history: history })
+    .eq("id", sessionId)
+    .select()
+    .maybeSingle();
+  if (error) throw error;
+  return data;
 }
 
 /**

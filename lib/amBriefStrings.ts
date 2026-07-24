@@ -44,6 +44,19 @@ export interface AmBriefStrings {
   lessonsProposedSuffix: string;
   noLessonsProposed: string;
   lessonsFailed: string;
+  // Sourcing stage picker
+  sectionStage: string;
+  stageHint: string;
+  claimToSetStage: string;
+  stageFailed: string;
+  stageBriefSubmitted: string;
+  stageInReview: string;
+  stageSuppliersContacted: string;
+  stageQuotesReceived: string;
+  stageProposalNegotiation: string;
+  stageOrderProduction: string;
+  stageInspectionLogistics: string;
+  stageDelivered: string;
 }
 
 export const AM_BRIEF_EN: AmBriefStrings = {
@@ -83,4 +96,16 @@ export const AM_BRIEF_EN: AmBriefStrings = {
   lessonsProposedSuffix: "lesson(s) proposed. Review under Lessons",
   noLessonsProposed: "No new lessons from this review.",
   lessonsFailed: "Generation failed. Try again.",
+  sectionStage: "Sourcing stage",
+  stageHint: "The buyer sees this on their progress timeline.",
+  claimToSetStage: "Claim this brief to update its stage.",
+  stageFailed: "Stage update failed. Try again.",
+  stageBriefSubmitted: "Brief submitted",
+  stageInReview: "In review by account manager",
+  stageSuppliersContacted: "Suppliers being contacted",
+  stageQuotesReceived: "Quotes received",
+  stageProposalNegotiation: "Proposal & negotiation",
+  stageOrderProduction: "Order & production",
+  stageInspectionLogistics: "Inspection & logistics",
+  stageDelivered: "Delivered",
 };

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAccountManager } from "@/lib/supabase/role";
 import { getSupabaseServer } from "@/lib/supabase/server";
+import { updateSourcingStage } from "@/lib/db/sessions";
 import { getRfq } from "@/lib/db/rfqs";
 import { hubspotEnabled } from "@/lib/hubspot/client";
 import { advanceDealStage } from "@/lib/hubspot/sync";
@@ -57,6 +58,18 @@ export async function POST(
 
   captureServer(gate.userId, "am_brief_claimed", { session_id: id });
 
+  // Move the buyer-visible sourcing stage to "in review". A second
+  // UPDATE (not folded into the claim) because merging the jsonb
+  // history needs a read-modify-write; RLS passes now that the caller
+  // is the assigned AM. Non-fatal: the claim itself already succeeded.
+  let claimed = data;
+  try {
+    const staged = await updateSourcingStage(supabase, id, "in_review");
+    if (staged) claimed = staged;
+  } catch (e) {
+    console.error("sourcing stage update failed (claim still succeeded):", e);
+  }
+
   // Advance the HubSpot deal stage. Skipped silently when:
   //   - HubSpot is disabled or unconfigured
   //   - This session was never handed off through HubSpot (no deal id)
@@ -79,5 +92,5 @@ export async function POST(
     }
   }
 
-  return NextResponse.json({ claimed: true, session: data });
+  return NextResponse.json({ claimed: true, session: claimed });
 }

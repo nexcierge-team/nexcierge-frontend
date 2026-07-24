@@ -9,6 +9,11 @@
 // exact structure — don't switch Insert/Update to Partial<Row>, the
 // .insert() call typing breaks.
 
+import type {
+  SourcingStage,
+  SourcingStageHistory,
+} from "@/lib/sourcingStages";
+
 export type UserRole = "buyer" | "account_manager";
 export type ChatSessionStatus = "ai" | "in_handoff" | "closed";
 export type ChatSenderType = "user" | "ai" | "account_manager" | "system";
@@ -43,6 +48,8 @@ export interface ChatSessionsRow {
   assigned_am_user_id: string | null;
   title: string | null;
   language: string;
+  sourcing_stage: SourcingStage | null;
+  sourcing_stage_history: SourcingStageHistory;
   created_at: string;
   updated_at: string;
 }
@@ -143,6 +150,8 @@ export type Database = {
           assigned_am_user_id?: string | null;
           title?: string | null;
           language?: string;
+          sourcing_stage?: SourcingStage | null;
+          sourcing_stage_history?: SourcingStageHistory;
           created_at?: string;
           updated_at?: string;
         };
@@ -154,6 +163,8 @@ export type Database = {
           assigned_am_user_id?: string | null;
           title?: string | null;
           language?: string;
+          sourcing_stage?: SourcingStage | null;
+          sourcing_stage_history?: SourcingStageHistory;
           created_at?: string;
           updated_at?: string;
         };

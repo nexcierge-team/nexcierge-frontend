@@ -3,17 +3,21 @@
 import { Suspense, useState, useRef, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Lock, Menu, Sparkles } from "lucide-react";
+import { Lock, Menu, PanelRight, Sparkles } from "lucide-react";
 import { ChatSidebar } from "@/components/chat/ChatSidebar";
 import { ChatComposer } from "@/components/chat/ChatComposer";
 import {
   MessageBubble,
   TypingIndicator,
 } from "@/components/chat/MessageBubble";
+import { SourcingProgressRail } from "@/components/chat/SourcingProgressRail";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { SUGGESTED_PROMPTS } from "@/lib/mockData";
 import { useChat } from "@/lib/useChat";
+import { useSessionsList } from "@/lib/useSessionsList";
 import { chatStrings } from "@/lib/chatStrings";
+import { PROGRESS_EN } from "@/lib/progressStrings";
+import type { ChatSessionsRow } from "@/lib/supabase/types";
 
 // Cycled by the empty-state composer as an animated placeholder — one phrase
 // per target buyer language (en, de, zh, hi, es) to signal "type in your own
@@ -74,17 +78,61 @@ function ChatPageInner() {
     requestReview,
     switchSession,
     language,
+    sessionStatus,
+    sessionTitle,
+    handoffRequestedAt,
+    sourcingStage,
+    sourcingStageHistory,
   } = useChat({ forceNew: entry.forceNew });
   // Localized chat chrome, keyed off the buyer's display language (learned
-  // per-turn from the backend's reply_language).
+  // per-turn from the backend's reply_language). Applies to the chat
+  // surface only — sidebar/rail chrome is English-pinned (PROGRESS_EN).
   const cs = chatStrings(language);
   const [input, setInput] = useState("");
   // Mobile drawer state for ChatSidebar. Desktop ignores it (sidebar is
   // always inline at md+). Reset to closed on session switch so the
   // newly-loaded chat is the foreground after the drawer dismissal.
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  // Below-xl drawer state for the sourcing-progress rail (inline at xl+).
+  const [railOpen, setRailOpen] = useState(false);
+  // Latest realtime chat_sessions row for the ACTIVE session — overrides
+  // the useChat bootstrap baseline so the rail reflects AM claims and
+  // stage advances live. Cleared on session switch.
+  const [activeRow, setActiveRow] = useState<ChatSessionsRow | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const seedSentRef = useRef(false);
+
+  // One sessions list + realtime subscription for the whole page — feeds
+  // both the sidebar and (via onActiveSessionUpdate) the progress rail.
+  const {
+    sessions,
+    loading: sessionsLoading,
+    creating,
+    deletingId,
+    createSession,
+    deleteSession,
+  } = useSessionsList({
+    activeId: sessionId,
+    onDeleteActive: () => switchSession(null),
+    onActiveSessionUpdate: setActiveRow,
+  });
+
+  async function handleNewRequest() {
+    if (creating) return;
+    const id = await createSession();
+    if (id) switchSession(id);
+  }
+
+  // Rail data: realtime row wins over the bootstrap baseline. A stored
+  // row is only honored while it matches the loaded session — read-time
+  // guard instead of an effect-based reset on switch, so a row from a
+  // previously-open session can never bleed into the new one.
+  const liveRow = activeRow && activeRow.id === sessionId ? activeRow : null;
+  const railStatus = liveRow?.status ?? sessionStatus;
+  const railTitle = liveRow?.title ?? sessionTitle;
+  const railStage = liveRow?.sourcing_stage ?? sourcingStage;
+  const railHistory = liveRow?.sourcing_stage_history ?? sourcingStageHistory;
+  const railHandoffAt = liveRow?.handoff_requested_at ?? handoffRequestedAt;
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -142,15 +190,14 @@ function ChatPageInner() {
     // chrome and push the composer behind the home indicator.
     <div className="flex h-[100dvh] overflow-hidden bg-white">
       <ChatSidebar
+        sessions={sessions}
+        loading={sessionsLoading}
+        creating={creating}
+        deletingId={deletingId}
         activeId={sessionId ?? undefined}
-        language={language}
-        onNew={(id) => switchSession(id)}
+        onNew={() => void handleNewRequest()}
         onSelect={(id) => switchSession(id)}
-        onDeleteActive={() => {
-          // Active conversation was deleted — fall back to "newest
-          // active or create one" by switching with no session_id.
-          switchSession(null);
-        }}
+        onDelete={deleteSession}
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />
@@ -170,6 +217,14 @@ function ChatPageInner() {
             <span className="truncate">Sourcing concierge</span>
           </div>
           <div className="flex shrink-0 items-center gap-3 py-4">
+            <button
+              type="button"
+              onClick={() => setRailOpen(true)}
+              aria-label={PROGRESS_EN.progressAria}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 xl:hidden"
+            >
+              <PanelRight className="h-4 w-4" strokeWidth={1.75} />
+            </button>
             <a
               href="/"
               className="text-sm text-gray-500 hover:text-gray-900 transition-colors"
@@ -311,6 +366,18 @@ function ChatPageInner() {
           </div>
         )}
       </div>
+
+      {/* Sourcing-progress rail: inline at xl+, off-canvas right drawer
+          below (opened from the header's PanelRight button). */}
+      <SourcingProgressRail
+        title={railTitle}
+        status={railStatus}
+        sourcingStage={railStage}
+        sourcingStageHistory={railHistory}
+        handoffRequestedAt={railHandoffAt}
+        open={railOpen}
+        onClose={() => setRailOpen(false)}
+      />
 
       {/* Handoff gate (401 on Request human review). Suppressed while the
           signup gate is up so the two can't stack. */}

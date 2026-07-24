@@ -98,6 +98,8 @@ export async function GET(req: Request) {
       handoff_requested_at: session.handoff_requested_at,
       title: session.title,
       language: session.language ?? "en",
+      sourcing_stage: session.sourcing_stage ?? null,
+      sourcing_stage_history: session.sourcing_stage_history ?? {},
     },
     messages,
     profile: rfqRowToProfile(rfq),

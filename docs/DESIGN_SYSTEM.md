@@ -91,6 +91,16 @@ Focus ring: `ring-[#0F2747]` (midnight navy) on all variants.
 - **Overview canvas**: the overview scroll area uses `bg-[#F7F8FA]` with white cards on top; chat/brief views stay on white.
 - **Detail panel** (`BriefSummary`): white `w-80` right column (`border-l border-gray-200`). Header holds a `text-sm font-semibold` title and an inline status pill (no close control — the chat header's back arrow is the only way out of a brief). Sections use sentence-case `text-[13px] font-semibold` headings separated by `border-t border-gray-100` hairlines — optionally with an inline badge (the lead-quality pill sits next to "AI interview quality"). A section can be `collapsible` (currently only "AI interview quality"): the heading becomes a disclosure button with a right-aligned chevron, collapsed by default, badge visible while collapsed. Field rows are a two-column grid: `grid-cols-[92px_1fr]`, label `text-gray-400` left, value `text-gray-800` wrapping right, `text-xs`. Empty fields are omitted, never placeholder'd.
 
+### Sourcing progress timeline (buyer rail + AM stage picker)
+- Vertical 8-step timeline (`SourcingProgressRail` buyer-side; `StageSection` is the AM's clickable variant). Stage order + slugs come from `lib/sourcingStages.ts`.
+- Dots: done = `bg-[#0F2747] text-white` with a tiny `Check`; current = `border-2 border-[#0F2747]` ring with a navy center dot; upcoming = `border border-gray-300` hollow. Connector is a 1px vertical line — `bg-[#0F2747]/30` above the current stage, `bg-gray-200` below.
+- Labels: current `font-semibold text-gray-900`, done `text-gray-700`, upcoming `text-gray-400`; done/current stages show a `text-[10px] text-gray-400` timestamp (time if today, short date otherwise).
+- Buyer rail cards reuse the standard white `rounded-2xl border border-gray-200 p-4` card with `text-[11px] uppercase tracking-wider text-gray-400` eyebrows ("Sourcing progress", "Next step").
+
+### Buyer status pill (sidebar dot + rail pill)
+- Rail pill uses the standard pill recipe (`rounded-full px-2 py-0.5 text-[10px] font-medium`): draft `bg-gray-100 text-gray-600`, active sourcing `bg-[#DCE8F8] text-[#0F2747]` (AI/brand accent), delivered `bg-emerald-100 text-emerald-800`, closed `bg-gray-200 text-gray-700`. Labels are English-pinned via `lib/progressStrings.ts` (`stageShort`) — workspace chrome never localizes.
+- Sidebar rows use a 6px status dot instead of a pill: gray-300 draft/closed, amber-400 waiting on the AM (submitted / in review), blue-500 sourcing in motion, emerald-500 delivered.
+
 ### Loading indicator (agent typing)
 - Three small dots in agent bubble, `animate-bounce` with staggered delays (`0.15s`, `0.3s`)
 

@@ -10,7 +10,12 @@ import type {
   NewOrUsedPreference,
   PurchaseTimeline,
 } from "@/types/chat";
+import type {
+  SourcingStage,
+  SourcingStageHistory,
+} from "@/lib/sourcingStages";
 import { QUALITY_CHIP, RatingSection } from "./RatingSection";
+import { StageSection, stageLabels } from "./StageSection";
 
 // Right-hand brief panel. Pinned to English in its entirety — headings,
 // field labels, enum values, AND the workflow chrome (status pill, CRM
@@ -21,12 +26,18 @@ export function BriefSummary({
   rfq,
   sessionId,
   canRate,
+  sourcingStage,
+  sourcingStageHistory,
+  onSaveStage,
   onSaveRating,
   onGenerateLessons,
 }: {
   rfq: RfqsRow;
   sessionId: string;
   canRate: boolean;
+  sourcingStage: SourcingStage | null;
+  sourcingStageHistory: SourcingStageHistory;
+  onSaveStage: (stage: SourcingStage) => Promise<boolean>;
   onSaveRating: (input: {
     quality: LeadQuality;
     issues: string[];
@@ -114,6 +125,32 @@ export function BriefSummary({
             </p>
           </PanelSection>
         )}
+
+        <PanelSection
+          title={chrome.sectionStage}
+          collapsible
+          badge={
+            sourcingStage ? (
+              <span className="inline-flex rounded-full bg-[#DCE8F8] px-2 py-0.5 text-[10px] font-medium text-[#0F2747]">
+                {stageLabels(chrome)[sourcingStage]}
+              </span>
+            ) : null
+          }
+        >
+          {canRate ? (
+            <StageSection
+              key={sessionId}
+              stage={sourcingStage}
+              history={sourcingStageHistory}
+              chrome={chrome}
+              onSave={onSaveStage}
+            />
+          ) : (
+            <p className="text-xs italic text-gray-400">
+              {chrome.claimToSetStage}
+            </p>
+          )}
+        </PanelSection>
 
         <PanelSection title={chrome.sectionCrm}>
           {rfq.hubspot_deal_id ? (

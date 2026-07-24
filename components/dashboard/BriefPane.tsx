@@ -8,6 +8,7 @@ import { AM_BRIEF_EN } from "@/lib/amBriefStrings";
 import { ATTACHMENT_ACCEPT, MAX_ATTACHMENTS_PER_MESSAGE } from "@/lib/attachments";
 import type { PendingAttachment } from "@/lib/storage/attachments";
 import type { LeadQuality } from "@/lib/supabase/types";
+import type { SourcingStage } from "@/lib/sourcingStages";
 import { BriefSummary } from "./BriefSummary";
 import { LanguageSelector } from "./LanguageSelector";
 import type { OpenBrief } from "./types";
@@ -31,6 +32,7 @@ export function BriefPane({
   pending,
   onAttach,
   onRemoveAttachment,
+  onSaveStage,
   onSaveRating,
   onGenerateLessons,
 }: {
@@ -50,6 +52,7 @@ export function BriefPane({
   pending: PendingAttachment[];
   onAttach: (files: File[]) => void;
   onRemoveAttachment: (id: string) => void;
+  onSaveStage: (stage: SourcingStage) => Promise<boolean>;
   onSaveRating: (input: {
     quality: LeadQuality;
     issues: string[];
@@ -158,6 +161,9 @@ export function BriefPane({
           rfq={rfq}
           sessionId={brief.sessionId}
           canRate={assignedToMe}
+          sourcingStage={brief.sourcingStage}
+          sourcingStageHistory={brief.sourcingStageHistory}
+          onSaveStage={onSaveStage}
           onSaveRating={onSaveRating}
           onGenerateLessons={onGenerateLessons}
         />

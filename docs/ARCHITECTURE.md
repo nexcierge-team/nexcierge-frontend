@@ -45,8 +45,9 @@ app/
     └── am/
         ├── inbox/route.ts                   GET — AM-only brief inbox
         └── sessions/[id]/
-            ├── route.ts                     GET — load brief + transcript + RFQ
-            ├── claim/route.ts               POST — claim unassigned brief
+            ├── route.ts                     GET — load brief + transcript + RFQ (+ sourcing stage)
+            ├── claim/route.ts               POST — claim unassigned brief (auto-sets stage in_review)
+            ├── stage/route.ts               POST — AM manually sets the sourcing stage
             └── messages/route.ts            POST — AM reply
 
 components/
@@ -56,7 +57,11 @@ components/
 ├── auth/
 │   └── AuthModal.tsx       Google + magic-link, opens on 401 from /api/request-review
 ├── chat/
-│   ├── ChatSidebar.tsx     Real session list from /api/chat/sessions, kept live via useRealtimeSessions
+│   ├── ChatSidebar.tsx     Presentational request list (dark New-sourcing-request button,
+│   │                         status dots, relative times); data comes from useSessionsList
+│   │                         called once in app/chat/page.tsx
+│   ├── SourcingProgressRail.tsx  Buyer right rail: title + status pill + 8-stage sourcing
+│   │                         timeline + next-step card. Inline at xl+, right drawer below
 │   ├── ChatComposer.tsx
 │   ├── MessageBubble.tsx   `viewerRole` flips alignment for AM view (and gives AI
 │   │                         turns the dark "house" bubble there so they group with the
@@ -75,6 +80,7 @@ components/
     ├── BriefPane.tsx       Open brief: chat thread + composer + claim CTA + BriefSummary
     ├── BriefSummary.tsx    Brief-details sidebar (buyer / machine / delivery / specs / CRM / rating)
     ├── RatingSection.tsx   Lead-quality rating + Generate-lessons card
+    ├── StageSection.tsx    Manual sourcing-stage picker (assigned AM only)
     ├── LanguageSelector.tsx  AM working-language dropdown
     ├── LessonsPane.tsx     Lessons review queue
     └── SettingsPane.tsx    Live Gemini model config
@@ -82,6 +88,15 @@ components/
 lib/
 ├── utils.ts
 ├── constants.ts            HANDOFF_REPLY, accountManagerWelcome, firstNameFromFull
+├── sourcingStages.ts       SOURCING_STAGES enum + stageIndex — single source of truth
+│                             for the 8 sourcing pipeline stages (mirrored by migration
+│                             0020's CHECK and the stage route's allowlist)
+├── progressStrings.ts      English-pinned strings for the buyer sidebar + progress rail
+│                             chrome (workspace chrome never localizes — only chat + RFQ
+│                             card do) + relativeTime() helper
+├── useSessionsList.ts      Lifted session list: one fetch + one sessions:${userId}
+│                             realtime channel feeding ChatSidebar AND the rail (incl.
+│                             onActiveSessionUpdate side-channel for untitled sessions)
 ├── rateLimit.ts            checkRateLimit / rateLimited429 / getClientIp — Postgres-backed fixed-window limiter
 ├── translate.ts            translateText() + detectLanguage() — thin wrappers over FastAPI /translate + /detect-language
 ├── useChat.ts              Hook: bootstraps from /api/chat/start, persists via POST /api/chat,
@@ -108,7 +123,7 @@ lib/
                             + advanceDealStage(dealId, stageId) for pipeline transitions
 
 supabase/
-├── migrations/             0001..0008 — users + chat tables + rfqs + RLS + cleanup + read_at + language/translation + rate_limits
+├── migrations/             0001..0021 — users + chat tables + rfqs + RLS + cleanup + read_at + language/translation + rate_limits + … + sourcing stage (0020) + its backfill (0021)
 └── README.md               Step-by-step setup the human operator does once
 
 types/
@@ -146,6 +161,7 @@ Server-side events (funnel order):
 | `review_blocked` | `/api/request-review` | buyer clicked handoff but was blocked; `reason`: missing_fields (409) / auth_required (401) — the funnel drop-off `review_requested` can't show |
 | `review_requested` | `/api/request-review` | **core conversion**; `language`, `hubspot_synced`, `machine_type`, `delivery_country` (category dims for conversion breakdowns) |
 | `am_brief_claimed` | `/api/am/sessions/[id]/claim` | distinct_id = the AM |
+| `am_stage_updated` | `/api/am/sessions/[id]/stage` | AM manually set the buyer-visible sourcing stage; `stage` (enum slug) |
 | `am_reply_sent` | `/api/am/sessions/[id]/messages` | `translated`, `has_attachments` |
 | `am_lead_rated` | `/api/am/sessions/[id]/rating` | AM's verdict on the AI interview; `lead_quality`, `field_issues` |
 | `agent_lessons_proposed` | `/api/am/sessions/[id]/lessons` | one per Generate-lessons click; `lead_quality`, `lesson_count` |
@@ -247,9 +263,29 @@ The Nexcierge Sourcing pipeline progresses through stages as real work happens, 
 |---|---|---|
 | Human Review Requested | Buyer clicks Request human review | `syncBriefToHubspot()` in `/api/request-review` creates the deal in this stage (env: `HUBSPOT_DEALSTAGE_NEW`) |
 | Assigned to Account Manager | AM claims an unassigned brief | `advanceDealStage()` in `/api/am/sessions/[id]/claim` PATCHes the deal (env: `HUBSPOT_DEALSTAGE_ASSIGNED_TO_AM`) |
-| Supplier Contacted, Won, Lost | Off-platform | Manual moves in HubSpot — these events have no signal inside Nexcierge |
+| Later sourcing stages | AM sets the sourcing stage in the brief sidebar | `advanceDealStage()` in `/api/am/sessions/[id]/stage`, per-stage env map (`HUBSPOT_DEALSTAGE_SUPPLIERS_CONTACTED` … `HUBSPOT_DEALSTAGE_DELIVERED`); unmapped stages skip silently |
+| Won, Lost | Off-platform | Manual moves in HubSpot — these events have no signal inside Nexcierge |
 
 Auto-advance is **non-fatal** by contract: every call site swallows HubSpot errors and logs them, because a CRM glitch must never fail the underlying user action (a claim succeeding in Supabase but failing in HubSpot is a reconciliation problem, not a user-visible failure). The advancement is also gated on the stage-id env var being set, so the code can ship before HubSpot is configured and degrades to "no auto-advance" cleanly.
+
+## Sourcing progress (stage model + buyer rail)
+
+The buyer's `/chat` page is a three-column dashboard: the request sidebar (left), the untouched chat surface (center), and the **sourcing-progress rail** (right, `components/chat/SourcingProgressRail.tsx`) showing the request title, a status pill, an 8-stage vertical timeline, and a next-step card. The rail is inline at `xl+` and an off-canvas right drawer below (opened from a `PanelRight` button in the chat header) — `xl`, not `lg`, so `ProfileSummaryCard`'s `sm:grid-cols-2` isn't squeezed.
+
+**Stage model.** `chat_sessions.sourcing_stage` (nullable text + CHECK, migration `0020`) holds the current stage; `chat_sessions.sourcing_stage_history` (jsonb, stage slug → ISO timestamp) records when each stage was entered so the timeline can stamp every done stage even after non-linear AM corrections. The ordered enum lives in `lib/sourcingStages.ts` (`brief_submitted → in_review → suppliers_contacted → quotes_received → proposal_negotiation → order_production → inspection_logistics → delivered`); the migration CHECK and the stage route's allowlist mirror it. `null` = pre-handoff (rail renders all stages upcoming with "finish your brief" copy).
+
+**Who writes it:**
+- `brief_submitted` — set inside `tryClaimHandoff()` (lib/db/sessions.ts) when the buyer requests review; `revertHandoff()` clears it. The display timestamp falls back to `handoff_requested_at`.
+- `in_review` — set by the claim route right after a successful claim (a second UPDATE, because merging the jsonb history needs a read-modify-write; produces a second benign realtime event).
+- Everything later — **manual, by the assigned AM**, via the "Sourcing stage" picker in the brief sidebar (`components/dashboard/StageSection.tsx` → `POST /api/am/sessions/[id]/stage`). Rating-route pattern: AM gate, enum allowlist, 409 unless `assigned_am_user_id` = caller, write through the user-scoped client so RLS is the real enforcement. Backward moves are allowed (corrections).
+
+All stage writes funnel through `updateSourcingStage()` in `lib/db/sessions.ts`. Stage-only UPDATEs deliberately don't touch `chat_sessions.updated_at` (no touch trigger), so sidebar/inbox ordering is undisturbed. "Delivered" does NOT auto-close the session — the stage is informational; closing stays a separate action.
+
+**Pre-existing sessions.** Sessions handed off before the feature existed are backfilled by migration `0021`: `in_handoff` rows get `brief_submitted` (or `in_review` when already claimed) derived from `handoff_requested_at` / `assigned_am_user_id`; `ai` and `closed` rows are left NULL on purpose (pre-handoff has no stage; a closed request's final stage is unknowable). Later stages on old sessions are set the same way as on new ones — manually, by the assigned AM.
+
+**How the buyer sees it live.** `chat_sessions` is already in the realtime publication with replica identity full, so stage columns ride existing UPDATE payloads. The session list + its `sessions:${userId}` channel are lifted into `lib/useSessionsList.ts` (called once by `app/chat/page.tsx`) and feed both `ChatSidebar` (now presentational) and the rail; its `onActiveSessionUpdate` side-channel forwards UPDATEs for the active session **before** the untitled-row filter, and the page overlays that row on the `useChat` bootstrap baseline (read-time guard on `row.id === sessionId`, no reset effect). `useChat` also optimistically flips `status`/`sourcing_stage` on a successful `requestReview()`.
+
+**Language policy.** All rail + sidebar chrome (stage labels, short status labels, next-step copy) lives in `lib/progressStrings.ts` and is **English-pinned by design** — only the conversation itself (chat bubbles + composer chrome via `chatStrings`) and the RFQ summary card (`cardStrings`) follow the buyer's language; workspace chrome around them stays English, matching the AM side's English-pinned brief sidebar (`lib/amBriefStrings.ts`). `progressStrings.ts` also exports an English `relativeTime()` built on `Intl.RelativeTimeFormat` for the sidebar's "2h ago" stamps.
 
 ## Returning-buyer identity reuse
 
@@ -323,7 +359,7 @@ Two tables are published to `supabase_realtime`: `chat_messages` (per-session li
 - POST responses add the returned message id to the set before the realtime event arrives.
 - The realtime handler checks `seenIds.has(row.id)` and skips if already rendered.
 
-**Per-user channel — `chat_sessions`** (`lib/useRealtimeSessions.ts`). The chat sidebar subscribes filtered by `user_id`. Never-started sessions (`title IS NULL` — the title is only set by the DB trigger on the first user message) are invisible to the sidebar: the cold GET filters them server-side (`listSessionsForUser`) and the INSERT handler skips them, so a blank chat doesn't appear in the list until the buyer actually sends something. That first message bumps the session's title via trigger, which arrives as an UPDATE — the UPDATE handler therefore **upserts** (adds the row if it wasn't in the list yet) as well as re-rendering title/subtitle live when status flips `ai → in_handoff → closed` or language changes. DELETE removes the row across every tab and falls back to `onDeleteActive` if the deleted session was active. The sidebar does one cold GET on mount; everything after is event-driven, no polling, no `refreshKey` plumbing.
+**Per-user channel — `chat_sessions`** (`lib/useRealtimeSessions.ts`, instantiated once via `lib/useSessionsList.ts` in `app/chat/page.tsx` — it feeds both the sidebar and the sourcing-progress rail, see § Sourcing progress). The subscription is filtered by `user_id`. Never-started sessions (`title IS NULL` — the title is only set by the DB trigger on the first user message) are invisible to the sidebar: the cold GET filters them server-side (`listSessionsForUser`) and the INSERT handler skips them, so a blank chat doesn't appear in the list until the buyer actually sends something. That first message bumps the session's title via trigger, which arrives as an UPDATE — the UPDATE handler therefore **upserts** (adds the row if it wasn't in the list yet) as well as re-rendering title/subtitle live when status flips `ai → in_handoff → closed` or language changes. DELETE removes the row across every tab and falls back to `onDeleteActive` if the deleted session was active. The sidebar does one cold GET on mount; everything after is event-driven, no polling, no `refreshKey` plumbing.
 
 **Never-started session reuse.** To stop abandoned blank chats piling up as duplicate rows, every "give me a blank chat" path (`GET /api/chat/start?new=1` from homepage entries, `POST /api/chat/sessions` from the sidebar `+`) first looks for the user's newest `status='ai'`, `title IS NULL` session (`findNeverStartedSession` in `lib/db/sessions.ts`) and reuses it; a fresh row is only inserted when none exists. A never-started session is guaranteed untouched — the rfq can only change via `/api/chat` turns, which require a user message, which would have set the title.
 
