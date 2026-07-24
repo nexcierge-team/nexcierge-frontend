@@ -8,7 +8,7 @@ const CARDS = [
     icon: FileText,
     title: "AI-Powered Intake",
     body:
-      "Bypass traditional lead forms. Input your exact machinery specs — from voltages to mold geometries — natively through our multilingual AI agent.",
+      "Bypass traditional lead forms. Input your exact machinery specs, from voltages to mold geometries, natively through our multilingual AI agent.",
   },
   {
     icon: Brain,
@@ -53,7 +53,7 @@ export function DirectSourcing() {
               <SectionHeader
                 eyebrow="Direct sourcing"
                 title="Made directly. Verified locally."
-                description="We bypass agents and trade-fair markups by sourcing from manufacturers on the domestic market — a managed, AI-assisted workflow, not a brokered relay race."
+                description="We bypass agents and trade-fair markups by sourcing from manufacturers on the domestic market: a managed, AI-assisted workflow, not a brokered relay race."
               />
             </div>
           </Reveal>

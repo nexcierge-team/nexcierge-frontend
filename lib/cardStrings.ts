@@ -79,7 +79,7 @@ const en: CardStrings = {
   labelElectrical: "Power supply",
   labelCompliance: "Compliance",
   timeline: {
-    urgent_less_than_30_days: "Urgent — under 30 days",
+    urgent_less_than_30_days: "Urgent (under 30 days)",
     "1_to_3_months": "1–3 months",
     "3_to_6_months": "3–6 months",
     just_researching: "Just researching",
@@ -122,7 +122,7 @@ const es: CardStrings = {
   labelElectrical: "Suministro eléctrico",
   labelCompliance: "Cumplimiento",
   timeline: {
-    urgent_less_than_30_days: "Urgente — menos de 30 días",
+    urgent_less_than_30_days: "Urgente (menos de 30 días)",
     "1_to_3_months": "1–3 meses",
     "3_to_6_months": "3–6 meses",
     just_researching: "Solo investigando",
@@ -165,7 +165,7 @@ const zh: CardStrings = {
   labelElectrical: "电源规格",
   labelCompliance: "合规要求",
   timeline: {
-    urgent_less_than_30_days: "紧急 — 30 天内",
+    urgent_less_than_30_days: "紧急 (30 天内)",
     "1_to_3_months": "1–3 个月",
     "3_to_6_months": "3–6 个月",
     just_researching: "仅在了解",
@@ -208,7 +208,7 @@ const de: CardStrings = {
   labelElectrical: "Stromversorgung",
   labelCompliance: "Compliance",
   timeline: {
-    urgent_less_than_30_days: "Dringend — unter 30 Tagen",
+    urgent_less_than_30_days: "Dringend (unter 30 Tagen)",
     "1_to_3_months": "1–3 Monate",
     "3_to_6_months": "3–6 Monate",
     just_researching: "Nur Recherche",
@@ -251,7 +251,7 @@ const fr: CardStrings = {
   labelElectrical: "Alimentation électrique",
   labelCompliance: "Conformité",
   timeline: {
-    urgent_less_than_30_days: "Urgent — moins de 30 jours",
+    urgent_less_than_30_days: "Urgent (moins de 30 jours)",
     "1_to_3_months": "1–3 mois",
     "3_to_6_months": "3–6 mois",
     just_researching: "Simple renseignement",
@@ -294,7 +294,7 @@ const ja: CardStrings = {
   labelElectrical: "電源仕様",
   labelCompliance: "コンプライアンス",
   timeline: {
-    urgent_less_than_30_days: "緊急 — 30日以内",
+    urgent_less_than_30_days: "緊急 (30日以内)",
     "1_to_3_months": "1〜3か月",
     "3_to_6_months": "3〜6か月",
     just_researching: "情報収集のみ",
@@ -337,7 +337,7 @@ const ko: CardStrings = {
   labelElectrical: "전원 사양",
   labelCompliance: "규정 준수",
   timeline: {
-    urgent_less_than_30_days: "긴급 — 30일 이내",
+    urgent_less_than_30_days: "긴급 (30일 이내)",
     "1_to_3_months": "1~3개월",
     "3_to_6_months": "3~6개월",
     just_researching: "정보 수집 중",
@@ -380,7 +380,7 @@ const ar: CardStrings = {
   labelElectrical: "مواصفات الكهرباء",
   labelCompliance: "الامتثال",
   timeline: {
-    urgent_less_than_30_days: "عاجل — أقل من 30 يومًا",
+    urgent_less_than_30_days: "عاجل (أقل من 30 يومًا)",
     "1_to_3_months": "1–3 أشهر",
     "3_to_6_months": "3–6 أشهر",
     just_researching: "مجرد استطلاع",
@@ -423,7 +423,7 @@ const ru: CardStrings = {
   labelElectrical: "Электропитание",
   labelCompliance: "Соответствие",
   timeline: {
-    urgent_less_than_30_days: "Срочно — менее 30 дней",
+    urgent_less_than_30_days: "Срочно (менее 30 дней)",
     "1_to_3_months": "1–3 месяца",
     "3_to_6_months": "3–6 месяцев",
     just_researching: "Просто изучаю",
@@ -466,7 +466,7 @@ const pt: CardStrings = {
   labelElectrical: "Alimentação elétrica",
   labelCompliance: "Conformidade",
   timeline: {
-    urgent_less_than_30_days: "Urgente — menos de 30 dias",
+    urgent_less_than_30_days: "Urgente (menos de 30 dias)",
     "1_to_3_months": "1–3 meses",
     "3_to_6_months": "3–6 meses",
     just_researching: "Apenas pesquisando",
@@ -509,7 +509,7 @@ const hi: CardStrings = {
   labelElectrical: "बिजली आपूर्ति",
   labelCompliance: "अनुपालन",
   timeline: {
-    urgent_less_than_30_days: "अत्यावश्यक — 30 दिन से कम",
+    urgent_less_than_30_days: "अत्यावश्यक (30 दिन से कम)",
     "1_to_3_months": "1–3 महीने",
     "3_to_6_months": "3–6 महीने",
     just_researching: "बस जानकारी ले रहे हैं",
@@ -552,7 +552,7 @@ const gu: CardStrings = {
   labelElectrical: "વીજ પુરવઠો",
   labelCompliance: "અનુપાલન",
   timeline: {
-    urgent_less_than_30_days: "તાત્કાલિક — 30 દિવસથી ઓછું",
+    urgent_less_than_30_days: "તાત્કાલિક (30 દિવસથી ઓછું)",
     "1_to_3_months": "1–3 મહિના",
     "3_to_6_months": "3–6 મહિના",
     just_researching: "માત્ર માહિતી લઈ રહ્યા છીએ",
@@ -595,7 +595,7 @@ const ta: CardStrings = {
   labelElectrical: "மின் வழங்கல்",
   labelCompliance: "இணக்கம்",
   timeline: {
-    urgent_less_than_30_days: "அவசரம் — 30 நாட்களுக்குள்",
+    urgent_less_than_30_days: "அவசரம் (30 நாட்களுக்குள்)",
     "1_to_3_months": "1–3 மாதங்கள்",
     "3_to_6_months": "3–6 மாதங்கள்",
     just_researching: "தகவல் மட்டும் பார்க்கிறேன்",
@@ -639,7 +639,7 @@ const bn: CardStrings = {
   labelElectrical: "বিদ্যুৎ সরবরাহ",
   labelCompliance: "কমপ্লায়েন্স",
   timeline: {
-    urgent_less_than_30_days: "জরুরি — 30 দিনের কম",
+    urgent_less_than_30_days: "জরুরি (30 দিনের কম)",
     "1_to_3_months": "1–3 মাস",
     "3_to_6_months": "3–6 মাস",
     just_researching: "শুধু খোঁজখবর নিচ্ছি",
@@ -683,7 +683,7 @@ const tr: CardStrings = {
   labelElectrical: "Güç kaynağı",
   labelCompliance: "Uyumluluk",
   timeline: {
-    urgent_less_than_30_days: "Acil — 30 günden az",
+    urgent_less_than_30_days: "Acil (30 günden az)",
     "1_to_3_months": "1–3 ay",
     "3_to_6_months": "3–6 ay",
     just_researching: "Sadece araştırıyorum",
@@ -726,7 +726,7 @@ const id: CardStrings = {
   labelElectrical: "Catu daya",
   labelCompliance: "Kepatuhan",
   timeline: {
-    urgent_less_than_30_days: "Mendesak — kurang dari 30 hari",
+    urgent_less_than_30_days: "Mendesak (kurang dari 30 hari)",
     "1_to_3_months": "1–3 bulan",
     "3_to_6_months": "3–6 bulan",
     just_researching: "Baru mencari informasi",
@@ -769,7 +769,7 @@ const vi: CardStrings = {
   labelElectrical: "Nguồn điện",
   labelCompliance: "Tuân thủ",
   timeline: {
-    urgent_less_than_30_days: "Khẩn cấp — dưới 30 ngày",
+    urgent_less_than_30_days: "Khẩn cấp (dưới 30 ngày)",
     "1_to_3_months": "1–3 tháng",
     "3_to_6_months": "3–6 tháng",
     just_researching: "Chỉ đang tìm hiểu",

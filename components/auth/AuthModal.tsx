@@ -267,7 +267,7 @@ export function AuthModal({
 
               <p className="mt-6 text-[11px] leading-relaxed text-gray-400">
                 By continuing, you agree to Nexcierge&apos;s terms. No password
-                required — we use one-tap and email links.
+                required. We use one-tap and email links.
               </p>
             </div>
           </motion.div>

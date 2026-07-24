@@ -18,7 +18,7 @@ export function ManufacturingNetwork() {
               <SectionHeader
                 eyebrow="The network"
                 title="A managed network of verified manufacturers."
-                description="Nexcierge maintains an active roster of Chinese manufacturers across the categories where they lead globally. Onboarding and verification is continuous — not a one-time directory."
+                description="Nexcierge maintains an active roster of Chinese manufacturers across the categories where they lead globally. Onboarding and verification is continuous, not a one-time directory."
               />
 
               <dl className="mt-10 grid gap-6 sm:grid-cols-3">

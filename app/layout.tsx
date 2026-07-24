@@ -19,7 +19,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Nexcierge — Source industrial machinery from China, intelligently.",
+  title: "Nexcierge | Source industrial machinery from China, intelligently.",
   description:
     "AI sourcing concierge for international buyers. Identify domestic Chinese suppliers, qualify requirements, and execute through a managed sourcing workflow.",
   metadataBase: new URL("https://nexcierge.com"),
@@ -27,7 +27,7 @@ export const metadata: Metadata = {
   // before public launch so Google can index the marketing pages.
   robots: { index: false, follow: false },
   openGraph: {
-    title: "Nexcierge — The smart way to source equipment",
+    title: "Nexcierge | The smart way to source equipment",
     description:
       "AI-powered industrial machinery sourcing from Chinese manufacturers, with human verification and managed procurement.",
     type: "website",

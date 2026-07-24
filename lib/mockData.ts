@@ -27,7 +27,7 @@ export const HOW_IT_WORKS = [
     step: "01",
     title: "AI-Powered Intake",
     description:
-      "Tell us what you need in your own words — no forms or logins required. Our multilingual AI instantly captures your exact technical specifications, from voltages to custom mold geometries.",
+      "Tell us what you need in your own words, with no forms or logins required. Our multilingual AI instantly captures your exact technical specifications, from voltages to custom mold geometries.",
   },
   {
     step: "02",
@@ -218,19 +218,19 @@ export const FAQS = FAQ_SECTIONS.flatMap((s) => s.items);
 export const MOCK_CHAT_SESSIONS: ChatSession[] = [
   {
     id: "s1",
-    title: "PET bottle blowing — 1500 bph",
+    title: "PET bottle blowing - 1500 bph",
     updatedAt: "Today",
     preview: "Automatic with 2-cavity rotary, semi-automatic with...",
   },
   {
     id: "s2",
-    title: "CNC lathe — stainless, 400mm",
+    title: "CNC lathe - stainless, 400mm",
     updatedAt: "Yesterday",
     preview: "GSK 980TDi vs Siemens 808D control comparison...",
   },
   {
     id: "s3",
-    title: "Injection molding — 200T",
+    title: "Injection molding - 200T",
     updatedAt: "2 days ago",
     preview: "Shot weight 320g, screw diameter 42mm...",
   },

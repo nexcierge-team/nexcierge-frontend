@@ -35,7 +35,7 @@ export function Footer() {
             NEXCIERGE
           </div>
           <p className="mt-4 text-sm leading-relaxed text-gray-500">
-            The smart way to source industrial machinery — AI sourcing concierge,
+            The smart way to source industrial machinery: AI sourcing concierge,
             verified Chinese manufacturers, managed procurement.
           </p>
         </div>

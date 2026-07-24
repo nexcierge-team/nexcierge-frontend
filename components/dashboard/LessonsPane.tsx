@@ -80,7 +80,7 @@ export function LessonsPane({ onBack }: { onBack: () => void }) {
           </h1>
           <p className="text-xs text-gray-500">
             Drafted from your brief ratings. Approved lessons feed the next
-            prompt update — nothing changes the agent until you approve.
+            prompt update. Nothing changes the agent until you approve.
           </p>
         </div>
       </header>

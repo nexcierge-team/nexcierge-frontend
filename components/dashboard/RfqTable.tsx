@@ -136,7 +136,7 @@ export function RfqTable({
           {q
             ? "No briefs match your search."
             : tab === "unclaimed"
-              ? "No unclaimed briefs — everything has an owner."
+              ? "No unclaimed briefs. Everything has an owner."
               : tab === "mine"
                 ? "No briefs assigned to you yet. Claim one from the Unclaimed tab."
                 : "No new briefs. Incoming requests will appear here."}

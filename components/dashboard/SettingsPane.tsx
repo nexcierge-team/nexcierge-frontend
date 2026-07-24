@@ -46,7 +46,7 @@ function ConfigSelect({
           className="w-full appearance-none rounded-lg border border-gray-200 bg-white px-3 py-2 pr-9 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0F2747]/15 disabled:opacity-50"
         >
           {!known && value && (
-            <option value={value}>{value} (current — not in list)</option>
+            <option value={value}>{value} (current, not in list)</option>
           )}
           {options.map((o) => (
             <option key={o.id} value={o.id}>
@@ -151,7 +151,7 @@ export function SettingsPane({ onBack }: { onBack: () => void }) {
           <h1 className="text-sm font-semibold text-gray-900">Models</h1>
           <p className="text-xs text-gray-500">
             The live Gemini models for buyer chat. Saving changes them for every
-            conversation immediately — compare performance in PostHog.
+            conversation immediately. Compare performance in PostHog.
           </p>
         </div>
       </header>
@@ -173,7 +173,7 @@ export function SettingsPane({ onBack }: { onBack: () => void }) {
                 <p className="text-xs leading-relaxed text-amber-800">
                   Global &amp; live: these apply to <strong>all</strong>{" "}
                   buyer chats, not a sandbox. There&apos;s no per-tester
-                  isolation — buyers chat anonymously before a manager is
+                  isolation, since buyers chat anonymously before a manager is
                   assigned.
                 </p>
               </div>
@@ -199,7 +199,7 @@ export function SettingsPane({ onBack }: { onBack: () => void }) {
                 />
                 <ConfigSelect
                   label="Pills thinking"
-                  hint="Reasoning effort on the pills pass — runs every turn, so higher = more cost + latency. Off/Low are the cheap/fast picks."
+                  hint="Reasoning effort on the pills pass. It runs every turn, so higher = more cost + latency. Off/Low are the cheap/fast picks."
                   value={pillsThinking}
                   onChange={setPillsThinking}
                   disabled={saving}

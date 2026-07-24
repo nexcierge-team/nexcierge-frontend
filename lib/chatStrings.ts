@@ -49,7 +49,7 @@ const en: ChatStrings = {
   errInvalidField:
     "One of your details looks invalid. Please correct it in chat and try Request human review again.",
   errTransfer:
-    "Couldn't transfer to our account manager just now — please try again.",
+    "Couldn't transfer to our account manager just now. Please try again.",
 };
 
 const es: ChatStrings = {
@@ -117,7 +117,7 @@ const de: ChatStrings = {
   errInvalidField:
     "Eine Ihrer Angaben scheint ungültig zu sein. Bitte korrigieren Sie sie im Chat und fordern Sie die menschliche Prüfung erneut an.",
   errTransfer:
-    "Die Übergabe an Ihren Account Manager ist gerade nicht möglich — bitte versuchen Sie es erneut.",
+    "Die Übergabe an Ihren Account Manager ist gerade nicht möglich. Bitte versuchen Sie es erneut.",
 };
 
 const fr: ChatStrings = {
@@ -140,7 +140,7 @@ const fr: ChatStrings = {
   errInvalidField:
     "L'une de vos informations semble invalide. Corrigez-la dans la discussion et redemandez une revue humaine.",
   errTransfer:
-    "Impossible de transférer à votre gestionnaire de compte pour le moment — veuillez réessayer.",
+    "Impossible de transférer à votre gestionnaire de compte pour le moment. Veuillez réessayer.",
 };
 
 const ja: ChatStrings = {
@@ -208,14 +208,14 @@ const ar: ChatStrings = {
   errInvalidField:
     "تبدو إحدى بياناتك غير صالحة. يرجى تصحيحها في المحادثة ثم إعادة طلب المراجعة البشرية.",
   errTransfer:
-    "تعذّر التحويل إلى مدير حسابك في الوقت الحالي — يرجى المحاولة مرة أخرى.",
+    "تعذّر التحويل إلى مدير حسابك في الوقت الحالي. يرجى المحاولة مرة أخرى.",
 };
 
 const ru: ChatStrings = {
   composerReply: "Ответить…",
   composerHandoff: "Напишите вашему менеджеру…",
   composerDefault: "Напишите Nexcierge…",
-  composerHint: "Enter — отправить · Shift + Enter — новая строка",
+  composerHint: "Enter для отправки · Shift + Enter для новой строки",
   sendAria: "Отправить сообщение",
   historyAria: "Открыть историю чатов",
   newChatAria: "Новый разговор",
@@ -231,7 +231,7 @@ const ru: ChatStrings = {
   errInvalidField:
     "Одно из ваших данных выглядит недействительным. Исправьте его в чате и снова запросите проверку человеком.",
   errTransfer:
-    "Сейчас не удалось передать вашему менеджеру — попробуйте ещё раз.",
+    "Сейчас не удалось передать вашему менеджеру. Попробуйте ещё раз.",
 };
 
 const pt: ChatStrings = {
@@ -254,7 +254,7 @@ const pt: ChatStrings = {
   errInvalidField:
     "Um dos seus dados parece inválido. Corrija-o no chat e tente Solicitar revisão humana novamente.",
   errTransfer:
-    "Não foi possível transferir para o seu gerente de conta agora — tente novamente.",
+    "Não foi possível transferir para o seu gerente de conta agora. Tente novamente.",
 };
 
 const hi: ChatStrings = {
@@ -277,7 +277,7 @@ const hi: ChatStrings = {
   errInvalidField:
     "आपका कोई विवरण अमान्य लगता है। कृपया चैट में उसे ठीक करें और फिर से 'मानव समीक्षा का अनुरोध करें' आज़माएँ।",
   errTransfer:
-    "अभी आपके अकाउंट मैनेजर को स्थानांतरित नहीं किया जा सका — कृपया फिर से प्रयास करें।",
+    "अभी आपके अकाउंट मैनेजर को स्थानांतरित नहीं किया जा सका। कृपया फिर से प्रयास करें।",
 };
 
 const gu: ChatStrings = {
@@ -300,7 +300,7 @@ const gu: ChatStrings = {
   errInvalidField:
     "તમારી કોઈ વિગત અમાન્ય લાગે છે. કૃપા કરીને ચેટમાં તેને સુધારો અને ફરીથી 'માનવ સમીક્ષાની વિનંતી કરો' અજમાવો.",
   errTransfer:
-    "હમણાં તમારા એકાઉન્ટ મેનેજરને ટ્રાન્સફર થઈ શક્યું નહીં — કૃપા કરીને ફરી પ્રયાસ કરો.",
+    "હમણાં તમારા એકાઉન્ટ મેનેજરને ટ્રાન્સફર થઈ શક્યું નહીં. કૃપા કરીને ફરી પ્રયાસ કરો.",
 };
 
 const ta: ChatStrings = {
@@ -323,7 +323,7 @@ const ta: ChatStrings = {
   errInvalidField:
     "உங்கள் விவரங்களில் ஒன்று தவறாகத் தெரிகிறது. அரட்டையில் அதைத் திருத்திவிட்டு, 'மனித மதிப்பாய்வு கோரவும்' என்பதை மீண்டும் முயற்சிக்கவும்.",
   errTransfer:
-    "இப்போது உங்கள் கணக்கு மேலாளரிடம் மாற்ற முடியவில்லை — மீண்டும் முயற்சிக்கவும்.",
+    "இப்போது உங்கள் கணக்கு மேலாளரிடம் மாற்ற முடியவில்லை. மீண்டும் முயற்சிக்கவும்.",
 };
 
 const bn: ChatStrings = {
@@ -345,7 +345,7 @@ const bn: ChatStrings = {
   errInvalidField:
     "আপনার একটি তথ্য অবৈধ মনে হচ্ছে। অনুগ্রহ করে চ্যাটে সেটি ঠিক করুন এবং আবার 'মানব পর্যালোচনার অনুরোধ করুন' চেষ্টা করুন।",
   errTransfer:
-    "এই মুহূর্তে আপনার অ্যাকাউন্ট ম্যানেজারের কাছে স্থানান্তর করা যায়নি — অনুগ্রহ করে আবার চেষ্টা করুন।",
+    "এই মুহূর্তে আপনার অ্যাকাউন্ট ম্যানেজারের কাছে স্থানান্তর করা যায়নি। অনুগ্রহ করে আবার চেষ্টা করুন।",
 };
 
 const tr: ChatStrings = {
@@ -367,7 +367,7 @@ const tr: ChatStrings = {
   errInvalidField:
     "Bilgilerinizden biri geçersiz görünüyor. Lütfen sohbette düzeltin ve 'İnsan incelemesi iste'yi tekrar deneyin.",
   errTransfer:
-    "Şu anda müşteri temsilcinize aktarılamadı — lütfen tekrar deneyin.",
+    "Şu anda müşteri temsilcinize aktarılamadı. Lütfen tekrar deneyin.",
 };
 
 const id: ChatStrings = {
@@ -390,7 +390,7 @@ const id: ChatStrings = {
   errInvalidField:
     "Salah satu data Anda tampak tidak valid. Perbaiki di obrolan lalu coba lagi Minta tinjauan manusia.",
   errTransfer:
-    "Tidak dapat mengalihkan ke manajer akun Anda saat ini — silakan coba lagi.",
+    "Tidak dapat mengalihkan ke manajer akun Anda saat ini. Silakan coba lagi.",
 };
 
 const vi: ChatStrings = {
@@ -413,7 +413,7 @@ const vi: ChatStrings = {
   errInvalidField:
     "Một thông tin của bạn có vẻ không hợp lệ. Vui lòng sửa trong cuộc trò chuyện rồi thử lại Yêu cầu nhân viên xem xét.",
   errTransfer:
-    "Hiện không thể chuyển cho quản lý tài khoản của bạn — vui lòng thử lại.",
+    "Hiện không thể chuyển cho quản lý tài khoản của bạn. Vui lòng thử lại.",
 };
 
 const CHAT_STRINGS: Record<string, ChatStrings> = {

@@ -82,8 +82,8 @@ export default function ContactPage() {
                 </h1>
                 <p className="mt-5 text-base leading-relaxed text-gray-600 sm:text-lg">
                   For sourcing inquiries, the AI sourcing concierge is the
-                  fastest path. For everything else — partnerships, press, or
-                  enterprise procurement — drop a note below.
+                  fastest path. For everything else, including partnerships,
+                  press, and enterprise procurement, drop a note below.
                 </p>
               </div>
             </Reveal>

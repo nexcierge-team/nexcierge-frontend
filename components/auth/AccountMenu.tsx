@@ -123,7 +123,7 @@ export function AccountMenu({
         onClick={() => setMenuOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={menuOpen}
-        aria-label={variant === "avatar" ? `Account menu — ${email}` : undefined}
+        aria-label={variant === "avatar" ? `Account menu for ${email}` : undefined}
         title={variant === "avatar" ? email : undefined}
         className={cn(
           "items-center gap-2 transition-colors",

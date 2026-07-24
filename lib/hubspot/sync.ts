@@ -55,7 +55,7 @@ function maybeRethrowValidation(e: unknown, fallbackValue: string): never {
       const field = first.context?.propertyName?.[0] ?? "unknown_field";
       const friendly =
         first.code === "INVALID_EMAIL"
-          ? `The email address ${fallbackValue} looks invalid — please double-check it (common typos: .coim → .com, .con → .com, missing @).`
+          ? `The email address ${fallbackValue} looks invalid. Please double-check it (common typos: .coim → .com, .con → .com, missing @).`
           : `HubSpot rejected the ${field} field: ${first.message}`;
       throw new HubspotValidationError(field, fallbackValue, first.code, friendly);
     }
@@ -183,7 +183,7 @@ export async function syncBriefToHubspot(
 
   // 2. Create the Deal.
   const dealProps: Record<string, string> = {
-    dealname: `${rfq.machine_type || "Sourcing brief"} — ${rfq.company_name || rfq.full_name || rfq.business_email}`,
+    dealname: `${rfq.machine_type || "Sourcing brief"} - ${rfq.company_name || rfq.full_name || rfq.business_email}`,
     pipeline: pipelineId,
     dealstage: dealstageId,
     // Custom Deal properties (must be pre-created in HubSpot UI, see

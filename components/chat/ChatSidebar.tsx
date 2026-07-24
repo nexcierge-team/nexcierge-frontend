@@ -344,7 +344,7 @@ export function ChatSidebar({
       <div className="border-t border-gray-200 p-4">
         <div className="mb-1 text-[10px] uppercase tracking-wider text-gray-400">
           {isAnonymous
-            ? "Guest — sign in on handoff to save history"
+            ? "Guest · sign in on handoff to save history"
             : "Your account"}
         </div>
         <AccountMenu variant="compact" redirectTo="/chat" />

@@ -30,7 +30,7 @@ const PILLARS = [
     icon: FileSearch,
     title: "Procurement transparency",
     description:
-      "Direct domestic Chinese pricing — no broker markup, no hidden margins. You see the cost breakdown, lead times, and quality assurance steps for every shortlisted supplier.",
+      "Direct domestic Chinese pricing: no broker markup, no hidden margins. You see the cost breakdown, lead times, and quality assurance steps for every shortlisted supplier.",
   },
   {
     icon: Lock,
@@ -166,7 +166,7 @@ export default function AboutPage() {
                 Our coordination team has experience across packaging, plastic,
                 metalworking, food processing, and textile machinery
                 procurement. They speak the language and have walked the
-                factory floors — that&apos;s the part you can&apos;t automate.
+                factory floors. That&apos;s the part you can&apos;t automate.
               </p>
             </Reveal>
           </div>

@@ -43,10 +43,10 @@ export interface ThinkingLevelOption {
 }
 
 export const PILLS_THINKING_LEVELS: ThinkingLevelOption[] = [
-  { id: "off", label: "Off — cheapest / fastest" },
+  { id: "off", label: "Off (cheapest / fastest)" },
   { id: "low", label: "Low (default)" },
   { id: "medium", label: "Medium" },
-  { id: "high", label: "High — best pill quality" },
+  { id: "high", label: "High (best pill quality)" },
 ];
 
 export const PILLS_THINKING_IDS: string[] = PILLS_THINKING_LEVELS.map(

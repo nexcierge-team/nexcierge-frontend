@@ -50,7 +50,7 @@ export function AttentionCards({
     items.push({
       count: unclaimedCount,
       title: unclaimedCount === 1 ? "Unclaimed brief" : "Unclaimed briefs",
-      body: "Buyers are waiting — claim to reply",
+      body: "Buyers are waiting. Claim to reply",
       actionLabel: "View unclaimed",
       onAction: onViewUnclaimed,
     });
@@ -84,7 +84,7 @@ export function AttentionCards({
       </h2>
       {items.length === 0 ? (
         <p className="mt-3 text-xs text-gray-400">
-          All clear — nothing waiting on you.
+          All clear. Nothing waiting on you.
         </p>
       ) : (
         <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

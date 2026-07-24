@@ -326,7 +326,7 @@ function ChatPageInner() {
         onClose={dismissSignupGate}
         redirectTo={sessionId ? `/chat?session_id=${sessionId}` : "/chat"}
         title="Create your free account to continue"
-        description="You've used your free preview messages. Sign in to keep chatting with your sourcing concierge — your conversation stays saved."
+        description="You've used your free preview messages. Sign in to keep chatting with your sourcing concierge. Your conversation stays saved."
       />
     </div>
   );

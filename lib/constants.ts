@@ -12,7 +12,7 @@ export const HANDOFF_REPLY =
 export const DIVIDER_LABEL = "Account manager";
 
 export function accountManagerWelcome(firstName: string): string {
-  const greeting = firstName ? `Hi ${firstName} — ` : "Hi there — ";
+  const greeting = firstName ? `Hi ${firstName}, ` : "Hi there, ";
   return (
     `${greeting}I'm your Nexcierge account manager. I've received your ` +
     `sourcing brief and I'll be in touch within 24 hours with next steps. ` +

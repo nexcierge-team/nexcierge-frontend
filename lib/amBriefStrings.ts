@@ -77,10 +77,10 @@ export const AM_BRIEF_EN: AmBriefStrings = {
   ratedLabel: "Rated",
   editRating: "Edit",
   claimToRate: "Claim this brief to rate it.",
-  ratingFailed: "Saving failed — try again.",
+  ratingFailed: "Saving failed. Try again.",
   generateLessons: "Generate lessons",
   generatingLessons: "Drafting…",
-  lessonsProposedSuffix: "lesson(s) proposed — review under Lessons",
+  lessonsProposedSuffix: "lesson(s) proposed. Review under Lessons",
   noLessonsProposed: "No new lessons from this review.",
-  lessonsFailed: "Generation failed — try again.",
+  lessonsFailed: "Generation failed. Try again.",
 };

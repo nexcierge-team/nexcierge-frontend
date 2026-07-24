@@ -35,7 +35,7 @@ export default function GlobalError({
           </h1>
           <p className="mt-3 max-w-md text-gray-500">
             The issue has been logged and our team will take a look. You can try
-            again — most errors are temporary.
+            again, as most errors are temporary.
           </p>
           <button
             onClick={() => reset()}
