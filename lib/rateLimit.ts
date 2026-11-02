@@ -3,7 +3,9 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { captureServer } from "@/lib/analytics";
 
 // Fixed-window rate limiting backed by Supabase Postgres via the
-// public.check_rate_limit RPC. One round trip per check (~10-30ms in
+// public.check_rate_limit RPC. SERVER ONLY: the RPC is executable by
+// service_role alone (migration 0025), so it must be called with the
+// admin client below, never a user-scoped or browser client. One round trip per check (~10-30ms in
 // our region), which is invisible next to a 2-5s Gemini call but
 // noticeable on the cheap routes — that's the cost of not adding a
 // dedicated Redis vendor for this.

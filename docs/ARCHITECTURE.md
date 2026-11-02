@@ -147,7 +147,7 @@ lib/
                             + advanceDealStage(dealId, stageId) for pipeline transitions
 
 supabase/
-├── migrations/             0001..0024 — users + chat tables + rfqs + RLS + cleanup + read_at + language/translation + rate_limits + … + sourcing stage (0020) + its backfill (0021) + llm_call_logs stream metrics (0022) + chat_sessions.language_resolved_at (0023) + RLS initplan rewrite (0024)
+├── migrations/             0001..0025 — users + chat tables + rfqs + RLS + cleanup + read_at + language/translation + rate_limits + … + sourcing stage (0020) + its backfill (0021) + llm_call_logs stream metrics (0022) + chat_sessions.language_resolved_at (0023) + RLS initplan rewrite (0024) + check_rate_limit locked to service_role (0025)
 └── README.md               Step-by-step setup the human operator does once
 
 types/
@@ -243,18 +243,35 @@ Buyer clicks Request human review → POST /api/request-review
    │       ▼
    │   useChat opens AuthModal
    │       │
-   │       ├─ Continue with Google → supabase.auth.linkIdentity({ provider: 'google' })
-   │       │       → OAuth redirect → /auth/callback → exchangeCodeForSession → /chat?resume=handoff
+   │       ├─ both paths first POST /api/auth/prepare-signin → server reads its own verified
+   │       │   session and, if anonymous, sets the HTTP-only `nx_pre_signin_uid` cookie (10 min)
    │       │
-   │       └─ Continue with email → supabase.auth.updateUser({ email })
-   │               → confirmation email → user clicks → /auth/callback → verifyOtp → /chat?resume=handoff
+   │       ├─ Continue with Google → supabase.auth.signInWithOAuth({ provider: 'google' })
+   │       │       → Google → /auth/callback?code=… → exchangeCodeForSession
+   │       │
+   │       └─ Continue with email → supabase.auth.signInWithOtp({ email })
+   │               → magic link → /auth/callback?token_hash=…&type=… → verifyOtp
    │       ↓
-   │   In both cases: SAME auth.users.id, is_anonymous flips to false
+   │   /auth/callback: the buyer is now signed in as a DIFFERENT, permanent auth.users id
+   │   (a new user, or their existing account if that email / Google identity signed in before).
+   │   If `nx_pre_signin_uid` names a different id, the service-role client moves that anonymous
+   │   user's chat_sessions + rfqs to the new id (transferSessionsOwnership /
+   │   transferRfqsOwnership), clears the cookie, fires `auth_completed`, and redirects to
+   │   `?next=` (default /chat?resume=handoff). Migration errors are logged, never block sign-in.
    │       ↓
    │   useChat detects ?resume=handoff on next bootstrap → auto-fires requestReview()
    │
+   │   Why not linkIdentity: upgrading the anonymous user in place breaks when that email /
+   │   Google identity already belongs to an account (a returning buyer on a new device), so we
+   │   sign in normally and move the data instead. See supabase/README.md § anonymous sign-ins.
+   │   Known gap: chat_messages.sender_user_id on the buyer's pre-sign-in messages still points at
+   │   the old anonymous id (only sessions + rfqs are moved).
+   │
    ▼
-POST /api/request-review (now non-anonymous):
+POST /api/request-review (now non-anonymous; Supabase + HubSpot only, no FastAPI call
+besides translation):
+   - Guards: rate limit → session ownership (404) → already handed off (idempotent success)
+     → rfqs.is_complete (409, `review_blocked: missing_fields`) → anonymous (401, `review_blocked: auth_required`)
    - Atomic claim: UPDATE chat_sessions SET status='in_handoff' WHERE id=$1 AND status='ai'
      (concurrent double-click / second tab loses the race → idempotent success, no second HubSpot deal)
    - HubSpot sync (idempotent on rfqs.hubspot_deal_id; on validation error revert claim → 422)
@@ -313,7 +330,7 @@ All stage writes funnel through `updateSourcingStage()` in `lib/db/sessions.ts`.
 
 ## Returning-buyer identity reuse
 
-A buyer's `auth.users.id` is stable across sessions (cookie-bound for anonymous users, preserved through `linkIdentity` / `updateUser` on promotion), and `transferRfqsOwnership` keeps prior RFQs attached to that same id after sign-in. So once a buyer has filled name / company / email in any past RFQ, that identity is reachable on every later visit.
+An anonymous buyer's `auth.users.id` is stable for as long as their auth cookie lives. Signing in (Google or magic link) switches them to a **permanent** id (new, or their existing account on a repeat sign-in), and `/auth/callback` moves the anonymous id's `chat_sessions` + `rfqs` onto it (`transferSessionsOwnership` / `transferRfqsOwnership`, see § Auth flow). So every RFQ a buyer ever filled ends up owned by their permanent id, and once they've given name / company / email in any past RFQ, that identity is reachable on every later visit after they sign in.
 
 `createRfq` (`lib/db/rfqs.ts`) calls `getLatestBuyerIdentity(supabase, userId)` before inserting and spreads any returned `{full_name, company_name, business_email, phone_number, job_role}` over the empty defaults. The query takes the newest RFQ row owned by this user with a non-empty `business_email` — using `business_email` rather than `is_complete` because a buyer who reached the identity step but bailed before completing logistics is still a valid identity source. Request-specific fields (`machine_type`, delivery, timeline, etc.) are deliberately NOT carried over — every request is its own brief.
 
@@ -354,7 +371,7 @@ Defence in depth against (a) anonymous-signup spam filling `auth.users` and (b) 
 **Layer 2 (app code).** Fixed-window rate limiting backed by Supabase Postgres. Schema in migration `0008_rate_limits.sql`:
 - `public.rate_limits(key text pk, count int, window_start timestamptz)` — one row per window-bucket
 - `public.check_rate_limit(p_key, p_max, p_window_seconds) returns (allowed, remaining, reset_at)` — `security definer` UPSERT-and-increment in a single statement so two concurrent callers can't both see "under the limit"
-- RLS on the table is closed; all access goes through the RPC
+- RLS on the table is closed; all access goes through the RPC, and the RPC is **executable by `service_role` only** (migration `0025`). `0008` originally also granted it to `anon`/`authenticated`, which let anyone with the public anon key call it through PostgREST with any key: reset their own bucket (a 0-second window counts as expired) to bypass the Gemini-spend cap, or fill someone else's bucket to lock them out. `lib/rateLimit.ts` uses the admin client, so nothing else needs it
 
 `lib/rateLimit.ts` wraps the RPC and exposes `checkRateLimit(key, config)`, `rateLimited429(result)`, and `getClientIp(req)`. Failure mode: **fails OPEN** on RPC error with a loud `console.error` — a broken rate-limit table should never wedge the app.
 

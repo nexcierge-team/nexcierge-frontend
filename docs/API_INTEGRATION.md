@@ -16,7 +16,7 @@ Every server-side call to the backend goes through `lib/backend.ts` (`BACKEND_UR
 | Frontend route | Backend target | Purpose |
 |---|---|---|
 | `POST /api/chat` | `POST /chat/stream` (falls back to `POST /chat` on a backend without it) | Conversational turn, streamed to the browser as NDJSON when it sends `Accept: application/x-ndjson` (else one JSON body). Forwards `session.language` to FastAPI (the `'en'` default during the interview, so Gemini mirrors the buyer; a non-`en` code once pinned, so the prompt locks to it). Returns `reply_language` (the agent reply's language, from the pills pass) every turn; the client adopts it to localize chat chrome + the summary card. When the brief first completes, pins that same `reply_language` to `chat_sessions.language` — no separate detector call. |
-| `POST /api/request-review` | `POST /sessions/{id}/request_review` | Buyer-initiated handoff to the local account manager |
+| `POST /api/request-review` | `POST /translate` only (3 parallel calls, non-`en` buyers); the handoff itself is Supabase + HubSpot | Buyer-initiated handoff to the local account manager: guards, atomic claim, HubSpot sync, three localized closing messages. There is no backend handoff endpoint |
 | `POST /api/am/sessions/[id]/messages` | `POST /translate` (forced) [+ `POST /detect-language` on the first reply of an `'en'` session] | AM reply (`{ content?, attachments? }`) — delivers the buyer their language whatever the AM typed. The first reply on a session whose language was never resolved (`chat_sessions.language_resolved_at` null, migration 0023; sessions handed off since then are resolved at brief completion) lazily detects the buyer's language from their thread, caches it, and stamps the session so it never detects again. Then **one forced** translation into the buyer's language (`force: true`); the backend echoes verbatim if the reply is already in it, so a no-op stores no translation — no per-message detect call. The dashboard renders the AM's bubble optimistically, so the AM never waits on this. Optional `attachments` (browser-uploaded to the `chat-attachments` bucket) are validated against the session and stored in `metadata.attachments` |
 | `POST /api/am/sessions/[id]/translate` | `POST /translate` (per uncached message) | AM dashboard — render the thread in the AM's chosen working language (`en`/`zh`/`hi`), caching each result in `chat_messages.metadata.translations` so a string is translated at most once. A message already in that language (e.g. the AM's own `zh` reply while reading in `zh`) is echoed verbatim by the backend and skipped, so it shows no redundant translation line |
 | `POST /api/am/sessions/[id]/rating` | — (Supabase only) | AM rates the AI interview's output on a claimed brief: `{ lead_quality, field_issues?, notes? }` → written to the `rfqs` row (migration 0014). 409 unless the caller is the assigned AM. See `docs/ARCHITECTURE.md` § Agent improvement loop |
@@ -59,28 +59,35 @@ A failure before the stream starts (backend unreachable) is a JSON 502. A failur
 
 ```
 Browser
-  │  Buyer clicks Request human review CTA on ProfileSummaryCard
+  │  Buyer clicks Request human review on ProfileSummaryCard
   │  POST /api/request-review  {session_id}
   ▼
 Next.js Route Handler  (app/api/request-review/route.ts)
-  │  fetch(`${BACKEND_URL}/sessions/{id}/request_review`, POST)
+  │  rate limit (request-review:user:<id>, 5/h)
+  │  session must belong to the caller             → 404
+  │  already past 'ai'                             → 200 { already_handed_off: true }
+  │  rfqs.is_complete false                        → 409 (captures review_blocked: missing_fields)
+  │  caller still anonymous                        → 401 { auth_required: true }
+  │                                                  (captures review_blocked: auth_required;
+  │                                                   the client opens AuthModal, then resumes)
+  │  tryClaimHandoff: UPDATE chat_sessions SET status='in_handoff', sourcing_stage='brief_submitted'
+  │                   WHERE id=$1 AND status='ai'  (loser of a race → already_handed_off)
+  │  HubSpot (if enabled, idempotent on rfqs.hubspot_deal_id): upsert contact, create deal,
+  │           markRfqSubmitted. Validation error → revertHandoff + 422; other errors non-fatal
+  │  localize HANDOFF_REPLY, divider label, AM welcome into session.language
+  │           (3 × translateText → FastAPI POST /translate, in parallel; English fallback)
+  │  insertMessages (service-role): ai close, system divider, account_manager auto-welcome
+  │  captureServer('review_requested')
   ▼
-FastAPI Backend
-  │  Verifies profile_complete, flips state.review_requested=true
-  │  Returns HANDOFF_REPLY (hard-coded — no LLM call)
-  ▼
-Returns {reply, profile, profile_complete: true, review_requested: true}
+200 { session: { id, status: "in_handoff" }, inserted_messages: ChatMessagesRow[] }
   │
   ▼
-Client appends three messages in order (all localized into the buyer's
-session language at insert time via `translateText`, English fallback):
-  • the AI close ("Thank you! Your brief has been sent…")
-  • a divider row labeled "Account manager"
-  • a personalized welcome from the account manager
-flips local reviewRequested=true (sticky), swaps the card CTA for a
-"Transferring to our account manager…" badge, switches composer to
-"Message your account manager…" mode. Subsequent user sends append
-locally only (no /api/chat call).
+Client (useChat.requestReview) appends the three rows in order (race-safe against
+their Realtime echoes), flips reviewRequested=true (sticky), stamps the progress rail
+(status in_handoff, stage brief_submitted), swaps the card CTA for a "Transferring to our
+account manager…" badge, and switches the composer to "Message your account manager…".
+Later buyer sends still POST /api/chat, which saves the message as a note for the AM and
+returns `ai_skipped: true` (no Gemini call, no typing indicator).
 ```
 
 ## Environment
@@ -170,12 +177,22 @@ The sidebar's **chrome** still follows the AM's working language: section titles
 { "session_id": "<the live session id>" }
 ```
 
-**Response:** see `backend/docs/API.md` `POST /sessions/{id}/request_review`. The client uses `reply` (agent's handoff acknowledgment) and `review_requested: true`.
+Handled entirely in the Route Handler (Supabase + HubSpot); the only backend calls are the closing-message translations (`POST /translate`). The FastAPI backend has no handoff endpoint (the old `/sessions/{id}/request_review` was removed when the backend went stateless).
+
+**Response (200):**
+```json
+{ "session": { "id": "<uuid>", "status": "in_handoff" }, "inserted_messages": [ /* ai close, system divider, account_manager welcome */ ] }
+```
+or `{ "already_handed_off": true, "session": { "id", "status" } }` when the session is already past `ai` (double click, second tab, retry). The client appends `inserted_messages` and flips its local `reviewRequested`.
 
 **Error mapping:**
-- `404` (session not found) — shouldn't happen in normal use; client surfaces a generic error message
-- `409` (profile not complete) — shouldn't happen because the UI only exposes the button when `profile_complete` is true; client surfaces a generic error message
-- `502` (backend unreachable) — Route Handler catches and returns its own 502 JSON
+- `400` — invalid JSON / missing `session_id`
+- `401 { auth_required: true }` — buyer still anonymous; `useChat` opens `AuthModal`, and the sign-in round trip returns to `/chat?resume=handoff`, which re-fires the request
+- `404` — session not found or not owned by the caller
+- `409` — brief not complete (`rfqs.is_complete` false). The UI only shows the button once the profile is complete, so this is a defensive path
+- `422 { error: "invalid_profile_field", field, value, message }` — HubSpot rejected a field (e.g. a typo'd email); the claim is reverted so the buyer can fix it in chat and retry. The client shows `message` as an error bubble
+- `429` — handoff rate limit (5 per hour per user)
+- `500` — missing rfq row or a database failure
 
 ### Live model config injection
 

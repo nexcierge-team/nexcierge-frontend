@@ -58,6 +58,10 @@ Easiest path — paste each `.sql` file's contents into the SQL editor in the Su
                                   is_account_manager() wrapped in (select ...) so Postgres evaluates
                                   them once per query, not per row. Same semantics; runs in one
                                   transaction. Verify with the pg_policies query in the file header)
+0025_lock_rate_limit_rpc.sql     (security: check_rate_limit becomes service_role-only. 0008 let
+                                  anon/authenticated call it with any key, enough to reset their own
+                                  limit or lock out another user. The app already calls it server-side
+                                  only, so this changes no behaviour)
 ```
 
 > **Model config is now DB-driven.** After `0015`, the live interview/pills/translate models are set from the AM dashboard (**Models** pane) and stored in `app_settings`; the backend's `GEMINI_*_MODEL` env vars are only the fallback. No operator step is required beyond running the migration — but confirm the seed values equal what Render currently runs so no buyer-facing model silently changes on deploy.

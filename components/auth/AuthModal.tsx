@@ -28,20 +28,23 @@ type FlowState =
 
 /**
  * Sign-in modal. Triggered when /api/request-review returns 401 with
- * `auth_required: true`. Two paths, both passwordless:
+ * `auth_required: true` (and by the guest signup gate). Two paths, both
+ * passwordless, both preceded by POST /api/auth/prepare-signin, which
+ * stashes the current anonymous user id in an HTTP-only cookie:
  *
- *  1. Continue with Google — supabase.auth.linkIdentity({provider: 'google'})
- *     upgrades the anonymous user in place. After OAuth, the redirect
- *     lands on /auth/callback?code=... which exchanges for the session
- *     and bounces to /chat?resume=handoff.
+ *  1. Continue with Google: supabase.auth.signInWithOAuth({provider:
+ *     'google'}). Google redirects to /auth/callback?code=..., which
+ *     exchanges the code for a session.
  *
- *  2. Continue with email magic link — supabase.auth.updateUser({email})
- *     sends a confirmation email to the anonymous user. Clicking the
- *     link verifies and converts to a permanent user, redirecting to
- *     /chat?resume=handoff via the Supabase project's Site URL config.
+ *  2. Continue with email: supabase.auth.signInWithOtp({email}) sends a
+ *     magic link to /auth/callback?token_hash=...&type=..., which runs
+ *     verifyOtp.
  *
- * In both cases the auth.users.id is preserved, so chat_sessions and
- * rfqs ownership stays intact — no merge migration needed.
+ * Either way the buyer ends up on a DIFFERENT, permanent auth.users id
+ * (not an in-place upgrade). /auth/callback reads the stashed anonymous
+ * id and moves its chat_sessions + rfqs to the new id, then redirects to
+ * `next` (default /chat?resume=handoff). See docs/ARCHITECTURE.md
+ * § Auth flow for why we don't use linkIdentity.
  */
 export function AuthModal({
   open,
