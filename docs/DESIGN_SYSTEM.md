@@ -103,11 +103,18 @@ Focus ring: `ring-[#0F2747]` (midnight navy) on all variants.
 
 ### Loading indicator (agent typing)
 - Three small dots in agent bubble, `animate-bounce` with staggered delays (`0.15s`, `0.3s`)
+- Shown only while waiting for the FIRST streamed token. Once reply text arrives, the growing agent bubble is the indicator (no dots under a bubble that's already typing).
+
+### Skeletons (page loading)
+- `components/chat/ChatShellSkeleton.tsx` and `app/dashboard/loading.tsx`: `animate-pulse` bars in `bg-gray-100` (rounded-full for text lines, rounded-xl/2xl for blocks) laid out on the real page's frame, so nothing jumps when content arrives.
+- Match the real widths (chat sidebar `w-72`, progress rail `w-80`, composer height) and keep static text (e.g. the "Sourcing concierge" header) real, not a bar.
+- Static and hook-free, so they can render in prerendered HTML and in `loading.tsx`.
 
 ## Animations
 
 - Single easing curve everywhere: `cubic-bezier(0.22, 1, 0.36, 1)`
-- `Reveal` wrapper does a 16px y-translate + opacity fade on scroll into view (once-only)
+- **Above-the-fold entrances are CSS, not framer-motion.** `.hero-in` (`app/globals.css`) fades + lifts on first paint; per-element `--hero-dy` (lift distance) and inline `animation-delay` / `animation-duration` give the stagger. framer-motion's `initial={{ opacity: 0 }}` server-renders content invisible until JS hydrates, which made the landing page look slow. Respects `prefers-reduced-motion` (no animation). Ambient loops (the hero card float/pulse) can stay on framer-motion since they never hide content.
+- `Reveal` wrapper does a 16px y-translate + opacity fade on scroll into view (once-only); fine below the fold, don't use it for first-screen content
 - Accordion uses Radix's height + opacity transitions defined in `globals.css`
 - No parallax, no spring physics, no auto-playing carousels
 

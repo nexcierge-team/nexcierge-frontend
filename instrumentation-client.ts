@@ -31,6 +31,12 @@ if (key) {
     // by error boundaries before they reach window.onerror, so those are
     // reported explicitly from app/global-error.tsx instead.
     capture_exceptions: true,
+    // Core Web Vitals (LCP / INP / CLS / FCP) as `$web_vitals` events, the
+    // before/after baseline for the speed work (frontend/docs/TRACKING.md
+    // § Performance). Numbers + URL only, no buyer content. Explicit
+    // because the project-level remote toggle was off (no $web_vitals
+    // events were arriving).
+    capture_performance: { web_vitals: true },
     // PII guard: scrub URLs on every outgoing event. Buyer free text is
     // kept out of autocapture separately via the `ph-no-capture` class on
     // chat bubbles, the brief card, and AM lead rows.

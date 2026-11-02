@@ -6,6 +6,7 @@ import { Plus, Loader2, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AccountMenu } from "@/components/auth/AccountMenu";
 import { useAuthUser } from "@/lib/useAuthUser";
+import { prefetchSessionBootstrap } from "@/lib/chatBootstrap";
 import { PROGRESS_EN, relativeTime } from "@/lib/progressStrings";
 import type { SidebarSession } from "@/lib/useSessionsList";
 import type { SourcingStage } from "@/lib/sourcingStages";
@@ -186,6 +187,14 @@ export function ChatSidebar({
                   >
                     <button
                       onClick={() => handleSelectAndClose(s.id)}
+                      // Warm the conversation's bootstrap payload on hover /
+                      // touch so the click renders instantly (lib/chatBootstrap).
+                      onPointerEnter={
+                        active ? undefined : () => prefetchSessionBootstrap(s.id)
+                      }
+                      onFocus={
+                        active ? undefined : () => prefetchSessionBootstrap(s.id)
+                      }
                       disabled={isDeleting}
                       className="flex w-full flex-col gap-1 rounded-lg px-3 py-2.5 pr-9 text-left disabled:cursor-not-allowed"
                     >

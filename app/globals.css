@@ -62,6 +62,32 @@
   }
 }
 
+/* Hero entrance, pure CSS. The above-the-fold copy used framer-motion's
+ * `initial={{ opacity: 0 }}`, so the server-rendered HTML stayed invisible
+ * until JS hydrated. A CSS animation starts at first paint instead; `both`
+ * fill only hides each element for its own short stagger delay. Per-element
+ * timing comes from inline animation-delay / --hero-dy (see Hero.tsx). */
+@keyframes hero-in {
+  from {
+    opacity: 0;
+    transform: translateY(var(--hero-dy, 12px));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.hero-in {
+  animation: hero-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-in {
+    animation: none;
+  }
+}
+
 html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;

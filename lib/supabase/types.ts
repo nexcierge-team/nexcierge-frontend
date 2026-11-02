@@ -48,6 +48,10 @@ export interface ChatSessionsRow {
   assigned_am_user_id: string | null;
   title: string | null;
   language: string;
+  // Set once the buyer's language is known (migration 0023). Null =
+  // not resolved yet. Reads as undefined at runtime until the migration
+  // is applied, which callers treat the same as null.
+  language_resolved_at: string | null;
   sourcing_stage: SourcingStage | null;
   sourcing_stage_history: SourcingStageHistory;
   created_at: string;

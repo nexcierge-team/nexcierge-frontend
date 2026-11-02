@@ -17,7 +17,7 @@ import {
   type InboxBrief,
   type OpenBrief,
 } from "@/components/dashboard/types";
-import { getSupabaseBrowser } from "@/lib/supabase/browser";
+import { useAuthContext } from "@/components/auth/AuthProvider";
 import { useRealtimeChat } from "@/lib/useRealtimeChat";
 import type {
   AgentLessonsRow,
@@ -65,7 +65,6 @@ export default function DashboardPage() {
   // brief switch so files never bleed into the wrong thread.
   const [pending, setPending] = useState<PendingAttachment[]>([]);
   const pendingRef = useRef<PendingAttachment[]>([]);
-  const [meId, setMeId] = useState<string | null>(null);
   const [authPromptOpen, setAuthPromptOpen] = useState(false);
   // Proposed-lessons count for the sidebar badge + attention card.
   // Purely informational — LessonsPane fetches its own full list.
@@ -102,21 +101,9 @@ export default function DashboardPage() {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [open?.messages.length]);
 
-  // Resolve who we are so we can decide "assigned to me" + render
-  // outgoing AM bubbles correctly (email feeds the overview greeting).
-  useEffect(() => {
-    (async () => {
-      try {
-        const supabase = getSupabaseBrowser();
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        setMeId(user?.id ?? null);
-      } catch (e) {
-        console.error("user lookup failed:", e);
-      }
-    })();
-  }, []);
+  // Who we are, for "assigned to me" + rendering outgoing AM bubbles
+  // correctly. From the app-wide <AuthProvider> (no Auth round trip).
+  const meId = useAuthContext().user?.id ?? null;
 
   const loadInbox = useCallback(async () => {
     try {
@@ -149,15 +136,15 @@ export default function DashboardPage() {
     void loadInbox();
   }, [loadInbox]);
 
-  // Best-effort proposed-lessons count. Never blocks the dashboard.
+  // Best-effort proposed-lessons count. Never blocks the dashboard. A
+  // head-only count (?count=1), fired in parallel with the inbox instead of
+  // waiting for it; a 401/403 here just leaves the badge empty.
   const refreshLessonsCount = useCallback(async () => {
     try {
-      const res = await fetch("/api/am/lessons");
+      const res = await fetch("/api/am/lessons?status=proposed&count=1");
       if (!res.ok) return;
-      const data = (await res.json()) as { lessons: AgentLessonsRow[] };
-      setLessonsCount(
-        (data.lessons ?? []).filter((l) => l.status === "proposed").length,
-      );
+      const data = (await res.json()) as { count?: number };
+      if (typeof data.count === "number") setLessonsCount(data.count);
     } catch {
       /* informational only */
     }
@@ -165,8 +152,8 @@ export default function DashboardPage() {
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch; state lands after the response, not synchronously
-    if (!inboxLoading && inboxBlocked === null) void refreshLessonsCount();
-  }, [inboxLoading, inboxBlocked, refreshLessonsCount]);
+    void refreshLessonsCount();
+  }, [refreshLessonsCount]);
 
   const openBrief = useCallback(
     async (sessionId: string) => {

@@ -72,7 +72,34 @@ export interface Message {
   // — past messages keep the data but the UI hides their pills once the
   // buyer has moved on (clicking an old pill would re-send stale context).
   suggestions?: string[];
+  // Idempotency key (client_message_id) of the buyer send this message
+  // belongs to: set on the optimistic user bubble, the streaming AI bubble,
+  // and error bubbles. Lets a late Realtime INSERT of the saved AI row
+  // (metadata.client_message_id) replace an error bubble for the same turn.
+  clientId?: string;
+  // True while this agent bubble is still receiving streamed text.
+  streaming?: boolean;
 }
+
+/**
+ * NDJSON events streamed by POST /api/chat when the request sends
+ * `Accept: application/x-ndjson` (one JSON object per line). Order:
+ * ack, delta*, then reply_done + pills, or error; always ends with done.
+ * Outcomes decided before the AI runs (400/404/429, ai_skipped, duplicate,
+ * ai_pending) are returned as plain JSON instead. Branch on content-type.
+ */
+export type ChatStreamEvent =
+  | { type: "ack"; user_message: import("@/lib/supabase/types").ChatMessagesRow }
+  | { type: "delta"; text: string }
+  | {
+      type: "reply_done";
+      agent_message: import("@/lib/supabase/types").ChatMessagesRow;
+      profile: BuyerProfile;
+      profile_complete: boolean;
+    }
+  | { type: "pills"; suggestions: string[]; reply_language: string }
+  | { type: "error"; code: string; retryable: boolean }
+  | { type: "done"; timings?: Record<string, number> };
 
 /**
  * Buyer profile collected by the agent's `update_buyer_profile` tool.

@@ -33,9 +33,17 @@ interface UseRealtimeChatArgs {
   // caller's own messages (those were rendered optimistically by the
   // sender). Caller dedupes against seen-ids if it has its own.
   onMessageInsert: (row: ChatMessagesRow) => void;
-  // Called for every UPDATE. Currently only read_at flips fire this,
-  // but the hook is shape-agnostic — caller decides what to do.
+  // Called for every UPDATE (read_at flips, and pills being attached to an
+  // AI row's metadata after its reply streamed). The hook is
+  // shape-agnostic; the caller decides what to do.
   onMessageUpdate: (row: ChatMessagesRow) => void;
+  // Deliver sender_type='ai' INSERTs too. Off by default (the AM view
+  // shows AI rows from its own fetches). The buyer view turns it on and
+  // correlates each AI row to its send via metadata.client_message_id:
+  // the in-flight turn's row is owned by the stream and ignored, a row
+  // matching an error bubble replaces it (self-heal after a dropped
+  // stream), and anything else is a reply produced in another tab.
+  includeAi?: boolean;
 }
 
 interface UseRealtimeChatResult {
@@ -54,6 +62,7 @@ export function useRealtimeChat({
   myRole,
   onMessageInsert,
   onMessageUpdate,
+  includeAi = false,
 }: UseRealtimeChatArgs): UseRealtimeChatResult {
   const [otherIsTyping, setOtherIsTyping] = useState(false);
 
@@ -61,10 +70,12 @@ export function useRealtimeChat({
   // every render of the parent component.
   const insertRef = useRef(onMessageInsert);
   const updateRef = useRef(onMessageUpdate);
+  const includeAiRef = useRef(includeAi);
   useEffect(() => {
     insertRef.current = onMessageInsert;
     updateRef.current = onMessageUpdate;
-  }, [onMessageInsert, onMessageUpdate]);
+    includeAiRef.current = includeAi;
+  }, [onMessageInsert, onMessageUpdate, includeAi]);
 
   // Channel handle (so notifyTyping can broadcast on the same one we
   // subscribed to).
@@ -100,12 +111,10 @@ export function useRealtimeChat({
           const row = payload.new;
           // Skip our own messages — caller rendered them optimistically.
           if (myUserId && row.sender_user_id === myUserId) return;
-          // Skip AI messages — POST /api/chat returns them in its
-          // response, and the POST path is the single source of truth.
-          // Without this skip we'd race the POST and either duplicate
-          // the bubble or silently swallow it (the failure mode that
-          // motivated this whole rewrite).
-          if (row.sender_type === "ai") return;
+          // AI rows are opt-in (see includeAi). Without correlation they
+          // would race the POST/stream and duplicate or swallow the bubble,
+          // so only callers that dedupe by client_message_id receive them.
+          if (row.sender_type === "ai" && !includeAiRef.current) return;
           insertRef.current(row);
         },
       )

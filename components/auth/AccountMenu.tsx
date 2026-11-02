@@ -1,11 +1,24 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { LogOut, UserRound, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { AuthModal } from "./AuthModal";
 import { useAuthUser } from "@/lib/useAuthUser";
 import { cn } from "@/lib/utils";
+
+// The sign-in modal (framer-motion + auth flows) is only needed once a
+// visitor clicks "Sign in", but the header renders this menu on every
+// marketing page. Load it on demand, warm it on hover/focus so the first
+// open is still instant, and mount it only after the first open (kept
+// mounted afterwards so its exit animation plays).
+const AuthModal = dynamic(
+  () => import("./AuthModal").then((m) => m.AuthModal),
+  { ssr: false },
+);
+function preloadAuthModal() {
+  void import("./AuthModal");
+}
 
 interface AccountMenuProps {
   // Where to redirect after a fresh sign-in. Defaults to the current
@@ -24,6 +37,11 @@ export function AccountMenu({
 }: AccountMenuProps) {
   const { user, loading, isAnonymous, isSignedIn, signOut } = useAuthUser();
   const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authModalMounted, setAuthModalMounted] = useState(false);
+  const openAuthModal = () => {
+    setAuthModalMounted(true);
+    setAuthModalOpen(true);
+  };
   const [menuOpen, setMenuOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -61,16 +79,20 @@ export function AccountMenu({
       return (
         <>
           <button
-            onClick={() => setAuthModalOpen(true)}
+            onClick={openAuthModal}
+            onPointerEnter={preloadAuthModal}
+            onFocus={preloadAuthModal}
             className="text-xs font-medium text-[#0F2747] hover:underline"
           >
             Sign in
           </button>
-          <AuthModal
-            open={authModalOpen}
-            onClose={() => setAuthModalOpen(false)}
-            redirectTo={redirectTo}
-          />
+          {authModalMounted && (
+            <AuthModal
+              open={authModalOpen}
+              onClose={() => setAuthModalOpen(false)}
+              redirectTo={redirectTo}
+            />
+          )}
         </>
       );
     }
@@ -79,17 +101,21 @@ export function AccountMenu({
         <>
           <button
             type="button"
-            onClick={() => setAuthModalOpen(true)}
+            onClick={openAuthModal}
+            onPointerEnter={preloadAuthModal}
+            onFocus={preloadAuthModal}
             aria-label="Sign in"
             className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 transition-colors hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900"
           >
             <UserRound className="h-4 w-4" strokeWidth={1.75} />
           </button>
-          <AuthModal
-            open={authModalOpen}
-            onClose={() => setAuthModalOpen(false)}
-            redirectTo={redirectTo}
-          />
+          {authModalMounted && (
+            <AuthModal
+              open={authModalOpen}
+              onClose={() => setAuthModalOpen(false)}
+              redirectTo={redirectTo}
+            />
+          )}
         </>
       );
     }
@@ -99,15 +125,19 @@ export function AccountMenu({
           type="button"
           variant="secondary"
           size="sm"
-          onClick={() => setAuthModalOpen(true)}
+          onClick={openAuthModal}
+            onPointerEnter={preloadAuthModal}
+            onFocus={preloadAuthModal}
         >
           Sign in
         </Button>
-        <AuthModal
-          open={authModalOpen}
-          onClose={() => setAuthModalOpen(false)}
-          redirectTo={redirectTo}
-        />
+        {authModalMounted && (
+          <AuthModal
+            open={authModalOpen}
+            onClose={() => setAuthModalOpen(false)}
+            redirectTo={redirectTo}
+          />
+        )}
       </>
     );
   }

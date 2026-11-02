@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { motion } from "framer-motion";
 import { CheckCheck, RotateCw, UserRound } from "lucide-react";
 import ReactMarkdown from "react-markdown";
@@ -56,7 +57,7 @@ interface MessageBubbleProps {
   onSuggestion?: (text: string) => void;
 }
 
-export function MessageBubble({
+function MessageBubbleImpl({
   message,
   reviewRequested = false,
   reviewSubmitting = false,
@@ -456,6 +457,12 @@ function Divider({ label }: { label: string }) {
   );
 }
 
+
+// Memoized: in a long chat, every keystroke and every streamed token used
+// to re-render (and re-parse the markdown of) every bubble. With stable
+// props from the chat page (stable callbacks, per-bubble retryDisabled /
+// onSuggestion), only the bubble whose message changed re-renders.
+export const MessageBubble = memo(MessageBubbleImpl);
 
 export function TypingIndicator() {
   return (

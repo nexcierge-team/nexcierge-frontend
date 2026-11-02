@@ -9,8 +9,6 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Header } from "@/components/layout/Header";
-import { Footer } from "@/components/layout/Footer";
 import { Reveal } from "@/components/landing/Reveal";
 
 const PILLARS = [
@@ -66,7 +64,6 @@ const VERIFICATION_STEPS = [
 export default function AboutPage() {
   return (
     <>
-      <Header />
       <main>
         {/* Hero */}
         <section className="border-b border-gray-200/70 bg-white">
@@ -195,7 +192,6 @@ export default function AboutPage() {
           </div>
         </section>
       </main>
-      <Footer />
     </>
   );
 }

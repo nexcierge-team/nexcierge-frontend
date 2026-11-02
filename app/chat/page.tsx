@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useState, useRef, useEffect } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Lock, Menu, PanelRight, Sparkles } from "lucide-react";
@@ -15,6 +16,9 @@ import { AuthModal } from "@/components/auth/AuthModal";
 import { SUGGESTED_PROMPTS } from "@/lib/mockData";
 import { useChat } from "@/lib/useChat";
 import { useSessionsList } from "@/lib/useSessionsList";
+import { useStableCallback } from "@/lib/useStableCallback";
+import { ChatShellSkeleton } from "@/components/chat/ChatShellSkeleton";
+import type { Message } from "@/types/chat";
 import { chatStrings } from "@/lib/chatStrings";
 import { PROGRESS_EN } from "@/lib/progressStrings";
 import type { ChatSessionsRow } from "@/lib/supabase/types";
@@ -33,10 +37,11 @@ const HERO_PLACEHOLDERS = [
 export default function ChatPage() {
   // useSearchParams forces client-side rendering for this route, so we
   // wrap the inner component in Suspense to satisfy Next's CSR-bailout
-  // requirement during static prerendering. The fallback is intentionally
-  // empty — the page renders instantly on the client anyway.
+  // requirement during static prerendering. The fallback is the chat
+  // shell skeleton, so the prerendered HTML paints a recognizable layout
+  // immediately instead of a blank page while JS loads.
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<ChatShellSkeleton />}>
       <ChatPageInner />
     </Suspense>
   );
@@ -61,6 +66,7 @@ function ChatPageInner() {
     sessionId,
     messages,
     loading,
+    awaitingReply,
     bootstrapping,
     reviewRequested,
     reviewSubmitting,
@@ -77,6 +83,7 @@ function ChatPageInner() {
     retry,
     requestReview,
     switchSession,
+    sessionsSeed,
     language,
     sessionStatus,
     sessionTitle,
@@ -88,7 +95,6 @@ function ChatPageInner() {
   // per-turn from the backend's reply_language). Applies to the chat
   // surface only — sidebar/rail chrome is English-pinned (PROGRESS_EN).
   const cs = chatStrings(language);
-  const [input, setInput] = useState("");
   // Mobile drawer state for ChatSidebar. Desktop ignores it (sidebar is
   // always inline at md+). Reset to closed on session switch so the
   // newly-loaded chat is the foreground after the drawer dismissal.
@@ -112,6 +118,7 @@ function ChatPageInner() {
     createSession,
     deleteSession,
   } = useSessionsList({
+    seed: sessionsSeed,
     activeId: sessionId,
     onDeleteActive: () => switchSession(null),
     onActiveSessionUpdate: setActiveRow,
@@ -134,9 +141,17 @@ function ChatPageInner() {
   const railHistory = liveRow?.sourcing_stage_history ?? sourcingStageHistory;
   const railHandoffAt = liveRow?.handoff_requested_at ?? handoffRequestedAt;
 
+  // Smooth-scroll when a message is added or the typing dots appear; while
+  // a reply streams, keep the growing bubble pinned to the bottom without
+  // queuing a smooth animation per frame.
+  const lastMessage = messages[messages.length - 1];
+  const streamingLength = lastMessage?.streaming ? lastMessage.content.length : 0;
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, loading]);
+  }, [messages.length, awaitingReply]);
+  useEffect(() => {
+    if (streamingLength > 0) endRef.current?.scrollIntoView({ block: "end" });
+  }, [streamingLength]);
 
   // Auto-send the seed once the session is bootstrapped and still empty.
   // We strip the query params after sending so a refresh doesn't replay
@@ -162,18 +177,20 @@ function ChatPageInner() {
     );
   }, [entry.seed, bootstrapping, sessionId, messages.length, sendMessage]);
 
-  async function send(text: string) {
+  // Stable so memoized bubbles (quick-reply pills) and the composer don't
+  // re-render on every page render. Returns false when nothing was sent,
+  // so the composer keeps the typed text.
+  const send = useStableCallback(async (text: string): Promise<boolean> => {
     const trimmed = text.trim();
-    if (!trimmed || loading) return;
+    if (!trimmed || loading) return false;
     // Guest out of free messages — open the signup gate instead of sending
     // (keeps the typed text; the composer is locked anyway).
     if (signupRequired) {
       openSignupGate();
-      return;
+      return false;
     }
-    setInput("");
-    await sendMessage(trimmed);
-  }
+    return sendMessage(trimmed);
+  });
 
   // Sidebar swaps conversations in-place via useChat.switchSession —
   // it updates the URL with history.pushState (so refresh + back-button
@@ -225,12 +242,12 @@ function ChatPageInner() {
             >
               <PanelRight className="h-4 w-4" strokeWidth={1.75} />
             </button>
-            <a
+            <Link
               href="/"
               className="text-sm text-gray-500 hover:text-gray-900 transition-colors"
             >
               Exit
-            </a>
+            </Link>
           </div>
         </div>
 
@@ -263,12 +280,10 @@ function ChatPageInner() {
 
                     <div className="mt-10">
                       <ChatComposer
-                        value={input}
                         onChange={(v) => {
-                        setInput(v);
-                        if (v) notifyTyping();
-                      }}
-                        onSubmit={() => send(input)}
+                          if (v) notifyTyping();
+                        }}
+                        onSubmit={send}
                         placeholder="Tell us what machinery you're looking for…"
                         rotatingPlaceholders={HERO_PLACEHOLDERS}
                         disabled={loading}
@@ -304,13 +319,15 @@ function ChatPageInner() {
                   <div className="space-y-5">
                     {messages.map((m, i) => (
                       <MessageBubble
-                        key={m.id}
+                        key={messageKey(m)}
                         message={m}
                         reviewRequested={reviewRequested}
                         reviewSubmitting={reviewSubmitting}
                         onRequestReview={requestReview}
                         onRetry={retry}
-                        retryDisabled={loading}
+                        // Only error bubbles show Retry; passing `loading` to
+                        // every bubble would re-render all of them per turn.
+                        retryDisabled={m.error ? loading : false}
                         sessionLanguage={language}
                         onSuggestion={
                           i === messages.length - 1 && !loading && !signupRequired
@@ -319,7 +336,7 @@ function ChatPageInner() {
                         }
                       />
                     ))}
-                    {(loading || otherIsTyping) && <TypingIndicator />}
+                    {(awaitingReply || otherIsTyping) && <TypingIndicator />}
                     <div ref={endRef} />
                   </div>
                 </motion.div>
@@ -349,9 +366,7 @@ function ChatPageInner() {
                 </button>
               ) : (
                 <ChatComposer
-                  value={input}
-                  onChange={setInput}
-                  onSubmit={() => send(input)}
+                  onSubmit={send}
                   disabled={loading}
                   language={language}
                   placeholder={
@@ -397,4 +412,12 @@ function ChatPageInner() {
       />
     </div>
   );
+}
+
+// React key for a bubble. An agent reply keeps ONE key from its first
+// streamed token to the saved row (whose id only exists at reply_done),
+// so the bubble updates in place instead of remounting and replaying its
+// entry animation. Everything else keys on its id.
+function messageKey(m: Message): string {
+  return m.role === "agent" && m.clientId && !m.error ? `agent:${m.clientId}` : m.id;
 }

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
 /**
- * Edge proxy that:
+ * Proxy (Node runtime in Next 16) that:
  *  1. Gates the entire site behind HTTP Basic Auth when `BASIC_AUTH_USER` +
  *     `BASIC_AUTH_PASSWORD` are set. Skipped if either env var is missing.
  *     /auth/* and /api/auth/* are ALWAYS exempt so OAuth callbacks and
@@ -82,9 +82,19 @@ async function refreshSupabaseSession(req: NextRequest): Promise<NextResponse> {
     },
   });
 
-  // Triggers a refresh-token rotation if needed. Result intentionally
-  // ignored — we only care about the side effect.
-  await supabase.auth.getUser();
+  // Triggers a refresh-token rotation if needed (getClaims → getSession
+  // refreshes a token that's about to expire). Result intentionally
+  // ignored — we only care about the side effect. getClaims verifies the
+  // JWT locally once the project uses asymmetric signing keys, so unlike
+  // the previous getUser() this is NOT an Auth round trip on every page,
+  // prefetch and /api call. (With legacy HS256 keys auth-js falls back to
+  // getUser(), i.e. the old cost.) It throws on non-auth failures such as
+  // a JWKS fetch error; never let that break the request.
+  try {
+    await supabase.auth.getClaims();
+  } catch (e) {
+    console.error("proxy session refresh failed:", e);
+  }
   return response;
 }
 

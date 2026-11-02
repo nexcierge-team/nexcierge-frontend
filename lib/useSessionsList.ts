@@ -3,6 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuthUser } from "@/lib/useAuthUser";
 import { useRealtimeSessions } from "@/lib/useRealtimeSessions";
+import {
+  forgetBootstrap,
+  primeBootstrap,
+  type BootstrapPayload,
+} from "@/lib/chatBootstrap";
+import type { SessionsSeed } from "@/lib/useChat";
 import type { ChatSessionsRow } from "@/lib/supabase/types";
 
 // The buyer's session list, lifted out of ChatSidebar so a single
@@ -52,6 +58,11 @@ function sortByRecent(sessions: SidebarSession[]): SidebarSession[] {
 }
 
 interface UseSessionsListArgs {
+  // The list that arrived with the chat bootstrap payload
+  // (GET /api/chat/start). Seeds the sidebar without a request of its own;
+  // GET /api/chat/sessions only runs when the signed-in identity changes
+  // to one no seed covers.
+  seed: SessionsSeed | null;
   // The currently-open chat_session id. UPDATE events for this row are
   // forwarded to onActiveSessionUpdate even when the row is untitled
   // (untitled rows are excluded from the LIST, but the active session's
@@ -66,6 +77,7 @@ interface UseSessionsListArgs {
 }
 
 export function useSessionsList({
+  seed,
   activeId,
   onDeleteActive,
   onActiveSessionUpdate,
@@ -89,10 +101,30 @@ export function useSessionsList({
     onActiveSessionUpdateRef.current = onActiveSessionUpdate;
   }, [activeId, onDeleteActive, onActiveSessionUpdate]);
 
-  // Re-fetch whenever the auth identity changes (anonymous → signed in,
-  // or vice versa). Realtime takes over for incremental updates after
-  // this cold fetch.
+  // Seed from the bootstrap payload. Every bootstrap (initial load and each
+  // conversation switch) carries a fresh list, so this also keeps the
+  // sidebar current without a separate fetch. Applied during render (the
+  // "adjust state when a prop changes" pattern) rather than in an effect,
+  // so the list lands in the same commit as the chat it belongs to.
+  const [appliedSeed, setAppliedSeed] = useState<SessionsSeed | null>(null);
+  const [seededFor, setSeededFor] = useState<string | null>(null);
+  if (seed && seed !== appliedSeed) {
+    setAppliedSeed(seed);
+    setSeededFor(seed.userId);
+    setSessions(
+      sortByRecent((seed.sessions as SidebarSessionSource[]).map(toSidebarSession)),
+    );
+    setLoading(false);
+  }
+
+  // Cold fetch only when the auth identity changes to one the seed doesn't
+  // cover (e.g. signed in or out in place). Realtime takes over for
+  // incremental updates. Waits for the first seed so a page load doesn't
+  // fire this alongside /api/chat/start (the old double fetch).
+  const userId = user?.id ?? null;
+  const hasSeed = seed !== null;
   useEffect(() => {
+    if (!userId || !hasSeed || seededFor === userId) return;
     let cancelled = false;
     (async () => {
       try {
@@ -101,6 +133,7 @@ export function useSessionsList({
         const data = await res.json();
         if (cancelled) return;
         const rows: SidebarSessionSource[] = data.sessions ?? [];
+        setSeededFor(userId);
         setSessions(sortByRecent(rows.map(toSidebarSession)));
       } catch (e) {
         console.error("sessions list fetch failed:", e);
@@ -111,7 +144,7 @@ export function useSessionsList({
     return () => {
       cancelled = true;
     };
-  }, [user?.id]);
+  }, [userId, hasSeed, seededFor]);
 
   // Live deltas. Never-started sessions (title still null) are kept out
   // of the list, matching the server-side filter in listSessionsForUser —
@@ -169,6 +202,11 @@ export function useSessionsList({
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       const id = data?.session?.id as string | undefined;
+      // The response carries the full bootstrap payload: cache it so the
+      // switch to the new conversation renders without a /start request.
+      if (id && data?.bootstrap) {
+        primeBootstrap(id, data.bootstrap as BootstrapPayload);
+      }
       return id ?? null;
     } catch (e) {
       console.error("create session failed:", e);
@@ -195,6 +233,7 @@ export function useSessionsList({
         }
         // The Realtime DELETE handler dedups against missing ids, so the
         // eventual cross-tab broadcast is a no-op locally.
+        forgetBootstrap(sessionId);
         handleRealtimeDelete(sessionId);
         return true;
       } catch (e) {

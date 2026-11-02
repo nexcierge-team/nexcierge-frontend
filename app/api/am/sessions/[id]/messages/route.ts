@@ -3,7 +3,11 @@ import { requireAccountManager } from "@/lib/supabase/role";
 import { getSupabaseServer } from "@/lib/supabase/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { insertMessage, listMessages } from "@/lib/db/messages";
-import { getSession, setSessionLanguage } from "@/lib/db/sessions";
+import {
+  getSession,
+  markSessionLanguageResolved,
+  setSessionLanguage,
+} from "@/lib/db/sessions";
 import { translateText, detectLanguage } from "@/lib/translate";
 import { checkRateLimit, RATE_LIMITS, rateLimited429 } from "@/lib/rateLimit";
 import { captureServer } from "@/lib/analytics";
@@ -71,14 +75,6 @@ export async function POST(
   }
   const { id } = await ctx.params;
 
-  // Per-AM cap on outbound messages — each send may trigger a paid
-  // Gemini translation call (limit rationale in RATE_LIMITS).
-  const amLimit = await checkRateLimit(
-    `am-msg:user:${gate.userId}`,
-    RATE_LIMITS.amMessages,
-  );
-  if (!amLimit.allowed) return rateLimited429(amLimit);
-
   let body: PostBody;
   try {
     body = (await req.json()) as PostBody;
@@ -102,32 +98,41 @@ export async function POST(
 
   const supabase = await getSupabaseServer();
 
+  // Per-AM cap on outbound messages (each send may trigger a paid Gemini
+  // translation call; limit rationale in RATE_LIMITS), read in parallel
+  // with the session row the language logic below needs.
+  const [amLimit, session] = await Promise.all([
+    checkRateLimit(`am-msg:user:${gate.userId}`, RATE_LIMITS.amMessages),
+    getSession(supabase, id),
+  ]);
+  if (!amLimit.allowed) return rateLimited429(amLimit);
+
   // Resolve the buyer's language for this session. It sits on the 'en'
-  // column default until we confidently detect otherwise — the chat route
-  // no longer detects on the buyer's (often too-short) first message. So
-  // the first time an AM replies we lazily detect from the buyer's
-  // accumulated thread text and cache the result, giving later AM replies
-  // and the dashboard a target without re-detecting. A genuinely English
-  // buyer resolves to 'en' and is re-checked cheaply on each send until a
-  // non-en signal appears. If we can't read the session, fall back to no
-  // translation rather than blocking the send.
-  const session = await getSession(supabase, id);
+  // column default until something pins a non-English value. The chat
+  // route resolves it when the brief completes (stamping
+  // language_resolved_at, migration 0023), so for every session handed off
+  // since then this is a plain column read. Only sessions that were never
+  // resolved (older ones) still detect, ONCE: from the buyer's accumulated
+  // thread text, and the result (English included) is stamped so later
+  // sends skip the Gemini call and transcript read. If we can't read the
+  // session, fall back to no translation rather than blocking the send.
   let targetLanguage = session?.language ?? "en";
-  if (targetLanguage === "en") {
+  if (targetLanguage === "en" && session && !session.language_resolved_at) {
     const detected = await detectBuyerLanguage(supabase, id);
+    // Service-role client: a derived/system value, not a user action, and
+    // it must land even on the rare path where the AM isn't the RLS-update
+    // owner. Best-effort: on failure THIS reply still goes out in
+    // `detected`; the next send simply detects again.
+    const admin = getSupabaseAdmin();
     if (detected !== "en") {
       targetLanguage = detected;
       try {
-        // Cache with the service-role client: this is a derived/system
-        // value, not a user action, and it must land even on the rare
-        // path where the AM isn't the RLS-update owner.
-        await setSessionLanguage(getSupabaseAdmin(), id, detected);
+        await setSessionLanguage(admin, id, detected);
       } catch (e) {
-        // Best-effort: we still deliver THIS reply in `detected`; the
-        // next send will simply detect again.
         console.error("session language cache failed:", e);
       }
     }
+    await markSessionLanguageResolved(admin, id);
   }
 
   // The buyer must always read the reply in their own language, whatever

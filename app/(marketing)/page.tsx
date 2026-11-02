@@ -1,5 +1,3 @@
-import { Header } from "@/components/layout/Header";
-import { Footer } from "@/components/layout/Footer";
 import { Hero } from "@/components/landing/Hero";
 import { TrustStrip } from "@/components/landing/TrustStrip";
 import { DirectSourcing } from "@/components/landing/DirectSourcing";
@@ -11,7 +9,6 @@ import { FAQ } from "@/components/landing/FAQ";
 export default function HomePage() {
   return (
     <>
-      <Header />
       <main>
         <Hero />
         <TrustStrip />
@@ -21,7 +18,6 @@ export default function HomePage() {
         <Categories />
         <FAQ />
       </main>
-      <Footer />
     </>
   );
 }

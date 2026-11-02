@@ -21,23 +21,27 @@
 
 ```
 app/
-├── layout.tsx
+├── layout.tsx              Root layout: <AuthProvider> (one app-wide auth subscription) + PostHogIdentify
 ├── globals.css
-├── page.tsx                Landing
-├── chat/page.tsx           Buyer chat — uses `useChat` hook
+├── (marketing)/            Route group (no URL segment): layout.tsx renders Header + Footer ONCE,
+│   ├── layout.tsx            so they stay mounted across /, /about, /contact navigations
+│   ├── page.tsx            Landing
+│   ├── about/page.tsx
+│   └── contact/page.tsx
+├── chat/page.tsx           Buyer chat — uses `useChat` hook; Suspense fallback = ChatShellSkeleton
+├── chat/loading.tsx        Skeleton during client navigation to /chat
 ├── dashboard/page.tsx      Account-manager dashboard orchestrator (role-gated) — state, data
 │                             fetching, realtime; renders components/dashboard/* views:
 │                             Overview (stats + briefs table) / open brief / Lessons / Models
-├── about/page.tsx
-├── contact/page.tsx
+├── dashboard/loading.tsx   Skeleton during client navigation to /dashboard
 ├── auth/
 │   └── callback/route.ts   Supabase OAuth + magic-link verify
 └── api/
     ├── chat/
-    │   ├── start/route.ts                       GET — bootstrap on mount (creates anon session if needed)
-    │   ├── route.ts                             POST — persist user msg, call FastAPI, persist ai reply
+    │   ├── start/route.ts                       GET — bootstrap on mount (creates anon session if needed; includes the sidebar list)
+    │   ├── route.ts                             POST — one turn: persist user msg, stream FastAPI /chat/stream, persist ai reply (NDJSON or JSON)
     │   └── sessions/
-    │       ├── route.ts                         GET (list; hides never-started sessions) + POST (new — reuses the user's never-started session if one exists)
+    │       ├── route.ts                         GET (list; hides never-started sessions; never creates a user) + POST (new — reuses the user's never-started session if one exists; returns the bootstrap payload)
     │       └── [id]/
     │           ├── route.ts                     DELETE — soft-delete a session
     │           └── mark-read/route.ts           POST — buyer-side read receipts
@@ -55,6 +59,10 @@ components/
 ├── layout/                 Header / Footer for marketing
 ├── landing/                Marketing sections + HeroChatPreview (mock chat card — every chat entry point on the homepage navigates to `/chat?new=1`, category pills/cards adding `&seed=<prompt>`, so each entry lands on a blank slate; `?new=1` reuses the user's never-started session when one exists rather than minting a new row per visit; no embedded chat modal)
 ├── auth/
+│   ├── AuthProvider.tsx    App-wide auth context: one onAuthStateChange subscription (no getUser()
+│   │                         network calls), role fetched once per permanent user; useAuthUser /
+│   │                         useUserRole are thin readers of it
+│   ├── AccountMenu.tsx     Header/sidebar account control; lazy-loads AuthModal (next/dynamic) on first open
 │   └── AuthModal.tsx       Google + magic-link, opens on 401 from /api/request-review
 ├── chat/
 │   ├── ChatSidebar.tsx     Presentational request list (dark New-sourcing-request button,
@@ -62,8 +70,10 @@ components/
 │   │                         called once in app/chat/page.tsx
 │   ├── SourcingProgressRail.tsx  Buyer right rail: title + status pill + 8-stage sourcing
 │   │                         timeline + next-step card. Inline at xl+, right drawer below
-│   ├── ChatComposer.tsx
-│   ├── MessageBubble.tsx   `viewerRole` flips alignment for AM view (and gives AI
+│   ├── ChatShellSkeleton.tsx  Static chat-page placeholder (prerendered /chat HTML + chat/loading.tsx)
+│   ├── ChatComposer.tsx    Controlled (dashboard) or uncontrolled (buyer chat: owns its text so typing
+│   │                         doesn't re-render the page); onSubmit(text) returning false keeps the text
+│   ├── MessageBubble.tsx   React.memo'd. `viewerRole` flips alignment for AM view (and gives AI
 │   │                         turns the dark "house" bubble there so they group with the
 │   │                         AM, distinct from the buyer's white bubbles); `sessionLanguage`
 │   │                         drives the buyer's translated/original dual render;
@@ -94,26 +104,40 @@ lib/
 ├── progressStrings.ts      English-pinned strings for the buyer sidebar + progress rail
 │                             chrome (workspace chrome never localizes — only chat + RFQ
 │                             card do) + relativeTime() helper
-├── useSessionsList.ts      Lifted session list: one fetch + one sessions:${userId}
-│                             realtime channel feeding ChatSidebar AND the rail (incl.
-│                             onActiveSessionUpdate side-channel for untitled sessions)
+├── useSessionsList.ts      Lifted session list: seeded from the bootstrap payload (no fetch of its
+│                             own on load) + one sessions:${userId} realtime channel feeding
+│                             ChatSidebar AND the rail (incl. onActiveSessionUpdate side-channel
+│                             for untitled sessions)
+├── chatBootstrap.ts        Client cache of /api/chat/start payloads: hover prefetch, instant
+│                             session switch (stale-while-revalidate), priming from POST sessions
+├── chatBootstrapPayload.ts Server-side builder for that payload (shared by /start + POST sessions)
+├── backendTurn.ts          Server client for one AI turn: FastAPI /chat/stream (falls back to
+│                             legacy /chat JSON if the backend predates streaming)
+├── ndjson.ts               NDJSON line reader (server + browser)
+├── timing.ts               Per-request stage timer → Server-Timing header + one JSON log line
+├── useStableCallback.ts    Identity-stable handler (keeps memoized bubbles from re-rendering)
 ├── rateLimit.ts            checkRateLimit / rateLimited429 / getClientIp — Postgres-backed fixed-window limiter
 ├── translate.ts            translateText() + detectLanguage() — thin wrappers over FastAPI /translate + /detect-language
-├── useChat.ts              Hook: bootstraps from /api/chat/start, persists via POST /api/chat,
+├── useChat.ts              Hook: bootstraps from /api/chat/start (via chatBootstrap cache), runs
+│                             turns via POST /api/chat (streamed NDJSON when
+│                             NEXT_PUBLIC_CHAT_STREAMING=1), queues a send typed during bootstrap,
 │                             subscribes to Supabase Realtime, opens AuthModal on 401 from handoff,
 │                             auto-resumes handoff after OAuth round-trip via ?resume=handoff,
 │                             exposes language (display language — adopted per-turn from the backend's reply_language, or an AM reply's translated_to)
 ├── supabase/
 │   ├── env.ts              Validated env var accessors
 │   ├── browser.ts          createBrowserClient (memoised per tab)
-│   ├── server.ts           createServerClient for Route Handlers (cookie-aware)
+│   ├── server.ts           createServerClient for Route Handlers (cookie-aware) +
+│   │                         getSupabaseWithAccessToken (token-pinned, never refreshes; for
+│   │                         writes after a streamed response has started)
 │   ├── admin.ts            service-role client — bypasses RLS, server runtime only
-│   ├── route.ts            getOrCreateUser / getUser helpers
-│   ├── role.ts             getCurrentUserRole / requireAccountManager
+│   ├── route.ts            getOrCreateUser / getUser helpers (getClaims: local JWT verification)
+│   ├── role.ts             getCurrentUserRole / requireAccountManager (claims + one is_account_manager() RPC)
 │   └── types.ts            Hand-rolled DB types (replace with `supabase gen types`)
 ├── db/
 │   ├── sessions.ts         findActive / create / get / list / tryClaimHandoff / revertHandoff
-│   ├── messages.ts         list / insert / insertMany
+│   ├── messages.ts         list / listHistory (slim, pre-insert) / insert / insertMany /
+│   │                         findAiReplyFor (reply_to correlation) / turn state (setTurnState, claimTurn)
 │   └── rfqs.ts             get / create / update / mark submitted +
 │                             rfqRowToProfile / profileToRfqUpdate converters +
 │                             getLatestBuyerIdentity (returning-buyer prefill)
@@ -123,11 +147,11 @@ lib/
                             + advanceDealStage(dealId, stageId) for pipeline transitions
 
 supabase/
-├── migrations/             0001..0021 — users + chat tables + rfqs + RLS + cleanup + read_at + language/translation + rate_limits + … + sourcing stage (0020) + its backfill (0021)
+├── migrations/             0001..0024 — users + chat tables + rfqs + RLS + cleanup + read_at + language/translation + rate_limits + … + sourcing stage (0020) + its backfill (0021) + llm_call_logs stream metrics (0022) + chat_sessions.language_resolved_at (0023) + RLS initplan rewrite (0024)
 └── README.md               Step-by-step setup the human operator does once
 
 types/
-└── chat.ts                 Message / BuyerProfile / ChatRole / MessageFrom (UI types)
+└── chat.ts                 Message / BuyerProfile / ChatRole / MessageFrom / ChatStreamEvent (UI types)
 
 instrumentation-client.ts   PostHog bootstrap (Next.js convention — runs pre-hydration).
                             Autocapture + SPA pageviews on by default; init is skipped
@@ -140,7 +164,7 @@ instrumentation-client.ts   PostHog bootstrap (Next.js convention — runs pre-h
 
 Three surfaces, one identity — everything keys on the Supabase `auth.users.id`:
 
-- **Browser** — `instrumentation-client.ts` (autocapture + SPA pageviews + `capture_exceptions: true` → `$exception` on uncaught errors / unhandled rejections). `components/analytics/PostHogIdentify.tsx` (mounted in the root layout) calls `posthog.identify(user.id)` for **permanent** users only and `posthog.reset()` on sign-out; anonymous visitors stay anonymous.
+- **Browser** — `instrumentation-client.ts` (autocapture + SPA pageviews + `capture_exceptions: true` → `$exception` on uncaught errors / unhandled rejections + `capture_performance: { web_vitals: true }` → `$web_vitals`). `PostHogIdentify` reads the app-wide `<AuthProvider>` state instead of its own `getUser()`. `components/analytics/PostHogIdentify.tsx` (mounted in the root layout) calls `posthog.identify(user.id)` for **permanent** users only and `posthog.reset()` on sign-out; anonymous visitors stay anonymous.
 - **Route handlers** — `lib/analytics.ts` `captureServer(distinctId, event, props)` (posthog-node, immediate flush, no-op without `NEXT_PUBLIC_POSTHOG_KEY`, never throws).
 - **FastAPI backend** — `llm_call_completed` per Gemini call (see `backend/docs/ARCHITECTURE.md` § LLM telemetry).
 
@@ -182,10 +206,9 @@ Buyer hits /chat
    ▼
 useChat → GET /api/chat/start
             │
-            ├─ getOrCreateUser():
-            │     supabase.auth.getUser() → null
-            │     ↓
-            │     supabase.auth.signInAnonymously() → real auth.users row, is_anonymous=true
+            ├─ getUser() (getClaims: local JWT check) → null, no session yet
+            │     ↓  IP rate limit (only here, right before an auth.users row is created)
+            │     getOrCreateUser() → supabase.auth.signInAnonymously() → real auth.users row, is_anonymous=true
             │
             ├─ findActiveSession() → null
             │     ↓
@@ -194,10 +217,11 @@ useChat → GET /api/chat/start
             └─ createRfq() → new rfqs row, identity prefilled if any prior rfq for this user has a non-empty business_email (see "Returning-buyer identity reuse" below)
    │
    ▼
-Returns: user, session, [], empty profile, profile_complete=false
+Returns: user, session, [], empty profile, profile_complete=false, sessions=[]
+   (a brand-new visitor skips the session / rfq / message lookups: they can only be empty)
    │
    ▼
-[Buyer chats N turns — POST /api/chat each turn, persist + call FastAPI + persist + return]
+[Buyer chats N turns: POST /api/chat each turn, persist + stream FastAPI + persist (see § Performance)]
    │
    ▼
 profile.is_complete flips true AND pre-handoff follow-ups captured → ProfileSummaryCard attached → CTA appears
@@ -301,7 +325,7 @@ The backend recognises the returning-buyer case from existing signals: when `/ch
 
 There is no language picker — Gemini mirrors the buyer's language naturally. The buyer types in their language and the agent replies in kind. `chat_sessions.language` (ISO 639-1, default `'en'`) is tracked only so AM-side translation has a target; it is **not** read during the interview.
 
-**The language comes from the pills pass, not a separate detector.** The pills second pass already reads each agent reply, so it also reports that reply's language as `reply_language` (returned every turn). The frontend adopts it as the buyer's **display language** — stabilized (only upgrades to a confident non-`en`, never flips back) — so chat chrome (`lib/chatStrings.ts`) and the summary card localize from the first exchange. The **persisted** `chat_sessions.language` (the AM-translation + handoff-message target) is pinned **lazily**, reusing that same `reply_language`, at two points: (1) **brief-completion** — `/api/chat` pins it the turn `is_complete` first flips true; (2) **first AM reply** (fallback) — `POST /api/am/sessions/[id]/messages` runs `detectBuyerLanguage()` and caches a non-`en` result (service-role admin client) for any session that reached handoff still on `'en'`. Keying off the agent reply's language (not the buyer's possibly-one-word opener) is what fixes the old "`hi` freezes the session to `en`" bug. A genuinely English buyer simply stays `'en'`.
+**The language comes from the pills pass, not a separate detector.** The pills second pass already reads each agent reply, so it also reports that reply's language as `reply_language` (returned every turn). The frontend adopts it as the buyer's **display language** — stabilized (only upgrades to a confident non-`en`, never flips back) — so chat chrome (`lib/chatStrings.ts`) and the summary card localize from the first exchange. The **persisted** `chat_sessions.language` (the AM-translation + handoff-message target) is pinned **lazily**, reusing that same `reply_language`, at two points: (1) **brief-completion** — `/api/chat` pins it the turn `is_complete` first flips true; (2) **first AM reply** (fallback) — `POST /api/am/sessions/[id]/messages` runs `detectBuyerLanguage()` and caches a non-`en` result (service-role admin client) for any session that reached handoff still on `'en'`. **Detection runs at most once per session**: `chat_sessions.language_resolved_at` (migration 0023) records that the language question is answered, English included. `/api/chat` stamps it when the brief completes, and the AM route stamps it after its one-time detection, so later AM sends skip the Gemini call and the transcript read entirely. Trade-off: a buyer who switches language after resolution isn't re-detected. Keying off the agent reply's language (not the buyer's possibly-one-word opener) is what fixes the old "`hi` freezes the session to `en`" bug. A genuinely English buyer simply stays `'en'`.
 
 **AI replies.** `/api/chat` forwards `session.language` to FastAPI on every turn. During the interview that's `'en'`, so the base prompt's "reply in the buyer's language and stay consistent" rule does the work. Once the language has been pinned (post-handoff), non-`en` makes the backend append an `# OUTPUT LANGUAGE (LOCKED FOR THIS SESSION)` directive on top of `SYSTEM_PROMPT` so a single English-flecked buyer message can't flip Gemini back to English.
 
@@ -338,14 +362,14 @@ Defence in depth against (a) anonymous-signup spam filling `auth.users` and (b) 
 
 | Route | Key | `RATE_LIMITS` entry | Limit |
 |---|---|---|---|
-| `GET /api/chat/start` | IP | `chatStart` | 60 / hour |
+| `GET /api/chat/start` (only when creating an anonymous user) | IP | `chatStart` | 60 / hour |
 | `POST /api/chat` | user_id | `chat` | 40 / min |
 | `POST /api/request-review` | user_id | `requestReview` | 5 / hour |
 | `POST /api/am/sessions/[id]/messages` | AM user_id | `amMessages` | 120 / min |
 | `POST /api/am/sessions/[id]/translate` | AM user_id | `amTranslate` | 60 / min |
 | `POST /api/am/sessions/[id]/lessons` | AM user_id | `amLessons` | 20 / hour |
 
-`/api/chat/start` is the critical one — its check runs **before** `getOrCreateUser()` so we never create the anon `auth.users` row we're trying to prevent. All others run after auth resolution and key on the resolved user.
+`/api/chat/start` is the critical one. Its check runs only when the request has no verifiable session, i.e. right **before** `getOrCreateUser()` would create the anon `auth.users` row we're trying to prevent; returning visitors skip it (it's what the limit protects, and it saved a round trip on every page load). `GET /api/chat/sessions` and `DELETE /api/chat/sessions/[id]` never create users at all. All others run after auth resolution and key on the resolved user (`/api/chat` runs its check in parallel with the turn's other reads).
 
 429 responses carry `Retry-After`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`. Body is `{ error: "rate_limited", message, retry_after_seconds }`. Frontend hooks should surface a generic "slow down" toast and back off, not retry immediately.
 
@@ -356,26 +380,54 @@ Defence in depth against (a) anonymous-signup spam filling `auth.users` and (b) 
 Two tables are published to `supabase_realtime`: `chat_messages` (per-session live chat) and `chat_sessions` (per-user live sidebar). RLS scopes each subscription naturally — buyers only receive events on rows they own; AMs receive events on sessions they're assigned to (or unclaimed handoffs).
 
 **Per-session channel — `chat_messages`** (`lib/useRealtimeChat.ts`). Both buyer and AM clients subscribe filtered by `chat_session_id`. Inserts are broadcast and rendered (the payload carries the full row incl. `metadata`, so an AM message's `metadata.attachments` reaches the buyer live — no extra channel). Dedup is handled with a `seenIds` `Set`:
-- POST responses add the returned message id to the set before the realtime event arrives.
+- POST responses / stream events add the returned message id to the set before the realtime event arrives.
 - The realtime handler checks `seenIds.has(row.id)` and skips if already rendered.
+
+**AI rows (buyer view only, `includeAi: true`).** Every AI row written by a turn carries `metadata.reply_to` (the user row id) and `metadata.client_message_id` (the buyer send's idempotency key). The buyer's `handleInsert` correlates on `client_message_id`: the in-flight turn's row is ignored (the stream owns it; it's stashed in case the stream then fails), a row matching an error bubble **replaces** it (self-heal when the stream dropped after the server had saved the reply), and a reply to a message this tab never saw (sent from another tab) is not shown on its own. UPDATEs merge `metadata.suggestions`, so pills attached after the stream closed still arrive. The AM view keeps AI inserts filtered (it renders AI rows from its own fetches).
+
+**Read receipts.** Only the account manager's outgoing bubbles show a receipt, so the buyer client marks messages read only when an unread **AM** message exists (on arrival, on mount, on tab focus). It used to POST mark-read after every AI turn.
 
 **Per-user channel — `chat_sessions`** (`lib/useRealtimeSessions.ts`, instantiated once via `lib/useSessionsList.ts` in `app/chat/page.tsx` — it feeds both the sidebar and the sourcing-progress rail, see § Sourcing progress). The subscription is filtered by `user_id`. Never-started sessions (`title IS NULL` — the title is only set by the DB trigger on the first user message) are invisible to the sidebar: the cold GET filters them server-side (`listSessionsForUser`) and the INSERT handler skips them, so a blank chat doesn't appear in the list until the buyer actually sends something. That first message bumps the session's title via trigger, which arrives as an UPDATE — the UPDATE handler therefore **upserts** (adds the row if it wasn't in the list yet) as well as re-rendering title/subtitle live when status flips `ai → in_handoff → closed` or language changes. DELETE removes the row across every tab and falls back to `onDeleteActive` if the deleted session was active. The sidebar does one cold GET on mount; everything after is event-driven, no polling, no `refreshKey` plumbing.
 
 **Never-started session reuse.** To stop abandoned blank chats piling up as duplicate rows, every "give me a blank chat" path (`GET /api/chat/start?new=1` from homepage entries, `POST /api/chat/sessions` from the sidebar `+`) first looks for the user's newest `status='ai'`, `title IS NULL` session (`findNeverStartedSession` in `lib/db/sessions.ts`) and reuses it; a fresh row is only inserted when none exists. A never-started session is guaranteed untouched — the rfq can only change via `/api/chat` turns, which require a user message, which would have set the title.
 
-No polling. No SSE. Tab-visibility-aware reconnect is not yet wired (Step 7 polish).
+No polling. The AI reply itself streams over the POST response (NDJSON), not over Realtime. Tab-visibility-aware Realtime reconnect is not yet wired (Step 7 polish).
 
 ## Stateless backend coupling
 
 The FastAPI backend has no auth, no DB, no session store. The Next.js `/api/chat` Route Handler is the gatekeeper:
-1. Auths via Supabase (`@supabase/ssr` cookie session).
-2. Inserts the user message via the user-scoped Supabase client (RLS enforces ownership).
-3. Loads history + rfq.
-4. Calls FastAPI with `{history, profile, message}`.
-5. Updates the rfq row from the returned `profile`.
-6. Inserts the ai message via the service-role admin client (RLS would block `sender_type='ai'` from a normal client).
+1. Auths via Supabase (`@supabase/ssr` cookie session, verified locally with `getClaims`).
+2. In parallel: rate limit, session (ownership), rfq, slim history, model config. History is read **before** the insert, so the new message isn't duplicated into it and an empty history really means "first turn" (the backend's returning-buyer note keys on that).
+3. Inserts the user message via the user-scoped Supabase client (RLS enforces ownership), stamped `metadata.turn = "running"`.
+4. Streams FastAPI `POST /chat/stream` with `{history, profile, message}` (`lib/backendTurn.ts`; falls back to legacy `/chat` if the backend predates streaming).
+5. On `reply_done`, in parallel: updates the rfq row from the returned `profile`, and inserts the ai message via the service-role admin client (RLS would block `sender_type='ai'` from a normal client). Only then forwards `reply_done`.
+6. After the stream closes (`after()`): merges pills into the AI row's metadata and pins/stamps the session language.
+
+Writes after the response has started use `getSupabaseWithAccessToken()` (token-pinned, no refresh), never the cookie client; see § Performance.
 
 The user-scoped client (`getSupabaseServer()`) respects RLS. The admin client (`getSupabaseAdmin()`) bypasses it — use only for AI/system writes the buyer can't legitimately make themselves.
+
+## Performance and request budget
+
+The chat is tuned so the buyer sees the first AI text about 1 s after sending, and navigation shows content or a skeleton immediately. The rules that keep it that way:
+
+**Auth is local.** `proxy.ts` and the route helpers call `supabase.auth.getClaims()`, which verifies the JWT against the project's cached JWKS (ES256 signing key) with no Auth round trip. With legacy HS256 keys auth-js would silently fall back to a `getUser()` network call, so keep the asymmetric signing key. `requireAccountManager()` is claims plus one `is_account_manager()` RPC (the same function RLS uses). Trade-off: a revoked session stays valid until its JWT expires (≤ 1 h), exactly like PostgREST. In the browser, `<AuthProvider>` holds the only auth subscription (`onAuthStateChange`, session from cookie storage), so no component calls `getUser()`.
+
+**Round trips per buyer message** (`app/api/chat/route.ts`): one parallel stage of reads, one insert, the streamed backend call, one parallel stage of writes before `reply_done`, and best-effort writes after the stream closes. Don't add a sequential `await` to this path; add to a parallel stage or to the after-close block. Each request logs `{evt:"chat_turn_timing", ...stage_ms}` and returns a `Server-Timing` header (DevTools → Network → Timing) from `lib/timing.ts`; `/api/chat/start` logs `chat_start_timing`.
+
+**Streaming** (`NEXT_PUBLIC_CHAT_STREAMING=1`). The client sends `Accept: application/x-ndjson` and receives `ChatStreamEvent`s (`types/chat.ts`): `ack`, `delta*`, then `reply_done` + `pills`, or `error`; always `done` last. Outcomes decided before the AI runs stay plain JSON, and the client branches on `content-type`. Clients without the header get the same pipeline aggregated into the legacy JSON body. In the hook: the typing dots show only until the first delta (`awaitingReply`), the reply grows in one bubble keyed `agent:<clientId>` so it never remounts, the composer unlocks at `reply_done`, and pills trail in. Watchdogs replace the old flat 30 s abort: 15 s to `ack`, 20 s of silence, 60 s total. The server runs the pipeline under `after()`, so it finishes and persists even if the browser goes away; the client heals via Realtime or Retry.
+
+**Turn state and retries.** The user row's `metadata.turn` is `running` while a turn is in flight and `failed` if it produced no reply (backend error, empty text, truncated stream, failed AI insert); no `""` AI row is ever written. A retry reuses the send's `client_message_id`, hits the duplicate path, and: returns the saved reply if one exists (`findAiReplyFor`: `reply_to` first, legacy `created_at` fallback); re-runs the turn if it's `failed` or a `running` turn is older than 75 s (claimed with a compare-and-swap on `turn` + `turn_started_at`, so two retries can't both call Gemini); otherwise returns `ai_pending`.
+
+**Bootstrap and navigation.** `/api/chat/start` returns the sidebar list too (no separate `/api/chat/sessions` on load) and skips lookups for a brand-new visitor. `lib/chatBootstrap.ts` caches payloads: sidebar hover prefetches `?session_id=` payloads (never the side-effecting bare / `?new=1` forms), a switch renders the cached payload instantly and revalidates if older than 10 s, "New conversation" is primed from the POST response, and the session being left is evicted. A send typed while bootstrapping is queued (one), shown optimistically, and flushed once the session exists. `/chat`'s Suspense fallback and `loading.tsx` render `ChatShellSkeleton`, so the prerendered HTML is a recognizable layout, not a blank page. Marketing pages share one layout (Header/Footer stay mounted). The Hero and its chat preview animate in with CSS (`.hero-in`), not framer-motion `initial={{opacity:0}}`, so above-the-fold copy is visible at first paint.
+
+**Rendering.** `MessageBubble` is `memo`'d and receives identity-stable props (`useStableCallback`; `retryDisabled` only on error bubbles; `onSuggestion` only on the last message). The buyer composer is uncontrolled, so a keystroke re-renders only the composer. Streamed text is buffered and painted once per animation frame.
+
+**Database.** RLS policies wrap `auth.uid()` / `is_account_manager()` in scalar subqueries (migration 0024) so Postgres evaluates them once per statement, not once per row (this also cuts Realtime's per-subscriber RLS cost). `app_settings` (model config) is cached for 60 s per instance.
+
+**Regions.** Every buyer message makes several sequential hops Vercel ↔ Supabase and one Vercel ↔ Render. Keep the Vercel function region next to the Supabase region (`vercel.json` `regions`, or Project Settings → Functions; `preferredRegion` only affects the Edge runtime), and the Render service in the matching region. See `supabase/README.md` § Regions.
+
+**Tracking decision for this work:** no new PostHog events. The changed endpoints are covered by existing events (`profile_completed`, `chat_session_started`, `llm_call_completed`) or are pure reads (`GET /api/am/lessons?count=1`); latency is measured with `$web_vitals` (browser), `Server-Timing` + the timing log lines (routes), and `llm_call_logs.latency_ms` / `ttft_ms` (Gemini).
 
 ## Agent improvement loop (lead rating → lessons)
 

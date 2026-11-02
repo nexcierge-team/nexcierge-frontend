@@ -1,9 +1,12 @@
 # Nexcierge Frontend — Render Blueprint
 # Docs: https://render.com/docs/blueprint-spec
 #
-# Cross-blueprint env wiring isn't supported, so NEXT_PUBLIC_BACKEND_URL must
-# be set manually in the Render dashboard. Paste the public URL of the
-# `nexcierge-backend` service from the backend blueprint.
+# NOTE: the frontend deploys on Vercel; this blueprint is a fallback only.
+# Cross-blueprint env wiring isn't supported, so BACKEND_URL must be set
+# manually in the dashboard. Paste the public URL of the `nexcierge-backend`
+# service from the backend blueprint. (The code reads BACKEND_URL, server
+# side only, in lib/backend.ts; this file used to say NEXT_PUBLIC_BACKEND_URL,
+# which nothing reads.)
 
 services:
   - type: web
@@ -13,8 +16,12 @@ services:
     buildCommand: npm ci && npm run build
     startCommand: npm start
     envVars:
-      - key: NEXT_PUBLIC_BACKEND_URL
+      - key: BACKEND_URL
         sync: false       # e.g. https://nexcierge-backend.onrender.com
+      # Streamed chat replies (NDJSON). Rollout flag read by the browser
+      # bundle at build time; "1" turns streaming on.
+      - key: NEXT_PUBLIC_CHAT_STREAMING
+        value: "1"
       # Same value as nexcierge-backend's BACKEND_SHARED_SECRET. Sent as the
       # x-internal-token header on every server-side call to the backend so
       # the backend can reject direct/unauthenticated callers. (Frontend
