@@ -354,3 +354,26 @@ export async function insertMessages(
   if (error) throw error;
   return data ?? [];
 }
+
+/**
+ * Re-point the buyer's own messages from one user id to another. Used by
+ * /auth/callback after sign-in, alongside transferSessionsOwnership /
+ * transferRfqsOwnership: sign-in produces a NEW permanent user id, and
+ * without this the buyer's pre-sign-in messages would keep referencing
+ * the old anonymous user. That broke the anonymous-user cleanup job (its
+ * single DELETE failed on the foreign key) and mis-attributed the rows.
+ * Caller must use the service-role client to bypass RLS.
+ */
+export async function transferMessagesSender(
+  admin: Client,
+  fromUserId: string,
+  toUserId: string,
+): Promise<void> {
+  const { error } = await admin
+    .from("chat_messages")
+    .update({ sender_user_id: toUserId })
+    .eq("sender_user_id", fromUserId)
+    .eq("sender_type", "user");
+  if (error) throw error;
+}
+

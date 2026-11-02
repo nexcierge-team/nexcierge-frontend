@@ -147,7 +147,7 @@ lib/
                             + advanceDealStage(dealId, stageId) for pipeline transitions
 
 supabase/
-├── migrations/             0001..0025 — users + chat tables + rfqs + RLS + cleanup + read_at + language/translation + rate_limits + … + sourcing stage (0020) + its backfill (0021) + llm_call_logs stream metrics (0022) + chat_sessions.language_resolved_at (0023) + RLS initplan rewrite (0024) + check_rate_limit locked to service_role (0025)
+├── migrations/             0001..0026 — users + chat tables + rfqs + RLS + cleanup + read_at + language/translation + rate_limits + … + sourcing stage (0020) + its backfill (0021) + llm_call_logs stream metrics (0022) + chat_sessions.language_resolved_at (0023) + RLS initplan rewrite (0024) + check_rate_limit locked to service_role (0025) + message sender repair / FK set null (0026)
 └── README.md               Step-by-step setup the human operator does once
 
 types/
@@ -255,8 +255,9 @@ Buyer clicks Request human review → POST /api/request-review
    │   /auth/callback: the buyer is now signed in as a DIFFERENT, permanent auth.users id
    │   (a new user, or their existing account if that email / Google identity signed in before).
    │   If `nx_pre_signin_uid` names a different id, the service-role client moves that anonymous
-   │   user's chat_sessions + rfqs to the new id (transferSessionsOwnership /
-   │   transferRfqsOwnership), clears the cookie, fires `auth_completed`, and redirects to
+   │   user's chat_sessions + rfqs to the new id and re-points the buyer's own messages'
+   │   sender_user_id (transferSessionsOwnership / transferRfqsOwnership /
+   │   transferMessagesSender), clears the cookie, fires `auth_completed`, and redirects to
    │   `?next=` (default /chat?resume=handoff). Migration errors are logged, never block sign-in.
    │       ↓
    │   useChat detects ?resume=handoff on next bootstrap → auto-fires requestReview()
@@ -264,8 +265,8 @@ Buyer clicks Request human review → POST /api/request-review
    │   Why not linkIdentity: upgrading the anonymous user in place breaks when that email /
    │   Google identity already belongs to an account (a returning buyer on a new device), so we
    │   sign in normally and move the data instead. See supabase/README.md § anonymous sign-ins.
-   │   Known gap: chat_messages.sender_user_id on the buyer's pre-sign-in messages still points at
-   │   the old anonymous id (only sessions + rfqs are moved).
+   │   Nothing may keep referencing the anonymous id afterwards: the 30-day cleanup (0005) deletes
+   │   it. chat_messages.sender_user_id is ON DELETE SET NULL (0026) as a backstop.
    │
    ▼
 POST /api/request-review (now non-anonymous; Supabase + HubSpot only, no FastAPI call

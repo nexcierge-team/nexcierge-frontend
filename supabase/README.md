@@ -62,6 +62,10 @@ Easiest path — paste each `.sql` file's contents into the SQL editor in the Su
                                   anon/authenticated call it with any key, enough to reset their own
                                   limit or lock out another user. The app already calls it server-side
                                   only, so this changes no behaviour)
+0026_message_sender_fk.sql       (repairs buyer messages whose sender_user_id still pointed at the
+                                  pre-sign-in anonymous user, and makes that FK ON DELETE SET NULL.
+                                  Without it the 0005 anonymous-user cleanup fails outright as soon
+                                  as one signed-in buyer's anonymous user is due for deletion)
 ```
 
 > **Model config is now DB-driven.** After `0015`, the live interview/pills/translate models are set from the AM dashboard (**Models** pane) and stored in `app_settings`; the backend's `GEMINI_*_MODEL` env vars are only the fallback. No operator step is required beyond running the migration — but confirm the seed values equal what Render currently runs so no buyer-facing model silently changes on deploy.
