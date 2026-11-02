@@ -9,68 +9,85 @@ Every server-side call to the backend goes through `lib/backend.ts` (`BACKEND_UR
 1. **No CORS** — the request is server-to-server from Vercel to Render, not browser-to-Render
 2. **`BACKEND_URL` stays server-side** — never exposed to the client bundle, can be a private hostname later
 3. **Single place to add cross-cutting concerns** — auth, rate limiting, logging
-4. **Easier to migrate to streaming later** — wrap the proxy in an SSE response without touching the client component
+4. **Streaming without exposing the backend** — `/api/chat` relays FastAPI's NDJSON stream to the browser while persisting the turn server-side (see § Flow — chat turn)
 
 ## Endpoints
 
 | Frontend route | Backend target | Purpose |
 |---|---|---|
-| `POST /api/chat` | `POST /chat` | Conversational turn — forwards `session.language` to FastAPI (the `'en'` default during the interview, so Gemini mirrors the buyer; a non-`en` code once pinned, so the prompt locks to it). Returns `reply_language` (the agent reply's language, from the pills pass) every turn; the client adopts it to localize chat chrome + the summary card. When the brief first completes, pins that same `reply_language` to `chat_sessions.language` — no separate detector call. |
-| `POST /api/request-review` | `POST /sessions/{id}/request_review` | Buyer-initiated handoff to the local account manager |
-| `POST /api/am/sessions/[id]/messages` | `POST /translate` (forced) [+ `POST /detect-language` on the first reply of an `'en'` session] | AM reply (`{ content?, attachments? }`) — delivers the buyer their language whatever the AM typed. The first reply on an `'en'` session lazily detects the buyer's language from their thread and caches it. Then **one forced** translation into the buyer's language (`force: true`); the backend echoes verbatim if the reply is already in it, so a no-op stores no translation — no per-message detect call. The dashboard renders the AM's bubble optimistically, so the AM never waits on this. Optional `attachments` (browser-uploaded to the `chat-attachments` bucket) are validated against the session and stored in `metadata.attachments` |
+| `POST /api/chat` | `POST /chat/stream` (falls back to `POST /chat` on a backend without it) | Conversational turn, streamed to the browser as NDJSON when it sends `Accept: application/x-ndjson` (else one JSON body). Forwards `session.language` to FastAPI (the `'en'` default during the interview, so Gemini mirrors the buyer; a non-`en` code once pinned, so the prompt locks to it). Returns `reply_language` (the agent reply's language, from the pills pass) every turn; the client adopts it to localize chat chrome + the summary card. When the brief first completes, pins that same `reply_language` to `chat_sessions.language` — no separate detector call. |
+| `POST /api/request-review` | `POST /translate` only (3 parallel calls, non-`en` buyers); the handoff itself is Supabase + HubSpot | Buyer-initiated handoff to the local account manager: guards, atomic claim, HubSpot sync, three localized closing messages. There is no backend handoff endpoint |
+| `POST /api/am/sessions/[id]/messages` | `POST /translate` (forced) [+ `POST /detect-language` on the first reply of an `'en'` session] | AM reply (`{ content?, attachments? }`) — delivers the buyer their language whatever the AM typed. The first reply on a session whose language was never resolved (`chat_sessions.language_resolved_at` null, migration 0023; sessions handed off since then are resolved at brief completion) lazily detects the buyer's language from their thread, caches it, and stamps the session so it never detects again. Then **one forced** translation into the buyer's language (`force: true`); the backend echoes verbatim if the reply is already in it, so a no-op stores no translation — no per-message detect call. The dashboard renders the AM's bubble optimistically, so the AM never waits on this. Optional `attachments` (browser-uploaded to the `chat-attachments` bucket) are validated against the session and stored in `metadata.attachments` |
 | `POST /api/am/sessions/[id]/translate` | `POST /translate` (per uncached message) | AM dashboard — render the thread in the AM's chosen working language (`en`/`zh`/`hi`), caching each result in `chat_messages.metadata.translations` so a string is translated at most once. A message already in that language (e.g. the AM's own `zh` reply while reading in `zh`) is echoed verbatim by the backend and skipped, so it shows no redundant translation line |
 | `POST /api/am/sessions/[id]/rating` | — (Supabase only) | AM rates the AI interview's output on a claimed brief: `{ lead_quality, field_issues?, notes? }` → written to the `rfqs` row (migration 0014). 409 unless the caller is the assigned AM. See `docs/ARCHITECTURE.md` § Agent improvement loop |
 | `POST /api/am/sessions/[id]/stage` | — (Supabase only [+ HubSpot]) | AM manually sets the buyer-visible sourcing stage on a claimed brief: `{ stage }` (slug from `lib/sourcingStages.ts`) → `chat_sessions.sourcing_stage` + a timestamp merged into `sourcing_stage_history`. 409 unless the caller is the assigned AM. Optionally mirrors into the HubSpot pipeline via per-stage `HUBSPOT_DEALSTAGE_*` env vars (non-fatal). Buyer's progress rail updates live via `chat_sessions` realtime. Emits `am_stage_updated` |
 | `POST /api/am/sessions/[id]/lessons` | `POST /draft-lessons` | Generate improvement lessons from a rated brief: loads the user/ai transcript + rating from Supabase, gets 0-3 drafts back, inserts them into `agent_lessons` as `proposed`. Requires claim + rating (409); rate-limited `am-lessons:user:<id>` 20/h |
-| `GET /api/am/lessons`, `PATCH /api/am/lessons/[id]` | — (Supabase only) | Lessons review queue: list (optional `?status=`), then approve (optionally with edited `lesson_text`) or reject each proposed lesson |
+| `GET /api/am/lessons`, `PATCH /api/am/lessons/[id]` | — (Supabase only) | Lessons review queue: list (optional `?status=`; `?count=1` returns just `{ count }` via a head-only count, used for the dashboard badge), then approve (optionally with edited `lesson_text`) or reject each proposed lesson |
 | `GET /api/am/config`, `PUT /api/am/config` | — (Supabase only) | Live Gemini model config (the `app_settings` singleton row, migrations 0015/0016). GET returns `{ config: { interview_model, pills_model, translate_model, pills_thinking, updated_at, updated_by_name } }`; PUT validates each id against the `lib/models.ts` allowlist (and `pills_thinking` against off/low/medium/high) and saves. AM-gated. Powers the dashboard **Models** pane and emits `model_config_updated` |
 
 ## Flow — chat turn
 
 ```
-Browser
-  │  POST /api/chat  {session_id, message}
+Browser (lib/useChat.ts)
+  │  POST /api/chat  {session_id, message, client_message_id}
+  │  Accept: application/x-ndjson            (when NEXT_PUBLIC_CHAT_STREAMING=1)
   ▼
 Next.js Route Handler  (app/api/chat/route.ts)
-  │  fetch(`${BACKEND_URL}/chat`, {session_id, user_id, message, history, profile, language})
-  │  session_id/user_id are telemetry context only — they land in the
-  │  backend's llm_call_logs rows + PostHog llm_call_completed events
+  │  auth (getClaims, local)
+  │  parallel: rate limit · session · rfq · slim history · model config
+  │  insert user message (metadata.turn = "running")
+  │  openBackendTurn() → POST ${BACKEND_URL}/chat/stream
+  │      {session_id, user_id, message, history, profile, language, model?, pills_model?, pills_thinking?}
+  │      session_id/user_id are telemetry context only (llm_call_logs + llm_call_completed)
   ▼
-FastAPI Backend
-  │  Gemini call + update_buyer_profile tool execution
+FastAPI  /chat/stream   (NDJSON: delta* → reply_done → pills → done | error → done)
+  │  manual streaming tool loop (update_buyer_profile), then the pills pass
   ▼
-Returns {reply, profile, profile_complete, review_requested}
-  │
-  ▼
-Route Handler returns same JSON to browser
+Route Handler relays to the browser:
+  ack{user_message}
+  delta{text} ...                         (forwarded as they arrive)
+  reply_done{agent_message, profile, profile_complete}
+      sent only AFTER the rfq update + AI row insert (parallel) succeed
+  pills{suggestions, reply_language}
+  done{timings}
+  then, after the stream closes (after()): pills → AI row metadata, session language pin
 ```
+
+A failure before the stream starts (backend unreachable) is a JSON 502. A failure mid-stream (backend `error`, empty reply, truncated stream, failed AI insert) is an `error{code, retryable}` event; the user row flips to `turn = "failed"` and no AI row is written, so Retry re-runs the turn. Without the `Accept` header the same pipeline returns the legacy single JSON body.
 
 ## Flow — Request human review
 
 ```
 Browser
-  │  Buyer clicks Request human review CTA on ProfileSummaryCard
+  │  Buyer clicks Request human review on ProfileSummaryCard
   │  POST /api/request-review  {session_id}
   ▼
 Next.js Route Handler  (app/api/request-review/route.ts)
-  │  fetch(`${BACKEND_URL}/sessions/{id}/request_review`, POST)
+  │  rate limit (request-review:user:<id>, 5/h)
+  │  session must belong to the caller             → 404
+  │  already past 'ai'                             → 200 { already_handed_off: true }
+  │  rfqs.is_complete false                        → 409 (captures review_blocked: missing_fields)
+  │  caller still anonymous                        → 401 { auth_required: true }
+  │                                                  (captures review_blocked: auth_required;
+  │                                                   the client opens AuthModal, then resumes)
+  │  tryClaimHandoff: UPDATE chat_sessions SET status='in_handoff', sourcing_stage='brief_submitted'
+  │                   WHERE id=$1 AND status='ai'  (loser of a race → already_handed_off)
+  │  HubSpot (if enabled, idempotent on rfqs.hubspot_deal_id): upsert contact, create deal,
+  │           markRfqSubmitted. Validation error → revertHandoff + 422; other errors non-fatal
+  │  localize HANDOFF_REPLY, divider label, AM welcome into session.language
+  │           (3 × translateText → FastAPI POST /translate, in parallel; English fallback)
+  │  insertMessages (service-role): ai close, system divider, account_manager auto-welcome
+  │  captureServer('review_requested')
   ▼
-FastAPI Backend
-  │  Verifies profile_complete, flips state.review_requested=true
-  │  Returns HANDOFF_REPLY (hard-coded — no LLM call)
-  ▼
-Returns {reply, profile, profile_complete: true, review_requested: true}
+200 { session: { id, status: "in_handoff" }, inserted_messages: ChatMessagesRow[] }
   │
   ▼
-Client appends three messages in order (all localized into the buyer's
-session language at insert time via `translateText`, English fallback):
-  • the AI close ("Thank you! Your brief has been sent…")
-  • a divider row labeled "Account manager"
-  • a personalized welcome from the account manager
-flips local reviewRequested=true (sticky), swaps the card CTA for a
-"Transferring to our account manager…" badge, switches composer to
-"Message your account manager…" mode. Subsequent user sends append
-locally only (no /api/chat call).
+Client (useChat.requestReview) appends the three rows in order (race-safe against
+their Realtime echoes), flips reviewRequested=true (sticky), stamps the progress rail
+(status in_handoff, stage brief_submitted), swaps the card CTA for a "Transferring to our
+account manager…" badge, and switches the composer to "Message your account manager…".
+Later buyer sends still POST /api/chat, which saves the message as a note for the AM and
+returns `ai_skipped: true` (no Gemini call, no typing indicator).
 ```
 
 ## Environment
@@ -85,7 +102,7 @@ In Vercel deployment, set `BACKEND_URL` to the Render backend URL (e.g. `https:/
 
 ### `GET /api/chat/start`
 
-Bootstraps the buyer's chat surface — anonymous Supabase sign-in if needed, then returns the active or requested `chat_sessions` row, its `rfqs` row, and full message history.
+Bootstraps the buyer's chat surface — anonymous Supabase sign-in if needed, then returns the active or requested `chat_sessions` row, its `rfqs` row, full message history, and the sidebar list (`sessions`: the same rows as `GET /api/chat/sessions`, so the page needs no second request). The IP rate limit applies only when the request has no session (i.e. it is about to create an anonymous user). `POST /api/chat/sessions` (new conversation) returns this same payload as `bootstrap` (with `sessions: null`), which the client caches so switching to the new chat needs no `/start` call.
 
 **Query params (all optional):**
 - `session_id=<uuid>` — load a specific past session (must be owned by the caller).
@@ -102,11 +119,14 @@ Bootstraps the buyer's chat surface — anonymous Supabase sign-in if needed, th
 
 The route handler reads `chat_sessions.language` for the given session and forwards it to FastAPI as the `language` field. The browser never has to send it.
 
-**Response:** see `backend/docs/API.md` `POST /chat` — full `profile` dict always present, plus `profile_complete` and `review_requested` booleans. `reply` is in the buyer's language: Gemini mirrors whatever the buyer wrote, or follows the pinned `session.language` once it's been set. Per-turn quick-reply `suggestions` are included, plus `reply_language` (ISO 639-1) — the language of the agent's reply, classified by the pills pass — which `useChat` adopts as the buyer's **display language** to localize chat chrome (`lib/chatStrings.ts`) and the summary card from the first turn.
+**Response (streamed, `Accept: application/x-ndjson`):** `Content-Type: application/x-ndjson`, one `ChatStreamEvent` (`types/chat.ts`) per line: `ack{user_message}`, `delta{text}`*, `reply_done{agent_message, profile, profile_complete}`, `pills{suggestions, reply_language}` (or `error{code, retryable}` instead of `reply_done`), always ending with `done{timings}`. `reply_done.agent_message` is the persisted row (its `metadata` carries `reply_to` + `client_message_id`); pills are merged into that row's metadata after the stream closes. Outcomes decided before the AI runs (400/404/429/500/502, `ai_skipped`, `duplicate`, `ai_pending`) are returned as JSON even to a streaming request, so the client branches on `content-type`.
+
+**Response (JSON):** see `backend/docs/API.md` `POST /chat` — full `profile` dict always present, plus `profile_complete` and `review_requested` booleans. `reply` is in the buyer's language: Gemini mirrors whatever the buyer wrote, or follows the pinned `session.language` once it's been set. Per-turn quick-reply `suggestions` are included, plus `reply_language` (ISO 639-1) — the language of the agent's reply, classified by the pills pass — which `useChat` adopts as the buyer's **display language** to localize chat chrome (`lib/chatStrings.ts`) and the summary card from the first turn.
 
 **Idempotency (`client_message_id`):** `useChat` generates a UUID per send and **reuses it on Retry**. The route inserts the user message with it; a unique index on `chat_messages (chat_session_id, client_message_id)` (migration `0018`) turns a duplicate delivery — timeout retry, flaky network, double submit — into a conflict instead of a second row + second Gemini turn. On conflict the route returns the original turn's result with `duplicate: true`:
 - AI reply already persisted → full normal response shape (`reply`, `agent_message`, `profile`, stored `suggestions`; no `reply_language` — the client keeps its current display language).
-- Original request still mid-Gemini → `ai_pending: true` with `agent_message: null`; the client renders a retryable error (`errTimeout`) so the buyer can re-poll with the same key.
+- No reply, and the original turn **failed** (`metadata.turn = "failed"`) or has been `running` for over 75 s (its function died) → the route claims the turn with a compare-and-swap and **re-runs it** (streamed or JSON, like a fresh send). Two concurrent retries can't both re-run it.
+- Original request still mid-Gemini → `ai_pending: true` with `agent_message: null`; the client renders a retryable error (`errTimeout`) so the buyer can re-poll with the same key (Realtime may deliver the reply first and replace that bubble).
 - Session already `in_handoff` → the usual `ai_skipped: true` shape.
 
 The field is optional; requests without it (older clients) are never deduped. Server-generated rows (`ai` / `account_manager` / `system`) leave the column null, so the partial unique index ignores them.
@@ -126,7 +146,7 @@ Driving everything off the agent reply's language (not the buyer's possibly-one-
 
 `POST /api/am/sessions/[id]/messages` takes `{ content?, attachments? }` in and `{ message }` out. AMs now work in Chinese/Hindi, so the reply may be in any language; server-side we always deliver the buyer **their** language. `content` may be empty when `attachments` are present (a caption-less file send); only a non-empty caption is translated.
 
-**Resolve the buyer's language first.** If `session.language` is still the `'en'` default, `detectBuyerLanguage()` classifies it from the buyer's accumulated thread text (`listMessages` → concat the buyer's turns, capped at 2k chars) via `POST /detect-language`, and caches a non-`en` result to `chat_sessions.language` using the **service-role admin client**. A genuinely English buyer resolves to `'en'` and is re-checked cheaply on each send until a non-`en` signal appears.
+**Resolve the buyer's language first.** If `session.language` is still the `'en'` default **and** the session isn't resolved yet (`language_resolved_at` null), `detectBuyerLanguage()` classifies it from the buyer's accumulated thread text (`listMessages` → concat the buyer's turns, capped at 2k chars) via `POST /detect-language`, caches a non-`en` result to `chat_sessions.language`, and stamps `language_resolved_at` (English included), all with the **service-role admin client**. Detection therefore runs at most once per session; `/api/chat` already stamps sessions when their brief completes, so newly handed-off sessions never detect here.
 
 **Then one forced translation into that language.** `translateText(content, targetLanguage, { force: true })` → FastAPI `POST /translate` (Flash-Lite) covers every buyer, English included. Gemini handles whatever source the AM typed and **echoes the reply verbatim when it's already in the target language**, so we store `translated_content`/`translated_to` only when the result differs from the original. This replaces the old detect-then-translate path — the per-message `detectLanguage(content)` call is gone, halving the round-trips (and the latency the AM waits on) for the English-buyer case. For an English buyer the same call translates a foreign reply into English, or echoes an already-English reply (which we skip). `detectLanguage` survives only inside `detectBuyerLanguage` above.
 
@@ -157,12 +177,22 @@ The sidebar's **chrome** still follows the AM's working language: section titles
 { "session_id": "<the live session id>" }
 ```
 
-**Response:** see `backend/docs/API.md` `POST /sessions/{id}/request_review`. The client uses `reply` (agent's handoff acknowledgment) and `review_requested: true`.
+Handled entirely in the Route Handler (Supabase + HubSpot); the only backend calls are the closing-message translations (`POST /translate`). The FastAPI backend has no handoff endpoint (the old `/sessions/{id}/request_review` was removed when the backend went stateless).
+
+**Response (200):**
+```json
+{ "session": { "id": "<uuid>", "status": "in_handoff" }, "inserted_messages": [ /* ai close, system divider, account_manager welcome */ ] }
+```
+or `{ "already_handed_off": true, "session": { "id", "status" } }` when the session is already past `ai` (double click, second tab, retry). The client appends `inserted_messages` and flips its local `reviewRequested`.
 
 **Error mapping:**
-- `404` (session not found) — shouldn't happen in normal use; client surfaces a generic error message
-- `409` (profile not complete) — shouldn't happen because the UI only exposes the button when `profile_complete` is true; client surfaces a generic error message
-- `502` (backend unreachable) — Route Handler catches and returns its own 502 JSON
+- `400` — invalid JSON / missing `session_id`
+- `401 { auth_required: true }` — buyer still anonymous; `useChat` opens `AuthModal`, and the sign-in round trip returns to `/chat?resume=handoff`, which re-fires the request
+- `404` — session not found or not owned by the caller
+- `409` — brief not complete (`rfqs.is_complete` false). The UI only shows the button once the profile is complete, so this is a defensive path
+- `422 { error: "invalid_profile_field", field, value, message }` — HubSpot rejected a field (e.g. a typo'd email); the claim is reverted so the buyer can fix it in chat and retry. The client shows `message` as an error bubble
+- `429` — handoff rate limit (5 per hour per user)
+- `500` — missing rfq row or a database failure
 
 ### Live model config injection
 
@@ -176,17 +206,14 @@ The model actually used is what the backend logs to `llm_call_logs` + PostHog, s
 
 ## Error handling
 
-- Backend unreachable → Route Handler catches, returns `{error: "...", status: 502}`
+- Backend unreachable → Route Handler catches, returns `{error: "...", status: 502}` (and marks the chat turn `failed` so Retry re-runs it)
+- Mid-stream failure → `error` event; the client drops the partial bubble and shows an error bubble with Retry
+- Client watchdogs (streamed turns): 15 s without `ack`, 20 s of silence, or 60 s total aborts the request; the server keeps running under `after()`, so the reply still lands (Realtime heals the error bubble, or Retry returns it)
 - Client displays an error reply bubble in chat (with Retry for chat turns; the Request human review handler just shows the error message and leaves the CTA enabled)
 
-## Future: streaming
+## Streaming rollout
 
-Gemini supports SSE token streaming. Migration plan:
-1. Backend: switch `/chat` to a streaming response
-2. Route handler: forward the stream (use `ReadableStream` or `TransformStream`)
-3. Client: replace `fetch().then(res => res.json())` with `fetch().then(res => res.body.getReader())` and append tokens incrementally
-
-Will substantially improve perceived latency for the first reply.
+Implemented end-to-end (backend `POST /chat/stream`, `app/api/chat/route.ts`, `lib/useChat.ts`). The browser opts in with `NEXT_PUBLIC_CHAT_STREAMING=1` (rollout flag; when unset the route returns the classic JSON body from the same pipeline). Order: apply migration 0022 → deploy backend → deploy frontend (flag off) → set the flag → after a soak, the backend's legacy `/chat` switches to the streaming implementation. The frontend tolerates either backend order: `lib/backendTurn.ts` falls back to `/chat` when `/chat/stream` returns 404.
 
 ## How to apply when extending
 

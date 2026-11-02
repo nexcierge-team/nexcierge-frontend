@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getOrCreateUser } from "@/lib/supabase/route";
+import { getUser } from "@/lib/supabase/route";
 import { getSupabaseServer } from "@/lib/supabase/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { getSession } from "@/lib/db/sessions";
@@ -17,9 +17,10 @@ export async function DELETE(
   ctx: { params: Promise<{ id: string }> },
 ) {
   const { id } = await ctx.params;
-  const auth = await getOrCreateUser();
+  // Non-creating: deleting never needs (or should mint) an anonymous user.
+  const auth = await getUser();
   if (!auth) {
-    return NextResponse.json({ error: "Auth failure" }, { status: 500 });
+    return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
   const supabase = await getSupabaseServer();
   const session = await getSession(supabase, id);

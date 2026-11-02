@@ -9,9 +9,18 @@ import { humanFileSize } from "@/lib/attachments";
 import type { PendingAttachment } from "@/lib/storage/attachments";
 
 interface ChatComposerProps {
-  value: string;
-  onChange: (v: string) => void;
-  onSubmit: () => void;
+  // Controlled mode: pass `value` + `onChange` (the AM dashboard does, since
+  // it also tracks attachments). Uncontrolled mode: omit `value` and the
+  // composer keeps its own text, so typing re-renders only the composer and
+  // not the whole chat page (every keystroke used to re-render every
+  // message bubble). `onChange` still fires in both modes (typing
+  // indicator).
+  value?: string;
+  onChange?: (v: string) => void;
+  // Receives the current text. In uncontrolled mode the box is cleared
+  // unless the handler returns (or resolves to) `false`, meaning "not
+  // sent, keep the text".
+  onSubmit: (text: string) => void | boolean | Promise<void | boolean>;
   disabled?: boolean;
   placeholder?: string;
   // When set, replaces the static placeholder with a cycling animated one
@@ -47,7 +56,7 @@ interface ChatComposerProps {
 }
 
 export function ChatComposer({
-  value,
+  value: controlledValue,
   onChange,
   onSubmit,
   disabled,
@@ -65,6 +74,13 @@ export function ChatComposer({
   submitDisabled,
 }: ChatComposerProps) {
   const cs = chatStrings(language);
+  const [ownValue, setOwnValue] = useState("");
+  const controlled = controlledValue !== undefined;
+  const value = controlled ? controlledValue : ownValue;
+  const setValue = (v: string) => {
+    if (!controlled) setOwnValue(v);
+    onChange?.(v);
+  };
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -96,7 +112,14 @@ export function ChatComposer({
 
   function submit() {
     if (!canSubmit) return;
-    onSubmit();
+    const text = value;
+    const result = onSubmit(text);
+    if (controlled) return;
+    // Clear immediately for a snappy feel; restore if the send was refused.
+    setOwnValue("");
+    void Promise.resolve(result).then((ok) => {
+      if (ok === false) setOwnValue((cur) => (cur === "" ? text : cur));
+    });
   }
 
   function handleSubmit(e: FormEvent) {
@@ -157,7 +180,7 @@ export function ChatComposer({
         ref={textareaRef}
         autoFocus={autoFocus}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => setValue(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();

@@ -5,8 +5,6 @@ import { Mail, MessageSquare, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Header } from "@/components/layout/Header";
-import { Footer } from "@/components/layout/Footer";
 import { Reveal } from "@/components/landing/Reveal";
 
 const CONTACT_INBOX = "nexcierge.ai@gmail.com";
@@ -68,7 +66,6 @@ export default function ContactPage() {
 
   return (
     <>
-      <Header />
       <main>
         <section className="bg-white">
           <div className="mx-auto max-w-6xl px-6 pt-20 pb-24 sm:pt-28">
@@ -227,7 +224,6 @@ export default function ContactPage() {
           </div>
         </section>
       </main>
-      <Footer />
     </>
   );
 }

@@ -72,9 +72,18 @@ export async function getLatestBuyerIdentity(
 
 export async function createRfq(
   supabase: Client,
-  args: { sessionId: string; userId: string },
+  args: {
+    sessionId: string;
+    userId: string;
+    // Skip the prior-identity lookup when the caller knows the user is
+    // brand new (they can't have an earlier rfq), saving a round trip on
+    // a first visit.
+    skipIdentityLookup?: boolean;
+  },
 ): Promise<RfqsRow> {
-  const prior = await getLatestBuyerIdentity(supabase, args.userId);
+  const prior = args.skipIdentityLookup
+    ? null
+    : await getLatestBuyerIdentity(supabase, args.userId);
   const { data, error } = await supabase
     .from("rfqs")
     .insert({

@@ -4,6 +4,7 @@ import { getSupabaseServer } from "@/lib/supabase/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { transferSessionsOwnership } from "@/lib/db/sessions";
 import { transferRfqsOwnership } from "@/lib/db/rfqs";
+import { transferMessagesSender } from "@/lib/db/messages";
 import { captureServer } from "@/lib/analytics";
 
 const PRE_SIGNIN_COOKIE = "nx_pre_signin_uid";
@@ -18,7 +19,8 @@ const PRE_SIGNIN_COOKIE = "nx_pre_signin_uid";
  * chat data to the freshly signed-in user:
  *   - reads the `nx_pre_signin_uid` cookie (set by /api/auth/prepare-signin)
  *   - if the cookie's UID differs from the new user.id, UPDATEs
- *     `chat_sessions` and `rfqs` ownership via the service-role client
+ *     `chat_sessions` and `rfqs` ownership, and the sender of the buyer's
+ *     own `chat_messages`, via the service-role client
  *   - clears the cookie either way
  *
  * Redirects to `?next=<path>` (default `/chat?resume=handoff` so the
@@ -79,7 +81,10 @@ export async function GET(request: Request) {
 /**
  * If the pre-signin cookie is present AND points at a different UID
  * than the freshly signed-in user, move that UID's chat_sessions /
- * rfqs over to the new user. Service-role client to bypass RLS.
+ * rfqs over to the new user, and re-point its messages'
+ * sender_user_id, so nothing references the anonymous user anymore
+ * (the 30-day cleanup can then delete it). Service-role client to
+ * bypass RLS.
  *
  * Non-fatal: migration errors are logged but don't block sign-in. The
  * user lands signed in either way; worst case is the orphan anon
@@ -115,5 +120,10 @@ async function migrateAnonOwnership(): Promise<void> {
     await transferRfqsOwnership(admin, prevUid, user.id);
   } catch (e) {
     console.error("rfqs migration failed:", e);
+  }
+  try {
+    await transferMessagesSender(admin, prevUid, user.id);
+  } catch (e) {
+    console.error("chat_messages sender migration failed:", e);
   }
 }

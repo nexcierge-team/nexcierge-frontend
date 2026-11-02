@@ -113,6 +113,21 @@ export async function setSessionLanguage(
   return data;
 }
 
+// Record that this session's buyer language is resolved (migration 0023),
+// so the AM-send route stops re-detecting it. Best-effort: logs and
+// returns on failure (including the column not existing yet).
+export async function markSessionLanguageResolved(
+  supabase: Client,
+  sessionId: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from("chat_sessions")
+    .update({ language_resolved_at: new Date().toISOString() })
+    .eq("id", sessionId)
+    .is("language_resolved_at", null);
+  if (error) console.error("markSessionLanguageResolved failed:", error);
+}
+
 // Atomically claim the handoff slot for this session. Flips status
 // from 'ai' → 'in_handoff' only if no concurrent caller has already
 // claimed it. Returns true when this caller won the race, false when

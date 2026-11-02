@@ -21,6 +21,29 @@ export async function listMessages(
   return data ?? [];
 }
 
+// Slim history read for the Gemini turn: only the columns the backend
+// history needs, not `select *` (metadata / translations can be large).
+// /api/chat reads this BEFORE inserting the new user message, so the new
+// message is never duplicated into history (it goes to the backend as
+// `message`), and an empty history really means "first turn".
+export type HistoryRow = Pick<
+  ChatMessagesRow,
+  "id" | "sender_type" | "content" | "created_at"
+>;
+
+export async function listHistory(
+  supabase: Client,
+  sessionId: string,
+): Promise<HistoryRow[]> {
+  const { data, error } = await supabase
+    .from("chat_messages")
+    .select("id, sender_type, content, created_at")
+    .eq("chat_session_id", sessionId)
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as HistoryRow[];
+}
+
 interface InsertMessageArgs {
   sessionId: string;
   senderType: ChatSenderType;
@@ -73,25 +96,138 @@ export async function findMessageByClientId(
   return data;
 }
 
-// The AI reply that answered a given user message: the earliest
-// sender_type='ai' row inserted after it. Used by the duplicate-send
-// path in /api/chat to return the original turn's reply to a retry.
-export async function findAiReplyAfter(
+// The AI reply that answered a given user message. Used by the
+// duplicate-send path in /api/chat to return the original turn's reply to
+// a retry.
+//
+// AI rows written since the streaming change carry
+// `metadata.reply_to = <user message id>`, an exact match. Older rows
+// don't, so we fall back to "earliest AI row after the user message",
+// restricted to rows WITHOUT reply_to. Otherwise a retry of a failed turn
+// could pick up the reply to a LATER message.
+export async function findAiReplyFor(
   supabase: Client,
   sessionId: string,
-  afterCreatedAt: string,
+  userMessage: Pick<ChatMessagesRow, "id" | "created_at">,
 ): Promise<ChatMessagesRow | null> {
+  const exact = await supabase
+    .from("chat_messages")
+    .select("*")
+    .eq("chat_session_id", sessionId)
+    .eq("sender_type", "ai")
+    .eq("metadata->>reply_to", userMessage.id)
+    .limit(1)
+    .maybeSingle();
+  if (exact.error) throw exact.error;
+  if (exact.data) return exact.data;
+
   const { data, error } = await supabase
     .from("chat_messages")
     .select("*")
     .eq("chat_session_id", sessionId)
     .eq("sender_type", "ai")
-    .gt("created_at", afterCreatedAt)
+    .is("metadata->>reply_to", null)
+    .gt("created_at", userMessage.created_at)
     .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle();
   if (error) throw error;
   return data;
+}
+
+// ── AI-turn state on the user message row ─────────────────────────────
+//
+// A buyer message that starts an AI turn is inserted with
+// metadata.turn = "running" + turn_started_at. If the turn fails (backend
+// error, empty reply, truncated stream) it flips to "failed" and NO AI row
+// is written. A retry with the same client_message_id then lands on the
+// duplicate path, sees no AI reply, and may re-run the turn by CLAIMING it
+// with a compare-and-swap. Without this, a failed turn could never be
+// retried: the duplicate path returned `ai_pending` forever.
+
+export type TurnState = "running" | "failed";
+
+// A "running" turn older than this is presumed dead (the function was
+// killed mid-turn) and may be claimed by a retry. Comfortably above the
+// route's maxDuration (60 s).
+export const STALE_TURN_MS = 75_000;
+
+interface TurnMeta {
+  turn?: TurnState;
+  turn_started_at?: string;
+}
+
+export function readTurnMeta(row: Pick<ChatMessagesRow, "metadata" | "created_at">): {
+  state: TurnState | null;
+  startedAt: string;
+} {
+  const meta = (row.metadata ?? {}) as TurnMeta;
+  return {
+    state: meta.turn ?? null,
+    startedAt: meta.turn_started_at ?? row.created_at,
+  };
+}
+
+// Set turn state with the admin client (buyers can't update their own
+// message rows under RLS). Best-effort: a failed write only means a later
+// retry waits for STALE_TURN_MS instead of re-running immediately.
+export async function setTurnState(
+  admin: Client,
+  row: Pick<ChatMessagesRow, "id" | "metadata">,
+  state: TurnState,
+): Promise<void> {
+  const base = (row.metadata ?? {}) as Record<string, unknown>;
+  const { error } = await admin
+    .from("chat_messages")
+    .update({ metadata: { ...base, turn: state } })
+    .eq("id", row.id);
+  if (error) console.error("setTurnState failed:", error);
+}
+
+// Atomically take over a dead or failed turn for a retry. The UPDATE only
+// matches if the row still has the exact (turn, turn_started_at) we read,
+// so two concurrent retries can't both re-run Gemini. Returns the updated
+// row when this caller won, null otherwise.
+export async function claimTurn(
+  admin: Client,
+  row: Pick<ChatMessagesRow, "id" | "metadata" | "created_at">,
+): Promise<ChatMessagesRow | null> {
+  const meta = (row.metadata ?? {}) as TurnMeta & Record<string, unknown>;
+  const nextMeta = {
+    ...meta,
+    turn: "running" as const,
+    turn_started_at: new Date().toISOString(),
+  };
+  let q = admin
+    .from("chat_messages")
+    .update({ metadata: nextMeta })
+    .eq("id", row.id);
+  q = meta.turn ? q.eq("metadata->>turn", meta.turn) : q.is("metadata->>turn", null);
+  q = meta.turn_started_at
+    ? q.eq("metadata->>turn_started_at", meta.turn_started_at)
+    : q.is("metadata->>turn_started_at", null);
+  const { data, error } = await q.select().maybeSingle();
+  if (error) {
+    console.error("claimTurn failed:", error);
+    return null;
+  }
+  return (data as ChatMessagesRow | null) ?? null;
+}
+
+// Merge keys into a message's metadata (admin client). Used to attach
+// quick-reply pills to the AI row after the reply has already been saved
+// and streamed. Best-effort, never throws.
+export async function mergeMessageMetadata(
+  admin: Client,
+  row: Pick<ChatMessagesRow, "id" | "metadata">,
+  patch: Record<string, unknown>,
+): Promise<void> {
+  const base = (row.metadata ?? {}) as Record<string, unknown>;
+  const { error } = await admin
+    .from("chat_messages")
+    .update({ metadata: { ...base, ...patch } })
+    .eq("id", row.id);
+  if (error) console.error("mergeMessageMetadata failed:", error);
 }
 
 export async function insertMessage(
@@ -218,3 +354,26 @@ export async function insertMessages(
   if (error) throw error;
   return data ?? [];
 }
+
+/**
+ * Re-point the buyer's own messages from one user id to another. Used by
+ * /auth/callback after sign-in, alongside transferSessionsOwnership /
+ * transferRfqsOwnership: sign-in produces a NEW permanent user id, and
+ * without this the buyer's pre-sign-in messages would keep referencing
+ * the old anonymous user. That broke the anonymous-user cleanup job (its
+ * single DELETE failed on the foreign key) and mis-attributed the rows.
+ * Caller must use the service-role client to bypass RLS.
+ */
+export async function transferMessagesSender(
+  admin: Client,
+  fromUserId: string,
+  toUserId: string,
+): Promise<void> {
+  const { error } = await admin
+    .from("chat_messages")
+    .update({ sender_user_id: toUserId })
+    .eq("sender_user_id", fromUserId)
+    .eq("sender_type", "user");
+  if (error) throw error;
+}
+

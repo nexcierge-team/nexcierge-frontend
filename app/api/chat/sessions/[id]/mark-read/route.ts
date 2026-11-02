@@ -1,27 +1,27 @@
 import { NextResponse } from "next/server";
-import { getOrCreateUser } from "@/lib/supabase/route";
+import { getUser } from "@/lib/supabase/route";
 import { getSupabaseServer } from "@/lib/supabase/server";
-import { getSession } from "@/lib/db/sessions";
 import { markIncomingMessagesRead } from "@/lib/db/messages";
 
 // Buyer marks incoming (ai / account_manager / system) messages as read
 // for the given session. RLS policy `chat_messages_mark_read_buyer`
-// enforces ownership; we still guard at the handler level so a 404 is
-// surfaced cleanly when the session doesn't belong to the caller.
+// enforces ownership on the UPDATE itself: a foreign session id simply
+// matches zero rows. So there's no separate session lookup here (it was a
+// redundant round trip on every call).
+//
+// The client only calls this when an account-manager message is unread
+// (read receipts render under the AM's outgoing bubbles; AI rows never
+// show one), so it no longer fires after every AI turn.
 export async function POST(
   _req: Request,
   ctx: { params: Promise<{ id: string }> },
 ) {
   const { id } = await ctx.params;
-  const auth = await getOrCreateUser();
+  const auth = await getUser();
   if (!auth) {
-    return NextResponse.json({ error: "Auth failure" }, { status: 500 });
+    return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
   const supabase = await getSupabaseServer();
-  const session = await getSession(supabase, id);
-  if (!session || session.user_id !== auth.userId) {
-    return NextResponse.json({ error: "Session not found" }, { status: 404 });
-  }
   try {
     const updated = await markIncomingMessagesRead(supabase, id);
     return NextResponse.json({ updated_ids: updated });

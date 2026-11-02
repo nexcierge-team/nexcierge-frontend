@@ -1,5 +1,6 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { ArrowUp } from "lucide-react";
@@ -16,12 +17,21 @@ export function HeroChatPreview() {
     router.push(`/chat?new=1${seed}`);
   }
 
+  // router.push doesn't auto-prefetch like <Link>; warm the /chat route's
+  // code on hover/focus so the click navigates instantly. (Route prefetch
+  // only loads code; the chat's /api/chat/start call still waits for the
+  // actual navigation.)
+  const warm = () => router.prefetch("/chat");
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 24 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.7, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
-      className="relative w-full max-w-md lg:max-w-lg"
+    // Entrance animations are CSS (`hero-in`, app/globals.css) so the
+    // card is visible from first paint instead of after hydration; the
+    // ambient float/pulse loops below stay on framer-motion.
+    <div
+      className="hero-in relative w-full max-w-md lg:max-w-lg"
+      style={{ "--hero-dy": "24px", animationDelay: "150ms" } as CSSProperties}
+      onPointerEnter={warm}
+      onFocus={warm}
     >
       <div
         aria-hidden
@@ -70,11 +80,15 @@ export function HeroChatPreview() {
             Got it. Do you need automatic or semi-automatic?
           </Bubble>
 
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.5, delay: 1.4 }}
-            className="flex flex-wrap gap-1.5 pt-1"
+          <div
+            className="hero-in flex flex-wrap gap-1.5 pt-1"
+            style={
+              {
+                "--hero-dy": "0px",
+                animationDuration: "0.5s",
+                animationDelay: "1400ms",
+              } as CSSProperties
+            }
           >
             {QUICK_CATEGORIES.map((cat) => (
               <button
@@ -88,7 +102,7 @@ export function HeroChatPreview() {
                 {cat}
               </button>
             ))}
-          </motion.div>
+          </div>
         </div>
 
         {/* Composer mock — clicking acts like clicking the card */}
@@ -111,7 +125,7 @@ export function HeroChatPreview() {
           Click anywhere to start chatting
         </div>
       </motion.div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -125,11 +139,15 @@ function Bubble({
   children: React.ReactNode;
 }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay, ease: "easeOut" }}
-      className={`flex ${role === "user" ? "justify-end" : "justify-start"}`}
+    <div
+      className={`hero-in flex ${role === "user" ? "justify-end" : "justify-start"}`}
+      style={
+        {
+          "--hero-dy": "6px",
+          animationDuration: "0.4s",
+          animationDelay: `${Math.round(delay * 1000)}ms`,
+        } as CSSProperties
+      }
     >
       <div
         className={`max-w-[88%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
@@ -140,6 +158,6 @@ function Bubble({
       >
         {children}
       </div>
-    </motion.div>
+    </div>
   );
 }

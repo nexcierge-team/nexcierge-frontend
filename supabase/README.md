@@ -4,7 +4,7 @@ One-time setup the human operator does. Once these steps are complete, the rest 
 
 ## 1. Create the project
 
-1. Go to [supabase.com](https://supabase.com), create a new project. Pick the region closest to your buyers (likely `us-east` or `eu-west`).
+1. Go to [supabase.com](https://supabase.com), create a new project. Pick the region closest to your buyers (likely `us-east` or `eu-west`), then put the Vercel functions and the Render backend in the matching region (see § Regions and auth keys below). The region can't be changed later without migrating to a new project.
 2. Wait for the project to provision (~2 min).
 3. From **Project Settings → API**, copy:
    - `Project URL` → `NEXT_PUBLIC_SUPABASE_URL`
@@ -46,6 +46,26 @@ Easiest path — paste each `.sql` file's contents into the SQL editor in the Su
                                   supply, e.g. "480V 3-phase 60Hz"; optional, does not affect the
                                   is_complete handoff gate. Also create the matching HubSpot deal
                                   property — see § HubSpot custom deal properties)
+0020_sourcing_stage.sql          (chat_sessions.sourcing_stage + history for the buyer progress rail)
+0021_backfill_sourcing_stage.sql (stage backfill for sessions handed off before 0020)
+0022_llm_call_logs_stream_metrics.sql  (llm_call_logs.ttft_ms + cached_input_tokens for streamed
+                                  turns. Apply BEFORE deploying the streaming backend; without it the
+                                  backend logs a warning and writes rows without those two columns)
+0023_session_language_resolved.sql  (chat_sessions.language_resolved_at, so the AM-send route detects
+                                  the buyer's language at most once per session. Safe to apply any
+                                  time; the app treats a missing column as "not resolved")
+0024_rls_initplan.sql            (re-creates the 22 live RLS policies with auth.uid() /
+                                  is_account_manager() wrapped in (select ...) so Postgres evaluates
+                                  them once per query, not per row. Same semantics; runs in one
+                                  transaction. Verify with the pg_policies query in the file header)
+0025_lock_rate_limit_rpc.sql     (security: check_rate_limit becomes service_role-only. 0008 let
+                                  anon/authenticated call it with any key, enough to reset their own
+                                  limit or lock out another user. The app already calls it server-side
+                                  only, so this changes no behaviour)
+0026_message_sender_fk.sql       (repairs buyer messages whose sender_user_id still pointed at the
+                                  pre-sign-in anonymous user, and makes that FK ON DELETE SET NULL.
+                                  Without it the 0005 anonymous-user cleanup fails outright as soon
+                                  as one signed-in buyer's anonymous user is due for deletion)
 ```
 
 > **Model config is now DB-driven.** After `0015`, the live interview/pills/translate models are set from the AM dashboard (**Models** pane) and stored in `app_settings`; the backend's `GEMINI_*_MODEL` env vars are only the fallback. No operator step is required beyond running the migration — but confirm the seed values equal what Render currently runs so no buyer-facing model silently changes on deploy.
@@ -59,6 +79,16 @@ supabase db push
 ```
 
 Run them in the order above. Each is idempotent (uses `if not exists` / `or replace`) so re-running is safe.
+
+## Regions and auth keys (speed)
+
+Every buyer message makes several sequential round trips Vercel → Supabase and one streamed call Vercel → Render, so distance between them multiplies. Nothing in the repo pins a region, so check all three:
+
+1. **Supabase**: Project Settings → General → Region (or the `aws-0-<region>` part of the pooler host in Render's `DATABASE_URL`).
+2. **Vercel** (most important): put the functions next to Supabase, either Project Settings → Functions → Function Region, or `frontend/vercel.json` `{ "regions": ["<code>"] }`. `preferredRegion` in route files only affects the Edge runtime and does nothing here. Mapping: us-east-1 → `iad1`, us-east-2 → `cle1`, us-west-1 → `sfo1`, us-west-2 → `pdx1`, eu-central-1 → `fra1`, eu-west-1 → `dub1`, eu-west-2 → `lhr1`, ap-southeast-1 → `sin1`, ap-south-1 → `bom1`.
+3. **Render** (next most important, one call per turn): a service's region can't change in place. Set `region:` in `backend/render.yaml` (virginia / ohio / oregon / frankfurt / singapore, nearest to the Vercel region), create the new service, copy its env vars, point Vercel's `BACKEND_URL` at it, then delete the old one.
+
+**JWT signing keys.** Route handlers and `proxy.ts` verify the session with `supabase.auth.getClaims()`, a local signature check against the project's JWKS. That is only local with an **asymmetric** signing key; with the legacy HS256 secret auth-js silently falls back to a network `getUser()` call on every request. Check: `curl https://<ref>.supabase.co/auth/v1/.well-known/jwks.json` should list an `ES256` (or `RS256`) key. (As of 2026-11 this project already uses ES256.) If it doesn't: Project Settings → JWT Keys → migrate, create an ECC P-256 standby key, rotate, and keep the legacy secret as "previously used" so existing sessions stay valid.
 
 ## 3. Enable anonymous sign-ins
 

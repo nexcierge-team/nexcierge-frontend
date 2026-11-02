@@ -29,9 +29,11 @@ const EMPTY: ModelConfig = {
 
 // Short in-memory cache. The translate route fans out one call per message, so
 // reading the row per call would hammer the DB; a warm serverless instance
-// reuses this within its lifetime. TTL is small so an AM's model change takes
-// effect almost immediately (they save, wait a beat, watch PostHog).
-const TTL_MS = 10_000;
+// reuses this within its lifetime. 60 s: a buyer's turns are usually more than
+// 10 s apart, so the previous 10 s TTL missed on almost every chat turn and
+// cost a round trip. The config PUT busts the cache on its own instance, so an
+// AM's model change applies there immediately and everywhere within a minute.
+const TTL_MS = 60_000;
 let cache: { value: ModelConfig; at: number } | null = null;
 
 // Never throws. On any failure returns all-null (not cached) so callers omit
@@ -74,7 +76,7 @@ export async function getModelConfig(): Promise<ModelConfig> {
 }
 
 // Called by the config PUT so a save is reflected immediately on the same warm
-// instance (other instances converge within TTL_MS).
+// instance (other instances converge within TTL_MS, about a minute).
 export function bustModelConfigCache(): void {
   cache = null;
 }

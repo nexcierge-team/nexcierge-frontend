@@ -49,7 +49,23 @@ Autocapture (`$autocapture`) records the **text** of clicked elements. That text
 
 One row per Gemini call with the full detail PostHog doesn't get: exact input/output/**thinking** token counts, input/output/total cost in USD (computed from a pricing table at call time), latency, success/failure with the actual error code and message, and which conversation + user caused the call.
 
-`prompt_type` values: `interview` (the main chat turn), `interview_retry` (blank-reply retry), `pills` (quick-reply suggestions), `detect_language`, `translate`, `lesson_draft` (AM-triggered improvement-lesson drafting from a rated transcript).
+`prompt_type` values: `interview` (the main chat turn; on the streaming path, round 0 only, usually the tool call), `interview_followup` (streaming path: the round after a tool call, which writes the reply), `interview_retry` (blank-reply retry), `pills` (quick-reply suggestions), `detect_language`, `translate`, `lesson_draft` (AM-triggered improvement-lesson drafting from a rated transcript).
+
+Streaming adds two columns (migration `0022`): `ttft_ms` (time to the first streamed chunk) and `cached_input_tokens` (Gemini implicit-cache hits on the stable prompt prefix). A cancelled call (the client went away mid-stream) is recorded with `error_code = 'cancelled'`.
+
+### Performance (speed baseline)
+
+How to tell whether the app is fast, and what got slower:
+
+| Signal | Where | What it tells you |
+|---|---|---|
+| `$web_vitals` | PostHog (browser, `capture_performance: { web_vitals: true }` in `instrumentation-client.ts`) | LCP / INP / CLS / FCP per page. Use **Web analytics → Web vitals** |
+| `Server-Timing` header | DevTools → Network → a request → Timing | Per-stage ms for `/api/chat` (`auth`, `load`, `insert`, `backend_connect`; streamed turns also report `first_delta`, `generate`, `persist`, `pills` in the final `done` event) and `/api/chat/start` |
+| `chat_turn_timing` / `chat_start_timing` log lines | Vercel logs (one JSON line per request, ids + numbers only) | Same stages, server-side, for comparing before/after |
+| `performance.mark` (`chat:send`, `chat:ack`, `chat:first_delta`, `chat:reply_done`, `chat:pills`) | DevTools → Performance | Browser-perceived turn timeline |
+| `llm_call_logs.latency_ms` / `ttft_ms` | Postgres | Exact Gemini time per call |
+
+Speed work deliberately added **no new PostHog events** (see `docs/ARCHITECTURE.md` § Performance and request budget).
 
 ### Errors (PostHog `$exception`)
 
@@ -104,6 +120,29 @@ FROM llm_call_logs
 WHERE success
 GROUP BY model, prompt_type
 ORDER BY total_usd DESC;
+```
+
+**Gemini latency baseline** (p50/p95 per call type, last 7 days; streamed turns split into `interview` + `interview_followup`):
+```sql
+SELECT prompt_type, model,
+       count(*) AS calls,
+       percentile_cont(0.5)  WITHIN GROUP (ORDER BY latency_ms) AS p50_ms,
+       percentile_cont(0.95) WITHIN GROUP (ORDER BY latency_ms) AS p95_ms,
+       percentile_cont(0.5)  WITHIN GROUP (ORDER BY ttft_ms)    AS p50_ttft_ms
+FROM llm_call_logs
+WHERE success AND created_at >= now() - interval '7 days'
+GROUP BY prompt_type, model
+ORDER BY prompt_type, calls DESC;
+```
+
+**Empty-reply retry rate** (how often a turn needed the nudge) and **implicit-cache hit ratio**:
+```sql
+SELECT round(100.0 * count(*) FILTER (WHERE prompt_type = 'interview_retry')
+                   / nullif(count(*) FILTER (WHERE prompt_type = 'interview'), 0), 2) AS retry_pct,
+       round(100.0 * sum(cached_input_tokens) FILTER (WHERE prompt_type LIKE 'interview%')
+                   / nullif(sum(input_tokens) FILTER (WHERE prompt_type LIKE 'interview%'), 0), 1) AS cache_hit_pct
+FROM llm_call_logs
+WHERE created_at >= now() - interval '7 days';
 ```
 
 **Daily spend trend:**
