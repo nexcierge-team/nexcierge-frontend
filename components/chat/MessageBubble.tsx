@@ -149,8 +149,8 @@ function MessageBubbleImpl({
         )}
       >
         {isAccountManager && viewerRole === "buyer" && (
-          <div className="flex items-center gap-1.5 px-1 text-[11px] font-medium text-gray-500">
-            <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-[#0F2747] text-white">
+          <div className="type-data flex items-center gap-1.5 px-1 text-xs font-semibold text-ink-soft">
+            <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-ink text-sheet">
               <UserRound className="h-2.5 w-2.5" strokeWidth={2.25} />
             </span>
             Account manager
@@ -161,14 +161,14 @@ function MessageBubbleImpl({
             className={cn(
               // ph-no-capture: keep buyer/AI message text out of PostHog
               // autocapture (see docs/TRACKING.md § Autocapture & PII).
-              "ph-no-capture rounded-2xl px-4 py-3 text-[15px] leading-relaxed",
+              "ph-no-capture px-4 py-3 text-[15px] leading-relaxed",
               isUser
-                ? "bg-[#0F2747] text-white whitespace-pre-wrap"
+                ? "rounded-[12px_2px_12px_12px] bg-ink text-sheet whitespace-pre-wrap"
                 : isAiInAmView
-                  ? "bg-[#0F2747] text-white"
+                  ? "rounded-[2px_12px_12px_12px] bg-ink text-sheet"
                   : message.error
-                    ? "bg-white border border-red-200 text-red-900 shadow-[0_1px_2px_rgba(0,0,0,0.03)]"
-                    : "bg-white border border-gray-200 text-gray-900 shadow-[0_1px_2px_rgba(0,0,0,0.03)]",
+                    ? "rounded-[2px_12px_12px_12px] bg-white border-[1.5px] border-redline text-red-900"
+                    : "rounded-[2px_12px_12px_12px] bg-white border border-ink text-ink",
             )}
           >
             {isUser ? (
@@ -178,7 +178,7 @@ function MessageBubbleImpl({
                   <>
                     <hr className="my-2.5 border-white/15" />
                     <div className="text-[12px] leading-relaxed text-white/65">
-                      <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-white/45">
+                      <div className="type-data mb-1 text-[11px] font-semibold text-white/55">
                         {secondaryLabel}
                       </div>
                       {secondaryText}
@@ -194,7 +194,7 @@ function MessageBubbleImpl({
                     type="button"
                     onClick={onRetry}
                     disabled={retryDisabled}
-                    className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-white px-3 py-1 text-xs font-medium text-red-700 transition-colors hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="mt-2 inline-flex items-center gap-1.5 rounded-sm border border-red-700/50 bg-white px-3 py-1 text-xs font-semibold text-red-700 transition-colors hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blueprint disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <RotateCw className="h-3 w-3" strokeWidth={2} />
                     Retry
@@ -209,19 +209,19 @@ function MessageBubbleImpl({
                     <hr
                       className={cn(
                         "my-2.5",
-                        isAiInAmView ? "border-white/15" : "border-gray-100",
+                        isAiInAmView ? "border-white/15" : "border-rule",
                       )}
                     />
                     <div
                       className={cn(
                         "text-[12px] leading-relaxed",
-                        isAiInAmView ? "text-white/65" : "text-gray-400",
+                        isAiInAmView ? "text-white/65" : "text-gray-500",
                       )}
                     >
                       <div
                         className={cn(
-                          "mb-1 text-[10px] font-semibold uppercase tracking-wider",
-                          isAiInAmView ? "text-white/45" : "text-gray-300",
+                          "type-data mb-1 text-[11px] font-semibold",
+                          isAiInAmView ? "text-white/55" : "text-gray-400",
                         )}
                       >
                         {secondaryLabel}
@@ -262,7 +262,7 @@ function MessageBubbleImpl({
                   key={s}
                   type="button"
                   onClick={() => onSuggestion(s)}
-                  className="rounded-full border border-gray-200 bg-white px-3.5 py-1.5 text-[13px] text-gray-700 shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-all duration-150 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900 active:translate-y-px"
+                  className="rounded-full border-[1.5px] border-ink bg-white px-3.5 py-1.5 text-[13px] font-semibold text-ink transition-all duration-150 hover:bg-paint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blueprint active:translate-y-px"
                 >
                   {s}
                 </button>
@@ -283,7 +283,7 @@ function MessageBubbleImpl({
         {/* Read receipt under outgoing messages only — incoming bubbles
             don't need to tell the sender "I've read this". */}
         {isSelf && message.readAt && !message.error && (
-          <div className="inline-flex items-center gap-1 px-1 text-[10px] font-medium text-gray-400">
+          <div className="type-data inline-flex items-center gap-1 px-1 text-[11px] font-semibold text-gray-500">
             <CheckCheck className="h-3 w-3" strokeWidth={2} />
             Read
           </div>
@@ -346,8 +346,8 @@ function AgentMarkdown({
               className={cn(
                 "underline underline-offset-2 transition-colors",
                 dark
-                  ? "text-blue-200 hover:text-white"
-                  : "text-[#0F2747] hover:text-[#1D4ED8]",
+                  ? "text-paint hover:text-white"
+                  : "text-blueprint hover:text-ink",
               )}
             >
               {children}
@@ -362,7 +362,7 @@ function AgentMarkdown({
         code: ({ children }) => (
           <code
             className={cn(
-              "rounded px-1.5 py-0.5 font-mono text-[0.85em]",
+              "rounded-sm px-1.5 py-0.5 font-mono text-[0.85em]",
               dark ? "bg-white/15 text-white" : "bg-gray-100 text-gray-800",
             )}
           >
@@ -372,7 +372,7 @@ function AgentMarkdown({
         pre: ({ children }) => (
           <pre
             className={cn(
-              "my-2 overflow-x-auto rounded-lg p-3 font-mono text-[13px]",
+              "my-2 overflow-x-auto rounded-sm p-3 font-mono text-[13px]",
               dark ? "bg-white/10 text-white" : "bg-gray-100 text-gray-800",
             )}
           >
@@ -382,7 +382,7 @@ function AgentMarkdown({
         h1: ({ children }) => (
           <h1
             className={cn(
-              "mt-3 mb-2 text-base font-semibold",
+              "type-title mt-3 mb-2 text-base font-bold",
               dark ? "text-white" : "text-gray-900",
             )}
           >
@@ -392,7 +392,7 @@ function AgentMarkdown({
         h2: ({ children }) => (
           <h2
             className={cn(
-              "mt-3 mb-2 text-base font-semibold",
+              "type-title mt-3 mb-2 text-base font-bold",
               dark ? "text-white" : "text-gray-900",
             )}
           >
@@ -402,7 +402,7 @@ function AgentMarkdown({
         h3: ({ children }) => (
           <h3
             className={cn(
-              "mt-2 mb-1 text-[15px] font-semibold",
+              "type-title mt-2 mb-1 text-[15px] font-bold",
               dark ? "text-white" : "text-gray-900",
             )}
           >
@@ -411,7 +411,7 @@ function AgentMarkdown({
         ),
         hr: () => (
           <hr
-            className={cn("my-3", dark ? "border-white/20" : "border-gray-200")}
+            className={cn("my-3", dark ? "border-white/20" : "border-rule")}
           />
         ),
         blockquote: ({ children }) => (
@@ -420,7 +420,7 @@ function AgentMarkdown({
               "my-2 border-l-2 pl-3 italic",
               dark
                 ? "border-white/30 text-white/80"
-                : "border-gray-300 text-gray-700",
+                : "border-rule-strong text-gray-700",
             )}
           >
             {children}
@@ -448,11 +448,11 @@ function Divider({ label }: { label: string }) {
       role="separator"
       aria-label={label}
     >
-      <span className="h-px flex-1 bg-gray-200" />
-      <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+      <span className="h-px flex-1 bg-rule-strong" />
+      <span className="type-data text-xs font-semibold text-ink-soft">
         {label}
       </span>
-      <span className="h-px flex-1 bg-gray-200" />
+      <span className="h-px flex-1 bg-rule-strong" />
     </motion.div>
   );
 }
@@ -472,12 +472,12 @@ export function TypingIndicator() {
       transition={{ duration: 0.2 }}
       className="flex justify-start"
     >
-      <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+      <div className="rounded-[2px_12px_12px_12px] border border-ink bg-white px-4 py-3">
         <span className="inline-flex items-end gap-1">
           {[0, 0.15, 0.3].map((d) => (
             <span
               key={d}
-              className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400"
+              className="blip h-1.5 w-1.5 rounded-full bg-ink"
               style={{ animationDelay: `${d}s` }}
             />
           ))}

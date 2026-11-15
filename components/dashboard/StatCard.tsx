@@ -6,10 +6,10 @@ import { cn } from "@/lib/utils";
 // Icon-chip tones stay inside the palette: powder blue for the
 // brand/AI-flavoured stat, functional Tailwind tints for the rest.
 const TONE = {
-  navy: "bg-[#DCE8F8] text-[#0F2747]",
-  amber: "bg-amber-100 text-amber-700",
-  emerald: "bg-emerald-100 text-emerald-700",
-  gray: "bg-gray-100 text-gray-600",
+  navy: "bg-blueprint/12 text-blueprint ring-1 ring-inset ring-blueprint/30",
+  amber: "bg-amber-100 text-amber-700 ring-1 ring-inset ring-amber-700/30",
+  emerald: "bg-emerald-100 text-emerald-700 ring-1 ring-inset ring-emerald-700/30",
+  gray: "bg-ink/10 text-ink-soft ring-1 ring-inset ring-ink/20",
 } as const;
 
 export type StatTone = keyof typeof TONE;
@@ -28,9 +28,9 @@ export function StatCard({
   hint?: string;
 }) {
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+    <div className="rounded-none border-[1.5px] border-ink bg-sheet p-5">
       <div className="flex items-start justify-between">
-        <div className="text-sm text-gray-500">{label}</div>
+        <div className="type-data text-sm font-semibold text-ink-soft">{label}</div>
         <span
           className={cn(
             "flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
@@ -40,10 +40,10 @@ export function StatCard({
           <Icon className="h-4 w-4" strokeWidth={1.75} />
         </span>
       </div>
-      <div className="mt-1 text-3xl font-semibold tracking-[-0.01em] text-gray-900">
+      <div className="type-title mt-1 text-3xl font-bold tabular-nums text-ink">
         {value}
       </div>
-      {hint && <div className="mt-2 text-xs text-gray-500">{hint}</div>}
+      {hint && <div className="mt-2 text-xs text-ink-soft">{hint}</div>}
     </div>
   );
 }

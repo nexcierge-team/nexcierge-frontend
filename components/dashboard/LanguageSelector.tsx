@@ -19,21 +19,21 @@ export function LanguageSelector({
     <div className="flex items-center gap-1.5">
       {translating && (
         <Loader2
-          className="h-3.5 w-3.5 animate-spin text-gray-400"
+          className="h-3.5 w-3.5 animate-spin text-ink-soft"
           strokeWidth={1.75}
           aria-label="Translating…"
         />
       )}
       <label className="relative inline-flex items-center">
         <Languages
-          className="pointer-events-none absolute left-2.5 h-3.5 w-3.5 text-gray-400"
+          className="pointer-events-none absolute left-2.5 h-3.5 w-3.5 text-ink-soft"
           strokeWidth={1.75}
         />
         <select
           value={value}
           onChange={(e) => onChange(e.target.value)}
           aria-label="Read this thread in"
-          className="appearance-none rounded-full border border-gray-200 bg-white py-1.5 pl-8 pr-7 text-xs font-medium text-gray-700 shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-colors hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0F2747]/15"
+          className="appearance-none rounded-sm border border-rule-strong bg-white py-1.5 pl-8 pr-7 text-xs font-semibold text-ink transition-colors hover:border-ink focus:border-ink focus:outline-none focus:ring-2 focus:ring-blueprint/30"
         >
           <option value="">Original only</option>
           <option value="en">English</option>
@@ -41,7 +41,7 @@ export function LanguageSelector({
           <option value="hi">हिन्दी (Hindi)</option>
         </select>
         <ChevronDown
-          className="pointer-events-none absolute right-2.5 h-3.5 w-3.5 text-gray-400"
+          className="pointer-events-none absolute right-2.5 h-3.5 w-3.5 text-ink-soft"
           strokeWidth={1.75}
         />
       </label>

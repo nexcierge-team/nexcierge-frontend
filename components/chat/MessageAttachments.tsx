@@ -80,12 +80,12 @@ function ImageAttachment({
     return (
       <div
         className={cn(
-          "flex h-40 w-56 max-w-full items-center justify-center rounded-xl border border-gray-200 bg-gray-50",
+          "flex h-40 w-56 max-w-full items-center justify-center rounded-sm border border-rule-strong bg-ink/5",
           !signed && "animate-pulse",
         )}
       >
         {signed && (
-          <span className="inline-flex items-center gap-1.5 text-[11px] text-gray-400">
+          <span className="inline-flex items-center gap-1.5 text-[11px] text-gray-500">
             <ImageOff className="h-3.5 w-3.5" strokeWidth={1.75} />
             Couldn&apos;t load image
           </span>
@@ -98,7 +98,7 @@ function ImageAttachment({
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className="block overflow-hidden rounded-xl border border-gray-200 bg-gray-50 transition-opacity hover:opacity-95"
+      className="block overflow-hidden rounded-sm border border-ink bg-white transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blueprint"
       title={att.name}
     >
       {/* Plain <img>, not next/image: signed Supabase URLs are one-off and
@@ -124,29 +124,29 @@ function FileAttachment({
 }) {
   const inner = (
     <>
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#0F2747]/5 text-[#0F2747]">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm bg-ink/10 text-ink">
         <FileText className="h-4 w-4" strokeWidth={1.75} />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[13px] font-medium text-gray-900">
+        <span className="block truncate text-[13px] font-semibold text-ink">
           {att.name}
         </span>
-        <span className="block text-[11px] text-gray-400">
+        <span className="type-data block text-[11px] text-gray-500">
           {humanFileSize(att.size)}
         </span>
       </span>
       {url ? (
-        <Download className="h-4 w-4 shrink-0 text-gray-400" strokeWidth={1.75} />
+        <Download className="h-4 w-4 shrink-0 text-ink-soft" strokeWidth={1.75} />
       ) : signed ? (
-        <span className="shrink-0 text-[10px] text-gray-400">unavailable</span>
+        <span className="shrink-0 text-[10px] text-gray-500">unavailable</span>
       ) : (
-        <span className="h-4 w-4 shrink-0 animate-pulse rounded bg-gray-200" />
+        <span className="h-4 w-4 shrink-0 animate-pulse rounded-sm bg-ink/10" />
       )}
     </>
   );
 
   const className =
-    "flex w-64 max-w-full items-center gap-3 rounded-xl border border-gray-200 bg-white px-3 py-2.5 shadow-[0_1px_2px_rgba(0,0,0,0.03)]";
+    "flex w-64 max-w-full items-center gap-3 rounded-sm border border-ink bg-white px-3 py-2.5";
 
   if (url) {
     return (
@@ -155,7 +155,7 @@ function FileAttachment({
         target="_blank"
         rel="noopener noreferrer"
         download={att.name}
-        className={cn(className, "transition-colors hover:border-gray-300 hover:bg-gray-50")}
+        className={cn(className, "transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blueprint")}
         title={`Download ${att.name}`}
       >
         {inner}

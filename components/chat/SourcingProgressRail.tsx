@@ -78,17 +78,17 @@ export function SourcingProgressRail({
 
   const pill =
     status === "closed"
-      ? { label: ps.statusClosed, className: "bg-gray-200 text-gray-700" }
+      ? { label: ps.statusClosed, className: "bg-ink/10 text-ink-soft ring-1 ring-inset ring-ink/20" }
       : status === "ai"
-        ? { label: ps.statusDraft, className: "bg-gray-100 text-gray-600" }
+        ? { label: ps.statusDraft, className: "bg-sheet text-ink-soft ring-1 ring-inset ring-ink/20" }
         : sourcingStage === "delivered"
           ? {
               label: ps.stageShort.delivered,
-              className: "bg-emerald-100 text-emerald-800",
+              className: "bg-emerald-100 text-emerald-800 ring-1 ring-inset ring-emerald-700/30",
             }
           : {
               label: ps.stageShort[sourcingStage ?? "brief_submitted"],
-              className: "bg-[#DCE8F8] text-[#0F2747]",
+              className: "bg-blueprint/12 text-blueprint ring-1 ring-inset ring-blueprint/30",
             };
 
   const nextStepBody = sourcingStage
@@ -107,7 +107,7 @@ export function SourcingProgressRail({
       {/* Below-xl backdrop for the drawer variant. */}
       {open && (
         <div
-          className="fixed inset-0 z-30 bg-gray-900/40 backdrop-blur-sm xl:hidden"
+          className="fixed inset-0 z-30 bg-ink/40 backdrop-blur-sm xl:hidden"
           onClick={onClose}
           aria-hidden
         />
@@ -115,7 +115,7 @@ export function SourcingProgressRail({
       <aside
         className={cn(
           // Below xl: off-canvas fixed drawer sliding in from the right.
-          "fixed inset-y-0 right-0 z-40 flex h-full w-[85%] max-w-[20rem] flex-col border-l border-gray-200 bg-white pt-safe pb-safe transition-transform duration-200 ease-out",
+          "fixed inset-y-0 right-0 z-40 flex h-full w-[85%] max-w-[20rem] flex-col border-l border-rule-strong bg-paper pt-safe pb-safe transition-transform duration-200 ease-out",
           // xl+: inline flex child, always visible, no transform.
           "xl:static xl:w-80 xl:max-w-none xl:shrink-0 xl:translate-x-0 xl:pt-0 xl:pb-0",
           open ? "translate-x-0" : "translate-x-full",
@@ -123,12 +123,12 @@ export function SourcingProgressRail({
       >
         <div className="flex items-start justify-between gap-2 px-5 pb-4 pt-5">
           <div className="min-w-0">
-            <h2 className="ph-no-capture text-sm font-semibold tracking-[-0.01em] text-gray-900">
+            <h2 className="ph-no-capture type-title text-sm font-bold text-ink">
               {title || ps.untitledRequest}
             </h2>
             <span
               className={cn(
-                "mt-1.5 inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium",
+                "type-data mt-1.5 inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold",
                 pill.className,
               )}
             >
@@ -140,7 +140,7 @@ export function SourcingProgressRail({
               type="button"
               onClick={onClose}
               aria-label={ps.closeAria}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 xl:hidden"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm text-ink-soft transition-colors hover:bg-ink/10 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blueprint xl:hidden"
             >
               <X className="h-4 w-4" strokeWidth={1.75} />
             </button>
@@ -148,8 +148,8 @@ export function SourcingProgressRail({
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 pb-6">
-          <div className="rounded-2xl border border-gray-200 bg-white p-4">
-            <h3 className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+          <div className="rounded-none border-[1.5px] border-ink bg-sheet p-4">
+            <h3 className="type-data text-xs font-semibold text-ink-soft">
               {ps.sourcingProgress}
             </h3>
             <ol className="mt-3">
@@ -165,7 +165,7 @@ export function SourcingProgressRail({
                       <span
                         className={cn(
                           "absolute start-[7px] top-4 bottom-0 w-px",
-                          done ? "bg-[#0F2747]/30" : "bg-gray-200",
+                          done ? "bg-ink" : "bg-rule-strong",
                         )}
                         aria-hidden
                       />
@@ -174,16 +174,16 @@ export function SourcingProgressRail({
                       className={cn(
                         "relative mt-0.5 flex h-[15px] w-[15px] shrink-0 items-center justify-center rounded-full",
                         done
-                          ? "bg-[#0F2747] text-white"
+                          ? "bg-ink text-sheet"
                           : isCurrent
-                            ? "border-2 border-[#0F2747] bg-white"
-                            : "border border-gray-300 bg-white",
+                            ? "border-2 border-ink bg-paint"
+                            : "border border-rule-strong bg-sheet",
                       )}
                       aria-hidden
                     >
                       {done && <Check className="h-2 w-2" strokeWidth={3} />}
                       {isCurrent && (
-                        <span className="h-1.5 w-1.5 rounded-full bg-[#0F2747]" />
+                        <span className="h-1.5 w-1.5 rounded-full bg-ink" />
                       )}
                     </span>
                     <span className="min-w-0 flex-1">
@@ -191,16 +191,16 @@ export function SourcingProgressRail({
                         className={cn(
                           "block text-xs leading-snug",
                           isCurrent
-                            ? "font-semibold text-gray-900"
+                            ? "font-bold text-ink"
                             : done
                               ? "text-gray-700"
-                              : "text-gray-400",
+                              : "text-gray-500",
                         )}
                       >
                         {ps.stageLabel[s]}
                       </span>
                       {ts && (
-                        <span className="mt-0.5 block text-[10px] text-gray-400">
+                        <span className="type-data mt-0.5 block text-[11px] text-gray-500">
                           {ts}
                         </span>
                       )}
@@ -211,15 +211,15 @@ export function SourcingProgressRail({
             </ol>
           </div>
 
-          <div className="mt-4 flex gap-3 rounded-2xl border border-gray-200 bg-white p-4">
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#DCE8F8] text-[#0F2747]">
+          <div className="mt-4 flex gap-3 rounded-none border border-rule-strong bg-sheet p-4">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-ink text-sheet">
               <UserRound className="h-4 w-4" strokeWidth={1.75} />
             </span>
             <div className="min-w-0">
-              <h3 className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+              <h3 className="type-data text-xs font-semibold text-ink-soft">
                 {ps.nextStepTitle}
               </h3>
-              <p className="mt-1 text-xs leading-relaxed text-gray-600">
+              <p className="mt-1 text-xs leading-relaxed text-ink-soft">
                 {nextStepBody}
               </p>
             </div>

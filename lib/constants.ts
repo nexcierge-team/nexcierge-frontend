@@ -25,3 +25,21 @@ export function firstNameFromFull(full: string | null | undefined): string {
   if (!trimmed) return "";
   return trimmed.split(/\s+/)[0] ?? "";
 }
+
+// sessionStorage key for a message typed into the landing page's agent
+// console. Typed text is buyer free text, so it travels to /chat through
+// storage instead of the `?seed=` query param (which only ever carries the
+// canned starter chips). /chat reads and clears it on arrival.
+export const LANDING_SEED_KEY = "nx_landing_seed";
+
+// Upper bound on a landing-typed seed, to keep a pasted wall of text out
+// of storage. Well above any realistic first message.
+export const LANDING_SEED_MAX = 2000;
+
+// Empty-state starter prompts on /chat.
+export const SUGGESTED_PROMPTS = [
+  "Injection molding machine for plastic parts",
+  "PET bottle blowing machine",
+  "Rubber molding press",
+  "Pulp moulding machinery for paper tableware",
+];

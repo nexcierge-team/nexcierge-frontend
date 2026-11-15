@@ -36,12 +36,12 @@ export function ProfileSummaryCard({
 
   return (
     <div className="flex w-full flex-col gap-1.5" dir={dir}>
-    <div className="w-full overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
-      <div className="border-b border-gray-100 bg-[#F7F8FA] px-5 py-3">
-        <div className="text-[11px] font-medium uppercase tracking-wider text-gray-500">
+    <div className="w-full overflow-hidden rounded-none border-[1.5px] border-ink bg-white">
+      <div className="border-b-[1.5px] border-ink bg-paper px-5 py-3">
+        <div className="type-data text-xs font-semibold text-ink-soft">
           {t.eyebrow}
         </div>
-        <div className="mt-0.5 text-sm font-semibold text-gray-900">
+        <div className="type-title mt-0.5 text-sm font-bold text-ink">
           {t.title}
         </div>
       </div>
@@ -117,16 +117,16 @@ export function ProfileSummaryCard({
         )}
       </div>
 
-      <div className="flex flex-col items-stretch gap-3 border-t border-gray-100 bg-[#F7F8FA] px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-[11px] leading-relaxed text-gray-500">
+      <div className="flex flex-col items-stretch gap-3 border-t border-rule-strong bg-paper px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-[11px] leading-relaxed text-ink-soft">
           {t.footerNote}
         </p>
         {reviewRequested ? (
           <span
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700"
             aria-live="polite"
           >
-            <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-white">
+            <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-emerald-700 text-white">
               <Check className="h-2.5 w-2.5" strokeWidth={3} />
             </span>
             {t.transferred}
@@ -155,7 +155,7 @@ export function ProfileSummaryCard({
       </div>
     </div>
 
-      <p className="px-1 text-[11px] text-gray-400">
+      <p className="px-1 text-[11px] text-gray-500">
         {t.editHint}
       </p>
     </div>
@@ -172,7 +172,7 @@ function Section({
 }) {
   return (
     <div>
-      <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+      <div className="type-data mb-1.5 text-[11px] font-semibold text-ink-soft">
         {title}
       </div>
       <dl className="space-y-1">{children}</dl>
@@ -192,7 +192,7 @@ function Field({ label, value }: { label: string; value: string }) {
   if (!value) return null;
   return (
     <div className="overflow-hidden text-xs">
-      <dt className="float-left mr-2 text-gray-400 rtl:float-right rtl:ml-2 rtl:mr-0">{label}</dt>
+      <dt className="float-left mr-2 text-gray-500 rtl:float-right rtl:ml-2 rtl:mr-0">{label}</dt>
       <dd className="break-words font-medium text-gray-800">{value}</dd>
     </div>
   );
@@ -215,5 +215,5 @@ function humanizeKey(key: string): string {
 
 
 function EmptyHint({ children }: { children: React.ReactNode }) {
-  return <p className="text-xs italic text-gray-400">{children}</p>;
+  return <p className="text-xs italic text-gray-500">{children}</p>;
 }

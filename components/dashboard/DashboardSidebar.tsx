@@ -7,6 +7,7 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import { AccountMenu } from "@/components/auth/AccountMenu";
+import { Wordmark } from "@/components/layout/Wordmark";
 import { cn } from "@/lib/utils";
 
 export type DashboardView = "overview" | "lessons" | "models";
@@ -40,19 +41,19 @@ export function DashboardSidebar({
   };
 
   return (
-    <aside className="hidden h-full w-60 shrink-0 flex-col border-r border-gray-200 bg-white md:flex">
-      <div className="flex items-center gap-2.5 border-b border-gray-200 px-5 py-4">
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#0F2747] text-sm font-semibold text-white">
+    <aside className="hidden h-full w-60 shrink-0 flex-col border-r border-rule-strong bg-paper md:flex">
+      <div className="flex items-center gap-2.5 border-b border-rule-strong px-5 py-4">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center type-display rounded-sm bg-ink text-sm font-extrabold text-sheet">
           N
         </span>
         <div className="min-w-0">
           <Link
             href="/"
-            className="block font-semibold tracking-[0.16em] text-[13px] text-gray-900"
+            className="block leading-tight"
           >
-            NEXCIERGE
+            <Wordmark className="text-[15px]" />
           </Link>
-          <p className="text-[11px] text-gray-400">Account Manager</p>
+          <p className="type-data text-[11px] font-semibold text-ink-soft">Account Manager</p>
         </div>
       </div>
 
@@ -66,24 +67,24 @@ export function DashboardSidebar({
                 <button
                   onClick={() => onNavigate(item.id)}
                   className={cn(
-                    "flex w-full items-center justify-between rounded-lg px-3 py-2 text-left transition-colors",
+                    "flex w-full items-center justify-between rounded-sm px-3 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blueprint",
                     isActive
-                      ? "bg-[#DCE8F8]/60 text-[#0F2747]"
-                      : "text-gray-700 hover:bg-gray-50 hover:text-gray-900",
+                      ? "bg-ink text-sheet"
+                      : "text-gray-700 hover:bg-ink/10 hover:text-ink",
                   )}
                 >
                   <span className="flex items-center gap-3">
                     <item.icon
                       className={cn(
                         "h-4 w-4 shrink-0",
-                        isActive ? "text-[#0F2747]" : "text-gray-400",
+                        isActive ? "text-paint" : "text-gray-500",
                       )}
                       strokeWidth={1.75}
                     />
                     <span
                       className={cn(
                         "text-sm",
-                        isActive ? "font-medium" : "font-normal",
+                        isActive ? "font-semibold" : "font-normal",
                       )}
                     >
                       {item.label}
@@ -92,10 +93,10 @@ export function DashboardSidebar({
                   {count !== undefined && count > 0 && (
                     <span
                       className={cn(
-                        "rounded-full px-2 py-0.5 text-[10px] font-medium",
+                        "type-data rounded-full px-2 py-0.5 text-[11px] font-semibold",
                         isActive
-                          ? "bg-[#0F2747] text-white"
-                          : "bg-gray-100 text-gray-600",
+                          ? "bg-paint text-ink"
+                          : "bg-ink/10 text-ink",
                       )}
                     >
                       {count}
@@ -108,8 +109,8 @@ export function DashboardSidebar({
         </ul>
       </nav>
 
-      <div className="border-t border-gray-200 px-5 py-4">
-        <div className="mb-1 text-[10px] uppercase tracking-wider text-gray-400">
+      <div className="border-t border-rule-strong px-5 py-4">
+        <div className="type-data mb-1 text-[11px] font-semibold text-ink-soft">
           Account manager
         </div>
         <AccountMenu variant="compact" redirectTo="/dashboard" />

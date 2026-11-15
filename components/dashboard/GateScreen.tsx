@@ -16,15 +16,15 @@ export function GateScreen({
   onAction?: () => void;
 }) {
   return (
-    <div className="flex h-screen items-center justify-center bg-white px-6">
-      <div className="max-w-md rounded-2xl border border-gray-200 bg-white px-7 py-7 text-center shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
-        <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+    <div className="flex h-screen items-center justify-center bg-paper px-6">
+      <div className="max-w-md rounded-none border-[1.5px] border-ink bg-sheet px-7 py-7 text-center">
+        <div className="type-data text-xs font-semibold text-ink-soft">
           Nexcierge · Account manager
         </div>
-        <h1 className="mt-2 text-lg font-semibold tracking-[-0.01em] text-gray-900">
+        <h1 className="type-title mt-2 text-lg font-bold text-ink">
           {title}
         </h1>
-        <p className="mt-2 text-sm leading-relaxed text-gray-600">{body}</p>
+        <p className="mt-2 text-sm leading-relaxed text-ink-soft">{body}</p>
         {actionLabel && onAction && (
           <Button
             type="button"

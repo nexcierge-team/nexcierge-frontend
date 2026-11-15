@@ -79,10 +79,10 @@ export function StageSection({
                 onClick={() => setStage(s)}
                 disabled={saving !== null || isCurrent}
                 className={cn(
-                  "flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs transition-colors",
+                  "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blueprint",
                   isCurrent
-                    ? "bg-[#DCE8F8]/60 font-medium text-[#0F2747]"
-                    : "text-gray-600 hover:bg-gray-50",
+                    ? "bg-ink font-semibold text-sheet"
+                    : "text-gray-600 hover:bg-ink/10 hover:text-ink",
                   saving !== null && !isCurrent && "opacity-60",
                 )}
               >
@@ -90,15 +90,15 @@ export function StageSection({
                   className={cn(
                     "flex h-4 w-4 shrink-0 items-center justify-center rounded-full",
                     done
-                      ? "bg-[#0F2747] text-white"
+                      ? "bg-ink text-sheet"
                       : isCurrent
-                        ? "border-2 border-[#0F2747] bg-white"
-                        : "border border-gray-300 bg-white",
+                        ? "border-2 border-sheet bg-paint"
+                        : "border border-rule-strong bg-sheet",
                   )}
                 >
                   {saving === s ? (
                     <Loader2
-                      className="h-2.5 w-2.5 animate-spin text-[#0F2747]"
+                      className="h-2.5 w-2.5 animate-spin text-ink"
                       strokeWidth={2.5}
                     />
                   ) : done ? (
@@ -107,7 +107,7 @@ export function StageSection({
                 </span>
                 <span className="min-w-0 flex-1 truncate">{labels[s]}</span>
                 {history[s] && (
-                  <span className="shrink-0 text-[10px] text-gray-400">
+                  <span className="type-data shrink-0 text-[11px] opacity-70">
                     {new Date(history[s]).toLocaleDateString(undefined, {
                       month: "short",
                       day: "numeric",
@@ -120,7 +120,7 @@ export function StageSection({
         })}
       </ol>
       {saveError && (
-        <p className="text-[11px] text-red-600">{chrome.stageFailed}</p>
+        <p className="text-[11px] text-red-700">{chrome.stageFailed}</p>
       )}
     </div>
   );

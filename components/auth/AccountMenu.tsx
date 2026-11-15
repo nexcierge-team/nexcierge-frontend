@@ -1,24 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import dynamic from "next/dynamic";
 import { LogOut, UserRound, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuthUser } from "@/lib/useAuthUser";
 import { cn } from "@/lib/utils";
-
-// The sign-in modal (framer-motion + auth flows) is only needed once a
-// visitor clicks "Sign in", but the header renders this menu on every
-// marketing page. Load it on demand, warm it on hover/focus so the first
-// open is still instant, and mount it only after the first open (kept
-// mounted afterwards so its exit animation plays).
-const AuthModal = dynamic(
-  () => import("./AuthModal").then((m) => m.AuthModal),
-  { ssr: false },
-);
-function preloadAuthModal() {
-  void import("./AuthModal");
-}
+import { useAuthModal } from "./useAuthModal";
 
 interface AccountMenuProps {
   // Where to redirect after a fresh sign-in. Defaults to the current
@@ -36,12 +23,13 @@ export function AccountMenu({
   variant = "button",
 }: AccountMenuProps) {
   const { user, loading, isAnonymous, isSignedIn, signOut } = useAuthUser();
-  const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [authModalMounted, setAuthModalMounted] = useState(false);
-  const openAuthModal = () => {
-    setAuthModalMounted(true);
-    setAuthModalOpen(true);
-  };
+  // One lazily loaded sign-in modal, shared with LoginTrigger's pattern
+  // (see useAuthModal). Default copy is the handoff wording.
+  const {
+    openModal: openAuthModal,
+    preload: preloadAuthModal,
+    modal: authModal,
+  } = useAuthModal({ redirectTo });
   const [menuOpen, setMenuOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -69,8 +57,8 @@ export function AccountMenu({
   if (loading) {
     if (variant === "compact") return <div className="text-xs text-gray-400">…</div>;
     if (variant === "avatar")
-      return <div className="h-8 w-8 animate-pulse rounded-full bg-gray-100" />;
-    return <div className="h-9 w-20 animate-pulse rounded-full bg-gray-100" />;
+      return <div className="h-8 w-8 animate-pulse rounded-full bg-ink/10" />;
+    return <div className="h-9 w-20 animate-pulse rounded-sm bg-ink/10" />;
   }
 
   // Not signed in (or still anonymous) → Sign in CTA.
@@ -82,17 +70,11 @@ export function AccountMenu({
             onClick={openAuthModal}
             onPointerEnter={preloadAuthModal}
             onFocus={preloadAuthModal}
-            className="text-xs font-medium text-[#0F2747] hover:underline"
+            className="text-xs font-semibold text-blueprint underline underline-offset-2 hover:text-ink"
           >
             Sign in
           </button>
-          {authModalMounted && (
-            <AuthModal
-              open={authModalOpen}
-              onClose={() => setAuthModalOpen(false)}
-              redirectTo={redirectTo}
-            />
-          )}
+          {authModal}
         </>
       );
     }
@@ -105,17 +87,11 @@ export function AccountMenu({
             onPointerEnter={preloadAuthModal}
             onFocus={preloadAuthModal}
             aria-label="Sign in"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 transition-colors hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full border-[1.5px] border-ink bg-white text-ink transition-colors hover:bg-paint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blueprint"
           >
             <UserRound className="h-4 w-4" strokeWidth={1.75} />
           </button>
-          {authModalMounted && (
-            <AuthModal
-              open={authModalOpen}
-              onClose={() => setAuthModalOpen(false)}
-              redirectTo={redirectTo}
-            />
-          )}
+          {authModal}
         </>
       );
     }
@@ -131,13 +107,7 @@ export function AccountMenu({
         >
           Sign in
         </Button>
-        {authModalMounted && (
-          <AuthModal
-            open={authModalOpen}
-            onClose={() => setAuthModalOpen(false)}
-            redirectTo={redirectTo}
-          />
-        )}
+        {authModal}
       </>
     );
   }
@@ -158,15 +128,15 @@ export function AccountMenu({
         className={cn(
           "items-center gap-2 transition-colors",
           variant === "button"
-            ? "inline-flex h-9 max-w-[260px] rounded-full border border-gray-200 bg-white px-3 hover:border-gray-300 hover:bg-gray-50"
+            ? "inline-flex h-9 max-w-[260px] rounded-sm border-[1.5px] border-ink bg-white px-3 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blueprint"
             : variant === "avatar"
-              ? "inline-flex shrink-0 rounded-full ring-2 ring-transparent transition-shadow hover:ring-gray-200 focus-visible:ring-[#0F2747]"
-              : "flex w-full min-w-0 text-xs text-gray-700 hover:text-gray-900",
+              ? "inline-flex shrink-0 rounded-full ring-2 ring-transparent transition-shadow hover:ring-ink/30 focus-visible:outline-none focus-visible:ring-blueprint"
+              : "flex w-full min-w-0 text-xs text-gray-700 hover:text-ink",
         )}
       >
         <span
           className={cn(
-            "inline-flex shrink-0 items-center justify-center rounded-full bg-[#0F2747] font-medium text-white",
+            "inline-flex shrink-0 items-center justify-center rounded-full bg-ink font-semibold text-sheet",
             variant === "button"
               ? "h-6 w-6 text-[11px]"
               : variant === "avatar"
@@ -196,13 +166,13 @@ export function AccountMenu({
         <div
           role="menu"
           className={cn(
-            "absolute z-50 mt-1.5 w-48 overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-[0_10px_30px_-12px_rgba(0,0,0,0.18)]",
+            "absolute z-50 mt-1.5 w-48 overflow-hidden rounded-sm border-[1.5px] border-ink bg-sheet py-1",
             variant === "compact" ? "left-0 bottom-full mb-1.5" : "right-0",
           )}
         >
           {isAnonymous ? null : (
-            <div className="border-b border-gray-100 px-3 py-2">
-              <div className="text-[11px] font-medium uppercase tracking-wider text-gray-400">
+            <div className="border-b border-rule px-3 py-2">
+              <div className="type-data text-[11px] font-semibold text-ink-soft">
                 Signed in
               </div>
               <div className="truncate text-xs text-gray-800">{email}</div>
@@ -213,7 +183,7 @@ export function AccountMenu({
             role="menuitem"
             onClick={handleSignOut}
             disabled={signingOut}
-            className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-gray-700 transition-colors hover:bg-ink/10 hover:text-ink disabled:cursor-not-allowed disabled:opacity-50"
           >
             {signingOut ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2} />

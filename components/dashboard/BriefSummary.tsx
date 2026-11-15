@@ -65,9 +65,9 @@ export function BriefSummary({
   };
 
   return (
-    <aside className="hidden w-80 shrink-0 flex-col border-l border-gray-200 bg-white lg:flex">
+    <aside className="hidden w-80 shrink-0 flex-col border-l border-rule-strong bg-paper lg:flex">
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-5 pb-4 pt-5">
-        <h2 className="ph-no-capture text-sm font-semibold tracking-[-0.01em] text-gray-900">
+        <h2 className="ph-no-capture type-title text-sm font-bold text-ink">
           {rfq.machine_type || "Sourcing brief"}
         </h2>
         <StatusPill status={rfq.status} chrome={chrome} />
@@ -131,7 +131,7 @@ export function BriefSummary({
           collapsible
           badge={
             sourcingStage ? (
-              <span className="inline-flex rounded-full bg-[#DCE8F8] px-2 py-0.5 text-[10px] font-medium text-[#0F2747]">
+              <span className="type-data inline-flex rounded-full bg-blueprint/12 px-2 py-0.5 text-[11px] font-semibold text-blueprint ring-1 ring-inset ring-blueprint/30">
                 {stageLabels(chrome)[sourcingStage]}
               </span>
             ) : null
@@ -146,7 +146,7 @@ export function BriefSummary({
               onSave={onSaveStage}
             />
           ) : (
-            <p className="text-xs italic text-gray-400">
+            <p className="text-xs italic text-gray-500">
               {chrome.claimToSetStage}
             </p>
           )}
@@ -159,7 +159,7 @@ export function BriefSummary({
               value={rfq.hubspot_deal_id}
             />
           ) : (
-            <p className="text-xs italic text-gray-400">
+            <p className="text-xs italic text-gray-500">
               {chrome.notPushedToHubspot}
             </p>
           )}
@@ -173,7 +173,7 @@ export function BriefSummary({
             rfq.lead_quality ? (
               <span
                 className={cn(
-                  "inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium",
+                  "type-data inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold",
                   QUALITY_CHIP[rfq.lead_quality],
                 )}
               >
@@ -191,7 +191,7 @@ export function BriefSummary({
               onGenerate={onGenerateLessons}
             />
           ) : (
-            <p className="text-xs italic text-gray-400">
+            <p className="text-xs italic text-gray-500">
               {chrome.claimToRate}
             </p>
           )}
@@ -221,23 +221,23 @@ function PanelSection({
   const [open, setOpen] = useState(!collapsible);
   const heading = (
     <>
-      <h3 className="text-[13px] font-semibold text-gray-900">{title}</h3>
+      <h3 className="type-title text-[13px] font-bold text-ink">{title}</h3>
       {badge}
     </>
   );
   return (
-    <div className={cn("py-5", !first && "border-t border-gray-100")}>
+    <div className={cn("py-5", !first && "border-t border-rule-strong")}>
       {collapsible ? (
         <button
           type="button"
           aria-expanded={open}
           onClick={() => setOpen((v) => !v)}
-          className="flex w-full items-center gap-2 text-left"
+          className="flex w-full items-center gap-2 rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blueprint"
         >
           {heading}
           <ChevronDown
             className={cn(
-              "ml-auto h-3.5 w-3.5 shrink-0 text-gray-400 transition-transform",
+              "ml-auto h-3.5 w-3.5 shrink-0 text-ink-soft transition-transform",
               open && "rotate-180",
             )}
             strokeWidth={1.75}
@@ -260,7 +260,7 @@ function Row({ label, value }: { label: string; value: string }) {
   // row out of autocapture (labels are static, but the values aren't).
   return (
     <div className="ph-no-capture grid grid-cols-[92px_1fr] gap-x-3 text-xs leading-relaxed">
-      <span className="text-gray-400">{label}</span>
+      <span className="text-gray-500">{label}</span>
       <span className="break-words text-gray-800">{value}</span>
     </div>
   );
@@ -282,14 +282,14 @@ function CopyableId({ label, value }: { label: string; value: string }) {
           setTimeout(() => setCopied(false), 1500);
         });
       }}
-      className="flex w-full items-center gap-1.5 text-left text-xs text-gray-500 transition-colors hover:text-gray-700"
+      className="flex w-full items-center gap-1.5 rounded-sm text-left text-xs text-gray-500 transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blueprint"
     >
       <span className="shrink-0">{label}</span>
-      <span className="truncate font-mono text-[10px] text-gray-400">
+      <span className="truncate font-mono text-[10px] text-gray-500">
         {value}
       </span>
       {copied ? (
-        <Check className="h-3 w-3 shrink-0 text-emerald-600" strokeWidth={2} />
+        <Check className="h-3 w-3 shrink-0 text-emerald-700" strokeWidth={2} />
       ) : (
         <Copy className="h-3 w-3 shrink-0" strokeWidth={1.75} />
       )}
@@ -329,20 +329,20 @@ function StatusPill({
   const map: Record<RfqStatus, { label: string; className: string }> = {
     in_progress: {
       label: chrome.statusInProgress,
-      className: "bg-blue-100 text-blue-800",
+      className: "bg-blueprint/12 text-blueprint ring-1 ring-inset ring-blueprint/30",
     },
     submitted: {
       label: chrome.statusSubmitted,
-      className: "bg-emerald-100 text-emerald-800",
+      className: "bg-emerald-100 text-emerald-800 ring-1 ring-inset ring-emerald-700/30",
     },
-    won: { label: chrome.statusWon, className: "bg-emerald-100 text-emerald-800" },
-    lost: { label: chrome.statusLost, className: "bg-gray-200 text-gray-700" },
+    won: { label: chrome.statusWon, className: "bg-emerald-100 text-emerald-800 ring-1 ring-inset ring-emerald-700/30" },
+    lost: { label: chrome.statusLost, className: "bg-ink/10 text-ink-soft ring-1 ring-inset ring-ink/20" },
   };
   const v = map[status];
   return (
     <span
       className={cn(
-        "inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium",
+        "type-data inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold",
         v.className,
       )}
     >

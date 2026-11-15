@@ -61,24 +61,33 @@ const VERIFICATION_STEPS = [
   },
 ];
 
+// Shared type scales (mirroring the landing sheet's h1 / h2 / lead).
+const H1 =
+  "type-display text-[length:clamp(2.2rem,1.3rem+3.4vw,3.7rem)] font-extrabold leading-[0.98]";
+const H2 =
+  "type-display max-w-[21ch] text-[length:clamp(1.75rem,1.1rem+2.7vw,3.2rem)] font-extrabold leading-[1.03]";
+const LEAD =
+  "max-w-[58ch] text-[length:clamp(1.05rem,0.98rem+0.35vw,1.25rem)] leading-normal";
+const SECTION_Y = "py-[clamp(60px,8vw,108px)]";
+
 export default function AboutPage() {
   return (
     <>
       <main>
         {/* Hero */}
-        <section className="border-b border-gray-200/70 bg-white">
-          <div className="mx-auto max-w-4xl px-6 pt-24 pb-20 text-center sm:pt-28">
+        <section className="bg-drafting pt-[calc(var(--nav-h)+clamp(28px,5vw,64px))] pb-[clamp(40px,6vw,72px)]">
+          <div className="wrap">
             <Reveal>
-              <div className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs text-gray-600">
-                <Globe2 className="h-3.5 w-3.5 text-[#0F2747]" strokeWidth={1.5} />
+              <div className="type-data inline-flex items-center gap-2 rounded-[2px] border-[1.5px] border-ink bg-sheet px-2 py-1 text-[13px] font-bold text-ink">
+                <Globe2 className="h-3.5 w-3.5" strokeWidth={1.75} />
                 About Nexcierge
               </div>
-              <h1 className="mt-6 text-4xl font-semibold tracking-[-0.02em] text-gray-900 sm:text-5xl">
+              <h1 className={`${H1} mt-6 text-ink`}>
                 Sourcing built on verification,
                 <br className="hidden sm:block" />
                 not promises.
               </h1>
-              <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-gray-600 sm:text-lg">
+              <p className={`${LEAD} mt-6 text-ink-soft`}>
                 Industrial machinery procurement involves seven-figure
                 decisions made between parties who&apos;ve never met. Nexcierge
                 exists to close that trust gap with verified suppliers, a
@@ -89,20 +98,18 @@ export default function AboutPage() {
         </section>
 
         {/* Pillars */}
-        <section className="border-b border-gray-200/70 bg-[#F7F8FA]">
-          <div className="mx-auto max-w-6xl px-6 py-24 sm:py-28">
-            <div className="grid gap-px overflow-hidden rounded-2xl border border-gray-200 bg-gray-200 md:grid-cols-2">
+        <section className={`relative ${SECTION_Y}`}>
+          <span className="sheet-rule" aria-hidden />
+          <div className="wrap">
+            <div className="grid gap-px border-[1.5px] border-ink bg-rule-strong md:grid-cols-2">
               {PILLARS.map((p, i) => (
                 <Reveal key={p.title} delay={i * 0.05}>
-                  <div className="flex h-full flex-col gap-3 bg-white p-8">
-                    <p.icon
-                      className="h-5 w-5 text-[#0F2747]"
-                      strokeWidth={1.5}
-                    />
-                    <h3 className="mt-2 text-lg font-semibold text-gray-900">
+                  <div className="flex h-full flex-col gap-3 bg-sheet p-8">
+                    <p.icon className="h-6 w-6 text-ink" strokeWidth={1.5} />
+                    <h3 className="type-title mt-2 text-xl font-bold leading-tight text-ink">
                       {p.title}
                     </h3>
-                    <p className="text-sm leading-relaxed text-gray-600">
+                    <p className="max-w-[52ch] text-[15px] leading-relaxed text-ink-soft">
                       {p.description}
                     </p>
                   </div>
@@ -113,34 +120,35 @@ export default function AboutPage() {
         </section>
 
         {/* Verification process */}
-        <section className="border-b border-gray-200/70 bg-white">
-          <div className="mx-auto max-w-4xl px-6 py-24 sm:py-28">
+        <section className={`relative ${SECTION_Y}`}>
+          <span className="sheet-rule" aria-hidden />
+          <div className="wrap grid gap-[clamp(28px,5vw,64px)] lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-start">
             <Reveal>
-              <div className="text-xs font-medium uppercase tracking-[0.18em] text-[#0F2747]">
+              <div className="type-data text-sm font-semibold text-ink-soft">
                 Verification
               </div>
-              <h2 className="mt-3 text-3xl font-semibold tracking-[-0.015em] text-gray-900 sm:text-4xl">
+              <h2 className={`${H2} mt-3 text-ink`}>
                 How supplier verification works.
               </h2>
-              <p className="mt-4 text-base leading-relaxed text-gray-600 sm:text-lg">
+              <p className={`${LEAD} mt-5 text-ink-soft`}>
                 Verification scales with deal value. Lower-stakes inquiries
                 receive desktop checks. Higher-stakes ones receive full on-site
                 audits before suppliers are introduced to the buyer.
               </p>
             </Reveal>
 
-            <ol className="mt-14 space-y-10">
+            <ol className="border-t border-rule-strong">
               {VERIFICATION_STEPS.map((step, i) => (
                 <Reveal key={step.title} delay={i * 0.05}>
-                  <div className="flex gap-6">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-sm font-medium text-gray-700">
+                  <div className="flex gap-5 border-b border-rule-strong py-6">
+                    <div className="type-title flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-ink text-base font-extrabold tabular-nums text-sheet">
                       {i + 1}
                     </div>
                     <div>
-                      <h3 className="text-base font-semibold text-gray-900">
+                      <h3 className="type-title text-lg font-bold leading-tight text-ink">
                         {step.title}
                       </h3>
-                      <p className="mt-2 text-sm leading-relaxed text-gray-600">
+                      <p className="mt-2 max-w-[60ch] text-[15px] leading-relaxed text-ink-soft">
                         {step.detail}
                       </p>
                     </div>
@@ -152,14 +160,14 @@ export default function AboutPage() {
         </section>
 
         {/* Team principle */}
-        <section className="border-b border-gray-200/70 bg-[#F7F8FA]">
-          <div className="mx-auto max-w-4xl px-6 py-24 text-center sm:py-28">
+        <section className={`bg-cyanotype text-white ${SECTION_Y}`}>
+          <div className="wrap">
             <Reveal>
-              <Users className="mx-auto h-6 w-6 text-gray-400" strokeWidth={1.5} />
-              <h2 className="mt-5 text-3xl font-semibold tracking-[-0.015em] text-gray-900 sm:text-4xl">
+              <Users className="h-7 w-7 text-paint" strokeWidth={1.5} />
+              <h2 className={`${H2} mt-5`}>
                 People who do this for a living.
               </h2>
-              <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-gray-600 sm:text-lg">
+              <p className={`${LEAD} mt-5 text-white/80`}>
                 Our coordination team has experience across packaging, plastic,
                 metalworking, food processing, and textile machinery
                 procurement. They speak the language and have walked the
@@ -170,13 +178,13 @@ export default function AboutPage() {
         </section>
 
         {/* CTA */}
-        <section className="bg-white">
-          <div className="mx-auto max-w-3xl px-6 py-24 text-center sm:py-28">
+        <section
+          className={`border-t-[1.5px] border-ink bg-sheet ${SECTION_Y}`}
+        >
+          <div className="wrap">
             <Reveal>
-              <h2 className="text-3xl font-semibold tracking-[-0.015em] text-gray-900 sm:text-4xl">
-                Have a sourcing requirement?
-              </h2>
-              <p className="mt-5 text-base text-gray-600 sm:text-lg">
+              <h2 className={`${H2} text-ink`}>Have a sourcing requirement?</h2>
+              <p className={`${LEAD} mt-5 text-ink-soft`}>
                 Start a conversation with the AI sourcing concierge. The first
                 qualifying step takes about two minutes.
               </p>

@@ -13,7 +13,7 @@ import {
 } from "@/components/chat/MessageBubble";
 import { SourcingProgressRail } from "@/components/chat/SourcingProgressRail";
 import { AuthModal } from "@/components/auth/AuthModal";
-import { SUGGESTED_PROMPTS } from "@/lib/mockData";
+import { LANDING_SEED_KEY, SUGGESTED_PROMPTS } from "@/lib/constants";
 import { useChat } from "@/lib/useChat";
 import { useSessionsList } from "@/lib/useSessionsList";
 import { useStableCallback } from "@/lib/useStableCallback";
@@ -33,6 +33,19 @@ const HERO_PLACEHOLDERS = [
   "हमें बताएं कि आपको कौन-सी मशीनरी चाहिए…",
   "Cuéntanos qué maquinaria estás buscando…",
 ];
+
+// Reads and clears a message typed into the landing page's agent console
+// (see components/landing/AgentConsole.tsx). Storage can throw in locked-
+// down browsers; treat that as "no seed".
+function takeLandingSeed(): string | null {
+  try {
+    const value = window.sessionStorage.getItem(LANDING_SEED_KEY);
+    if (value != null) window.sessionStorage.removeItem(LANDING_SEED_KEY);
+    return value?.trim() || null;
+  } catch {
+    return null;
+  }
+}
 
 export default function ChatPage() {
   // useSearchParams forces client-side rendering for this route, so we
@@ -154,18 +167,23 @@ function ChatPageInner() {
   }, [streamingLength]);
 
   // Auto-send the seed once the session is bootstrapped and still empty.
-  // We strip the query params after sending so a refresh doesn't replay
-  // the seed into a new session.
+  // Two sources: `?seed=` (the landing page's canned starter chips) and
+  // sessionStorage (text the visitor typed into the landing console, kept
+  // out of the URL because it is their own words). We strip the query
+  // params after sending so a refresh doesn't replay the seed into a new
+  // session; the storage entry is removed as it is read.
   useEffect(() => {
     if (seedSentRef.current) return;
-    if (!entry.seed) return;
+    if (!entry.seed && !entry.forceNew) return;
     // Wait for bootstrap to fully resolve — sessionId becomes truthy
     // partway through, but bootstrapping=false is the all-clear that
     // sendMessage's internal `!sessionId` guard will pass.
     if (bootstrapping || !sessionId) return;
     if (messages.length > 0) return;
     seedSentRef.current = true;
-    void sendMessage(entry.seed);
+    const seed = entry.seed ?? takeLandingSeed();
+    if (!seed) return;
+    void sendMessage(seed);
     const url = new URL(window.location.href);
     url.searchParams.delete("seed");
     url.searchParams.delete("new");
@@ -175,7 +193,14 @@ function ChatPageInner() {
       "",
       url.pathname + (q ? `?${q}` : ""),
     );
-  }, [entry.seed, bootstrapping, sessionId, messages.length, sendMessage]);
+  }, [
+    entry.seed,
+    entry.forceNew,
+    bootstrapping,
+    sessionId,
+    messages.length,
+    sendMessage,
+  ]);
 
   // Stable so memoized bubbles (quick-reply pills) and the composer don't
   // re-render on every page render. Returns false when nothing was sent,
@@ -205,7 +230,7 @@ function ChatPageInner() {
     // h-[100dvh] tracks the iOS Safari dynamic viewport (collapsing URL
     // bar) where h-screen / 100vh would over-extend behind the bottom
     // chrome and push the composer behind the home indicator.
-    <div className="flex h-[100dvh] overflow-hidden bg-white">
+    <div className="flex h-[100dvh] overflow-hidden bg-paper">
       <ChatSidebar
         sessions={sessions}
         loading={sessionsLoading}
@@ -219,18 +244,18 @@ function ChatPageInner() {
         onClose={() => setSidebarOpen(false)}
       />
 
-      <div className="flex h-full min-w-0 flex-1 flex-col">
-        <div className="flex items-center justify-between border-b border-gray-200 bg-white/80 px-4 pt-safe backdrop-blur-xl sm:px-6">
-          <div className="flex min-w-0 items-center gap-2 py-4 text-sm font-medium text-gray-900">
+      <div className="flex h-full min-w-0 flex-1 flex-col bg-sheet">
+        <div className="flex items-center justify-between border-b border-rule-strong bg-sheet px-4 pt-safe sm:px-6">
+          <div className="type-title flex min-w-0 items-center gap-2 py-4 text-sm font-bold text-ink">
             <button
               type="button"
               onClick={() => setSidebarOpen(true)}
               aria-label={cs.historyAria}
-              className="-ml-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 md:hidden"
+              className="-ml-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-sm text-ink-soft transition-colors hover:bg-ink/10 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blueprint md:hidden"
             >
               <Menu className="h-5 w-5" strokeWidth={1.75} />
             </button>
-            <Sparkles className="h-4 w-4 shrink-0 text-[#0F2747]" strokeWidth={1.75} />
+            <Sparkles className="h-4 w-4 shrink-0 text-ink" strokeWidth={1.75} />
             <span className="truncate">Sourcing concierge</span>
           </div>
           <div className="flex shrink-0 items-center gap-3 py-4">
@@ -238,23 +263,23 @@ function ChatPageInner() {
               type="button"
               onClick={() => setRailOpen(true)}
               aria-label={PROGRESS_EN.progressAria}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 xl:hidden"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm text-ink-soft transition-colors hover:bg-ink/10 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blueprint xl:hidden"
             >
               <PanelRight className="h-4 w-4" strokeWidth={1.75} />
             </button>
             <Link
               href="/"
-              className="text-sm text-gray-500 hover:text-gray-900 transition-colors"
+              className="text-sm font-semibold text-ink-soft underline-offset-4 transition-colors hover:text-ink hover:underline"
             >
               Exit
             </Link>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto bg-ruled">
           {bootstrapError ? (
             <div className="mx-auto flex h-full max-w-2xl items-center justify-center px-6">
-              <div className="rounded-2xl border border-red-200 bg-red-50 px-6 py-5 text-sm text-red-900">
+              <div className="rounded-none border-[1.5px] border-redline bg-white px-6 py-5 text-sm text-red-900">
                 {bootstrapError}
               </div>
             </div>
@@ -270,10 +295,10 @@ function ChatPageInner() {
                   className="mx-auto flex h-full max-w-2xl flex-col items-center justify-center px-4 sm:px-6"
                 >
                   <div className="w-full">
-                    <h1 className="text-center text-3xl font-semibold tracking-[-0.015em] text-gray-900 sm:text-4xl">
+                    <h1 className="type-display text-center text-3xl font-extrabold text-ink sm:text-4xl">
                       What machinery are you sourcing?
                     </h1>
-                    <p className="mt-3 text-center text-base text-gray-500">
+                    <p className="mt-3 text-center text-base text-ink-soft">
                       Describe what you need in your own words. The agent will
                       qualify the requirements.
                     </p>
@@ -299,7 +324,7 @@ function ChatPageInner() {
                           key={p}
                           onClick={() => send(p)}
                           disabled={loading}
-                          className="rounded-full border border-gray-200 bg-white px-3.5 py-2 text-xs text-gray-700 transition-colors hover:border-gray-300 hover:bg-gray-50 disabled:opacity-50"
+                          className="rounded-full border-[1.5px] border-ink bg-white px-3.5 py-2 text-xs font-semibold text-ink transition-colors hover:bg-paint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blueprint disabled:opacity-50"
                         >
                           {p}
                         </button>
@@ -349,7 +374,7 @@ function ChatPageInner() {
           // pb-safe on the outer carves the home-indicator gap below the
           // composer's normal py-* rhythm — without the wrapper the inset
           // would override py-3 instead of adding to it.
-          <div className="border-t border-gray-200 bg-white pb-safe">
+          <div className="border-t border-rule-strong bg-sheet pb-safe">
             <div className="mx-auto max-w-3xl px-4 py-3 sm:px-6 sm:py-4">
               {signupRequired ? (
                 // Guest signup wall: the composer is replaced by a locked
@@ -359,7 +384,7 @@ function ChatPageInner() {
                 <button
                   type="button"
                   onClick={openSignupGate}
-                  className="flex w-full items-center justify-center gap-2 rounded-2xl border border-[#0F2747]/20 bg-[#0F2747]/[0.03] px-5 py-3.5 text-sm font-medium text-[#0F2747] transition-colors hover:border-[#0F2747]/40 hover:bg-[#0F2747]/[0.06]"
+                  className="type-title flex w-full items-center justify-center gap-2 rounded-sm border-2 border-ink bg-transparent px-5 py-3.5 text-sm font-bold text-ink btn-wipe hover:text-sheet focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blueprint"
                 >
                   <Lock className="h-4 w-4" strokeWidth={1.75} />
                   {cs.gateButton}
@@ -374,7 +399,7 @@ function ChatPageInner() {
                   }
                 />
               )}
-              <div className="mt-2 text-center text-[11px] text-gray-400">
+              <div className="mt-2 text-center text-[11px] text-gray-500">
                 {signupRequired ? cs.gateHint : cs.composerHint}
               </div>
             </div>

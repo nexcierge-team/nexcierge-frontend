@@ -12,12 +12,12 @@ interface AttentionItem {
 
 function AttentionCard({ item }: { item: AttentionItem }) {
   return (
-    <div className="flex flex-col rounded-2xl border border-gray-200 bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
-      <div className="text-2xl font-semibold text-red-600">{item.count}</div>
-      <div className="mt-1 text-sm font-medium text-gray-900">
+    <div className="flex flex-col rounded-none border-[1.5px] border-ink bg-sheet p-5">
+      <div className="type-title text-2xl font-bold tabular-nums text-redline">{item.count}</div>
+      <div className="type-title mt-1 text-sm font-bold text-ink">
         {item.title}
       </div>
-      <div className="mt-0.5 text-xs text-gray-500">{item.body}</div>
+      <div className="mt-0.5 text-xs text-ink-soft">{item.body}</div>
       <div className="mt-4">
         <Button size="sm" variant="secondary" onClick={item.onAction}>
           {item.actionLabel}
@@ -79,11 +79,11 @@ export function AttentionCards({
 
   return (
     <section>
-      <h2 className="text-sm font-semibold text-gray-900">
+      <h2 className="type-title text-sm font-bold text-ink">
         Needs your attention
       </h2>
       {items.length === 0 ? (
-        <p className="mt-3 text-xs text-gray-400">
+        <p className="mt-3 text-xs text-gray-500">
           All clear. Nothing waiting on you.
         </p>
       ) : (

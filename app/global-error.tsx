@@ -25,21 +25,21 @@ export default function GlobalError({
 
   return (
     <html lang="en">
-      <body className="min-h-screen bg-white text-gray-900 antialiased">
+      <body className="min-h-screen bg-paper text-ink antialiased">
         <main className="flex min-h-screen flex-col items-center justify-center px-6 text-center">
-          <p className="text-sm font-medium text-[#0F2747]">
+          <p className="type-data text-sm font-semibold text-ink-soft">
             Something went wrong
           </p>
-          <h1 className="mt-2 text-2xl font-semibold tracking-tight">
+          <h1 className="type-display mt-2 text-2xl font-extrabold">
             We hit an unexpected error
           </h1>
-          <p className="mt-3 max-w-md text-gray-500">
+          <p className="mt-3 max-w-md text-ink-soft">
             The issue has been logged and our team will take a look. You can try
             again, as most errors are temporary.
           </p>
           <button
             onClick={() => reset()}
-            className="mt-8 rounded-lg bg-[#0F2747] px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#1D4ED8]"
+            className="mt-8 inline-flex h-11 items-center justify-center px-5 text-[15px] rounded-sm border-2 border-ink bg-paint font-bold leading-none text-ink type-title btn-wipe hover:text-paint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blueprint focus-visible:ring-offset-2 focus-visible:ring-offset-paper"
           >
             Try again
           </button>

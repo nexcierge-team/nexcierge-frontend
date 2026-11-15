@@ -36,14 +36,14 @@ function ConfigSelect({
   const known = options.some((o) => o.id === value);
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-900">{label}</label>
+      <label className="block text-sm font-semibold text-ink">{label}</label>
       <p className="mt-0.5 text-xs text-gray-500">{hint}</p>
       <div className="relative mt-2">
         <select
           value={value}
           disabled={disabled}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full appearance-none rounded-lg border border-gray-200 bg-white px-3 py-2 pr-9 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0F2747]/15 disabled:opacity-50"
+          className="w-full appearance-none rounded-sm border border-rule-strong bg-white px-3 py-2 pr-9 text-sm text-ink transition-colors hover:border-ink focus:border-ink focus:outline-none focus:ring-2 focus:ring-blueprint/30 disabled:opacity-50"
         >
           {!known && value && (
             <option value={value}>{value} (current, not in list)</option>
@@ -55,7 +55,7 @@ function ConfigSelect({
           ))}
         </select>
         <ChevronDown
-          className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+          className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-soft"
           strokeWidth={1.75}
         />
       </div>
@@ -139,16 +139,16 @@ export function SettingsPane({ onBack }: { onBack: () => void }) {
 
   return (
     <div className="flex h-full flex-col">
-      <header className="flex items-center gap-3 border-b border-gray-200 bg-white/85 px-6 py-4 backdrop-blur-xl">
+      <header className="flex items-center gap-3 border-b border-rule-strong bg-sheet px-6 py-4">
         <button
           onClick={onBack}
           aria-label="Back to overview"
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 md:hidden"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm text-ink-soft transition-colors hover:bg-ink/10 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blueprint md:hidden"
         >
           <ArrowLeft className="h-4 w-4" strokeWidth={1.5} />
         </button>
         <div>
-          <h1 className="text-sm font-semibold text-gray-900">Models</h1>
+          <h1 className="type-title text-sm font-bold text-ink">Models</h1>
           <p className="text-xs text-gray-500">
             The live Gemini models for buyer chat. Saving changes them for every
             conversation immediately. Compare performance in PostHog.
@@ -169,8 +169,8 @@ export function SettingsPane({ onBack }: { onBack: () => void }) {
             </p>
           ) : (
             <>
-              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-                <p className="text-xs leading-relaxed text-amber-800">
+              <div className="rounded-none border border-amber-700/40 bg-amber-50 px-4 py-3">
+                <p className="text-xs leading-relaxed text-amber-900">
                   Global &amp; live: these apply to <strong>all</strong>{" "}
                   buyer chats, not a sandbox. There&apos;s no per-tester
                   isolation, since buyers chat anonymously before a manager is
@@ -231,14 +231,14 @@ export function SettingsPane({ onBack }: { onBack: () => void }) {
                   {saving ? "Saving…" : "Save"}
                 </Button>
                 {saveError ? (
-                  <span className="text-xs text-red-600">{saveError}</span>
+                  <span className="text-xs text-red-700">{saveError}</span>
                 ) : justSaved && !dirty ? (
                   <span className="text-xs text-emerald-700">Saved.</span>
                 ) : null}
               </div>
 
               {config.updated_at && (
-                <p className="mt-4 text-[11px] text-gray-400">
+                <p className="mt-4 text-[11px] text-gray-500">
                   Last saved {new Date(config.updated_at).toLocaleString()}
                   {config.updated_by_name ? ` by ${config.updated_by_name}` : ""}.
                 </p>
