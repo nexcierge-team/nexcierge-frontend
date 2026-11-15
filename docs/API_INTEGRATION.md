@@ -106,7 +106,7 @@ Bootstraps the buyer's chat surface — anonymous Supabase sign-in if needed, th
 
 **Query params (all optional):**
 - `session_id=<uuid>` — load a specific past session (must be owned by the caller).
-- `new=1` — skip the active-session lookup and hand back a blank-slate `chat_sessions` row: the user's existing **never-started** session (`status='ai'`, `title IS NULL` — no message ever sent) if one exists, else a freshly created row. Reuse is what keeps repeat marketing-site visits from stacking empty "New conversation" rows. Used by `HeroChatPreview` and `FloatingChatButton` so every click from the marketing site lands on a blank chat. The `useChat({ forceNew: true })` option toggles this from the client.
+- `new=1` — skip the active-session lookup and hand back a blank-slate `chat_sessions` row: the user's existing **never-started** session (`status='ai'`, `title IS NULL` — no message ever sent) if one exists, else a freshly created row. Reuse is what keeps repeat marketing-site visits from stacking empty "New conversation" rows. Used by the landing page's agent console (`components/landing/AgentConsole.tsx`) so a message started on the marketing site lands on a blank chat: starter chips add `&seed=<chip>`, typed text travels in sessionStorage (`LANDING_SEED_KEY`) and is read and cleared by `/chat`. The `useChat({ forceNew: true })` option toggles this from the client.
 
 `session_id` takes precedence over `new=1`.
 

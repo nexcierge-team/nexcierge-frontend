@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Plus, Loader2, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AccountMenu } from "@/components/auth/AccountMenu";
+import { Wordmark } from "@/components/layout/Wordmark";
 import { useAuthUser } from "@/lib/useAuthUser";
 import { prefetchSessionBootstrap } from "@/lib/chatBootstrap";
 import { PROGRESS_EN, relativeTime } from "@/lib/progressStrings";
@@ -45,12 +46,12 @@ function statusDotClass(
   status: SidebarSession["status"],
   stage: SourcingStage | null,
 ): string {
-  if (status === "closed") return "bg-gray-300";
-  if (status === "ai") return "bg-gray-300";
-  if (stage === "delivered") return "bg-emerald-500";
+  if (status === "closed") return "bg-gray-400";
+  if (status === "ai") return "bg-gray-400";
+  if (stage === "delivered") return "bg-emerald-600";
   if (stage === "brief_submitted" || stage === "in_review" || !stage)
-    return "bg-amber-400";
-  return "bg-blue-500";
+    return "bg-amber-600";
+  return "bg-blueprint";
 }
 
 export function ChatSidebar({
@@ -114,7 +115,7 @@ export function ChatSidebar({
           the parent leaves `open` falsy when the sidebar is inline. */}
       {open && (
         <div
-          className="fixed inset-0 z-30 bg-gray-900/40 backdrop-blur-sm md:hidden"
+          className="fixed inset-0 z-30 bg-ink/40 backdrop-blur-sm md:hidden"
           onClick={onClose}
           aria-hidden
         />
@@ -122,18 +123,18 @@ export function ChatSidebar({
       <aside
         className={cn(
           // Mobile: off-canvas fixed drawer that slides in from the left.
-          "fixed inset-y-0 left-0 z-40 flex h-full w-[85%] max-w-[18rem] shrink-0 flex-col border-r border-gray-200 bg-[#F7F8FA] pt-safe pb-safe transition-transform duration-200 ease-out",
+          "fixed inset-y-0 left-0 z-40 flex h-full w-[85%] max-w-[18rem] shrink-0 flex-col border-r border-rule-strong bg-paper pt-safe pb-safe transition-transform duration-200 ease-out",
           // Desktop: inline flex child, always visible, no transform.
           "md:static md:w-72 md:max-w-none md:translate-x-0 md:pt-0 md:pb-0",
           open ? "translate-x-0" : "-translate-x-full",
         )}
       >
-        <div className="border-b border-gray-200 px-5 py-4">
+        <div className="border-b border-rule-strong px-5 py-4">
           <Link
             href="/"
-            className="font-semibold tracking-[0.16em] text-[14px] text-gray-900"
+            className="inline-block leading-none"
           >
-            NEXCIERGE
+            <Wordmark className="text-[17px]" />
           </Link>
         </div>
 
@@ -141,7 +142,7 @@ export function ChatSidebar({
           <button
             onClick={handleNew}
             disabled={creating}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#0F2747] px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#1D4ED8] disabled:opacity-60"
+            className="flex w-full items-center justify-center gap-2 px-4 py-2.5 text-sm rounded-sm border-2 border-ink bg-paint font-bold leading-none text-ink type-title btn-wipe hover:text-paint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blueprint focus-visible:ring-offset-2 focus-visible:ring-offset-paper disabled:pointer-events-none disabled:opacity-60"
           >
             {creating ? (
               <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.75} />
@@ -154,19 +155,19 @@ export function ChatSidebar({
 
         <div className="flex-1 overflow-y-auto px-3 py-4">
           <div className="flex items-center justify-between px-2 pb-2">
-            <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-gray-400">
+            <span className="type-data text-xs font-semibold text-ink-soft">
               {ps.recentRequests}
             </span>
             {sessions.length > 0 && (
-              <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600">
+              <span className="type-data rounded-full bg-ink/10 px-1.5 py-0.5 text-[11px] font-semibold text-ink">
                 {sessions.length}
               </span>
             )}
           </div>
           {loading ? (
-            <div className="px-3 py-6 text-xs text-gray-400">{ps.loading}</div>
+            <div className="px-3 py-6 text-xs text-gray-500">{ps.loading}</div>
           ) : sessions.length === 0 ? (
-            <div className="px-3 py-6 text-xs text-gray-400">
+            <div className="px-3 py-6 text-xs text-gray-500">
               {ps.noRequests}
             </div>
           ) : (
@@ -178,10 +179,10 @@ export function ChatSidebar({
                   <li
                     key={s.id}
                     className={cn(
-                      "group relative rounded-lg transition-colors",
+                      "group relative border-l-[3px] transition-colors",
                       active
-                        ? "bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
-                        : "hover:bg-white/60",
+                        ? "border-paint bg-sheet ring-1 ring-rule-strong"
+                        : "border-transparent hover:bg-sheet/70",
                       isDeleting && "opacity-50",
                     )}
                   >
@@ -196,7 +197,7 @@ export function ChatSidebar({
                         active ? undefined : () => prefetchSessionBootstrap(s.id)
                       }
                       disabled={isDeleting}
-                      className="flex w-full flex-col gap-1 rounded-lg px-3 py-2.5 pr-9 text-left disabled:cursor-not-allowed"
+                      className="flex w-full flex-col gap-1 rounded-sm px-3 py-2.5 pr-9 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blueprint focus-visible:ring-inset disabled:cursor-not-allowed"
                     >
                       {/* ph-no-capture: titles derive from the buyer's
                           first message — keep them out of autocapture. */}
@@ -204,13 +205,13 @@ export function ChatSidebar({
                         className={cn(
                           "ph-no-capture truncate text-sm",
                           active
-                            ? "font-medium text-gray-900"
+                            ? "font-semibold text-ink"
                             : "text-gray-700",
                         )}
                       >
                         {s.title || ps.untitledRequest}
                       </span>
-                      <span className="flex items-center gap-1.5 text-xs text-gray-400">
+                      <span className="flex items-center gap-1.5 text-xs text-gray-500">
                         <span
                           className={cn(
                             "h-1.5 w-1.5 shrink-0 rounded-full",
@@ -221,7 +222,7 @@ export function ChatSidebar({
                         <span className="min-w-0 flex-1 truncate">
                           {statusLabel(s)}
                         </span>
-                        <span className="shrink-0">
+                        <span className="type-data shrink-0">
                           {relativeTime(s.updated_at)}
                         </span>
                       </span>
@@ -235,9 +236,9 @@ export function ChatSidebar({
                       disabled={isDeleting}
                       aria-label={`Delete conversation ${s.title || "untitled"}`}
                       className={cn(
-                        "absolute right-2 top-1/2 -translate-y-1/2 flex h-6 w-6 items-center justify-center rounded-md text-gray-400 transition-all",
+                        "absolute right-2 top-1/2 -translate-y-1/2 flex h-6 w-6 items-center justify-center rounded-sm text-gray-500 transition-all",
                         "opacity-0 group-hover:opacity-100 focus:opacity-100",
-                        "hover:bg-gray-100 hover:text-red-600",
+                        "hover:bg-ink/10 hover:text-red-700",
                         "disabled:cursor-not-allowed disabled:opacity-30",
                       )}
                     >
@@ -257,8 +258,8 @@ export function ChatSidebar({
           )}
         </div>
 
-        <div className="border-t border-gray-200 p-4">
-          <div className="mb-1 text-[10px] uppercase tracking-wider text-gray-400">
+        <div className="border-t border-rule-strong p-4">
+          <div className="type-data mb-1 text-[11px] font-semibold text-ink-soft">
             {isAnonymous
               ? "Guest · sign in on handoff to save history"
               : "Your account"}

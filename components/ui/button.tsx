@@ -5,24 +5,25 @@ import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
+// Drafting-sheet buttons: square 3px corners, a 2px ink border, and ink
+// that wipes up from the bottom edge on hover (`btn-wipe` in globals.css).
+// Primary is machine-paint yellow; secondary is the outlined "line" button.
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#0F2747] disabled:pointer-events-none disabled:opacity-50",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-sm border-2 font-bold leading-none type-title focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blueprint focus-visible:ring-offset-paper disabled:pointer-events-none disabled:opacity-50",
   {
     variants: {
       variant: {
-        primary:
-          "bg-[#0F2747] text-white hover:bg-[#1D4ED8] shadow-sm",
+        primary: "btn-wipe border-ink bg-paint text-ink hover:text-paint",
         secondary:
-          "bg-white text-gray-900 border border-gray-200 hover:border-gray-300 hover:bg-gray-50 shadow-sm",
+          "btn-wipe border-ink bg-transparent text-ink hover:text-sheet",
         ghost:
-          "text-gray-700 hover:text-gray-900 hover:bg-gray-100",
-        accent:
-          "bg-[#0F2747] text-white hover:bg-[#1D4ED8] shadow-sm",
+          "border-transparent text-gray-700 transition-colors hover:bg-ink/10 hover:text-ink",
+        accent: "btn-wipe border-ink bg-paint text-ink hover:text-paint",
       },
       size: {
         sm: "h-9 px-4 text-sm",
-        md: "h-11 px-6 text-sm",
-        lg: "h-12 px-7 text-base",
+        md: "h-11 px-5 text-[15px]",
+        lg: "h-[50px] px-6 text-base",
       },
     },
     defaultVariants: {

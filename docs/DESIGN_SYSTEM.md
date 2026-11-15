@@ -1,144 +1,150 @@
 # Design System
 
-The aesthetic is intentionally minimal — closer to Claude.ai / ChatGPT than to a SaaS landing page. Chat is the centerpiece; marketing copy is sparse.
+The site reads as an engineering drawing: pale drafting film, ink linework, square panels, machine-paint yellow for the one primary action, a single blueprint-blue sheet, and red pencil only where a risk is being marked up. One typeface at three widths.
 
-The canonical color reference for the whole company lives at [`/brand/PALETTE.md`](../../brand/PALETTE.md). What follows is how those tokens are used inside the frontend specifically.
+The canonical color reference for the whole company lives at [`/brand/PALETTE.md`](../../brand/PALETTE.md). What follows is how those tokens are used inside the frontend.
 
-## Palette — Midnight Blue Accent
+## Palette: Drafting Sheet
 
-### Base
-| Token | Hex | Tailwind class | Use |
-|---|---|---|---|
-| Canvas | `#FFFFFF` | `bg-white` | Page background |
-| Secondary background | `#F7F8FA` | `bg-[#F7F8FA]` | Soft sections, sidebars |
-| Text primary | `#111827` | `text-gray-900` | Headlines, body |
-| Text secondary | `#6B7280` | `text-gray-500` (≈ `text-gray-600`) | Subtitles, meta |
-| Border | `#E5E7EB` | `border-gray-200` | Cards, dividers |
+Tokens are defined once, in the `@theme` block of `app/globals.css`, and are available as normal Tailwind utilities (`bg-paper`, `text-ink`, `border-rule`, `bg-ink/10`, ...). Do not write hex values in class names.
 
-### Brand accent
 | Token | Hex | Use |
 |---|---|---|
-| **Midnight navy** | `#0F2747` | Primary brand color — CTAs, eyebrow text, status indicators, accent dots, focus rings |
-| **Deep blue** (hover) | `#1D4ED8` | Hover state on midnight navy elements (primary buttons) |
-| **Powder blue** (soft AI) | `#DCE8F8` | Soft AI-themed backgrounds: AI status pills, AI badges, optional message-bubble tints |
+| `paper` | `#E7EBE6` | Page canvas, sidebars, bands inside a card |
+| `sheet` | `#F6F8F4` | Panels, cards, modals, the chat column |
+| `white` | `#FFFFFF` | Inputs, chips, incoming chat bubbles |
+| `ink` | `#0E2440` | Text, linework, borders, selected states |
+| `ink-soft` | `#485B72` | Secondary text |
+| `rule` | ink at 16% | Quiet dividers |
+| `rule-strong` | ink at 50% | Dividers inside panels, section rules |
+| `paint` | `#FFC62B` | Primary actions, the "fix" marker, human-step tags |
+| `blueprint` | `#143A82` | The Merchant of Record sheet, focus rings, soft AI/status tints (`bg-blueprint/12`) |
+| `redline` | `#D5362B` | Risk markup only. 3.97:1 on paper, so large bold text and strokes only |
 
-> **Important:** the Tailwind utility scale is **`gray-*`** (not `zinc-*`). `gray-900` matches `#111827` exactly; `zinc-900` is `#18181b` and is the wrong neutral.
+**Neutrals.** The default `gray-*` scale is remapped in `@theme` to ink mixed over sheet (`gray-900` is ink, `gray-600` is ink-soft, `gray-200` is a divider tone). Existing `gray-*` classes therefore follow the theme. Do not introduce slate, zinc or stone. `text-gray-400` is about 3.6:1 on sheet: fine for large text and decoration, not for small body text.
 
-## Buttons (in `components/ui/button.tsx`)
+**Surface rule.** paper for the page, sheet for anything that sits on it, white for the things you type into or tap. A card inside a sheet panel uses white or a paper band, never another sheet.
 
-| Variant | Background | Text | Hover | Use |
-|---|---|---|---|---|
-| `primary` | `#0F2747` (midnight navy) | white | `#1D4ED8` (deep blue) | Main page CTAs |
-| `accent` | `#0F2747` | white | `#1D4ED8` | Same visual as primary; used in cards for AI-specific actions (e.g. "Request human review") |
-| `secondary` | white + `border-gray-200` | `text-gray-900` | `bg-gray-50` | Side CTAs, "Learn more" |
-| `ghost` | transparent | `text-gray-700` | `bg-gray-100` | Tertiary actions |
+**Semantic status colors** (emerald, amber, red) stay, with three adjustments for the new surfaces: pale pill fills carry `ring-1 ring-inset` in the matching 700 shade at 30%; small status text uses the 700 shade; status dots use `amber-600` (not 400, which reads as brand yellow) and `blueprint` instead of blue.
 
-Focus ring: `ring-[#0F2747]` (midnight navy) on all variants.
+There is no dark mode.
+
+## Shape
+
+- Panels, cards, modals: square (`rounded-none`) with `border-[1.5px] border-ink`. Quieter inner cards use `border border-rule-strong`.
+- Controls (buttons, inputs, selects, segmented controls): `rounded-sm`, which is 3px (`--radius-sm`).
+- `rounded-full` only for dots, avatars, badges, status pills and suggestion chips.
+- No soft drop shadows on cards. The AuthModal keeps one restrained shadow.
+
+## Buttons (`components/ui/button.tsx`)
+
+All variants: `rounded-sm`, 2px border, `font-bold type-title`, focus `ring-2 ring-blueprint`.
+
+| Variant | Rest | Hover | Use |
+|---|---|---|---|
+| `primary` / `accent` | `bg-paint`, ink border and text | ink wipes up from the bottom edge (`btn-wipe`), text turns paint | The main action on a surface |
+| `secondary` | transparent, ink border and text | same wipe, text turns sheet | Side actions |
+| `ghost` | no border, `text-gray-700` | `bg-ink/10` | Tertiary actions |
+
+Hand-rolled primary buttons (composer send, "New sourcing request") mirror the primary classes: `rounded-sm border-2 border-ink bg-paint text-ink btn-wipe hover:text-paint`. `buttonVariants` lives in a client module, so a server component cannot call it; pass a size or variant prop into a client component instead (see `LoginTrigger`'s `buttonSize`).
 
 ## Typography
 
-- **Font:** Inter (loaded via `next/font/google` in `app/layout.tsx`)
-- **Body font feature settings:** `'rlig', 'calt', 'ss01'` — enables ligatures and stylistic alternates
-- **Hero h1:** `text-4xl sm:text-5xl font-semibold tracking-[-0.02em]`
-- **Section h2:** `text-3xl sm:text-4xl font-semibold tracking-[-0.015em]`
-- **Body:** default size (1rem) with `leading-relaxed` in chat bubbles
-- **Subtle / meta:** `text-sm text-gray-500`
-- **Brand wordmark:** `font-semibold tracking-[0.16em] text-sm` (uppercase NEXCIERGE)
+- **Font:** Archivo variable with the width axis (`next/font/google`, `axes: ["wdth"]`, in `app/layout.tsx`). CJK and Arabic fall back through `system-ui` to the platform fonts.
+- **Three widths**, as `@utility` helpers in `globals.css`. They set width and tracking only; pair each with a weight utility so tailwind-merge keeps resolving weight conflicts.
+  - `type-display` (125%): headlines and the wordmark. Pair with `font-extrabold`.
+  - `type-title` (112%): card titles, button labels, panel headers. Pair with `font-bold`.
+  - `type-data` (78%, tabular numerals): small labels, tags, meta, spec data. Pair with `font-semibold` or `font-bold`.
+- **Landing sizes** live in `components/landing/styles.ts` (`H1`, `H2`, `H3`, `LEAD`), fluid via `clamp()`.
+- **Wordmark:** `components/layout/Wordmark.tsx` (typeset "Nexcierge"). No logo file exists yet.
+- Body feature settings: `'rlig', 'calt'`.
 
-## Spacing
+## Spacing and layout
 
-- Page max-widths: `max-w-6xl` for sections, `max-w-2xl` for chat content, `max-w-3xl` for FAQ / dashboard prose
-- Vertical rhythm: sections use `py-24 sm:py-32` for major spacing
-- Chat bubbles: `space-y-5` between messages, `rounded-2xl px-4 py-3`
-- Cards: `rounded-2xl border border-gray-200`, `p-5`–`p-7` content padding
+- Marketing container: the `wrap` utility (max 1320px, fluid `--gutter`). Chat content stays `max-w-2xl`.
+- The marketing header is fixed at `--nav-h` (60px). A page's first section pads its top by `calc(var(--nav-h) + clamp(28px,5vw,64px))`.
+- Section rhythm on marketing pages: `py-[clamp(60px,8vw,108px)]` (`SECTION` in `styles.ts`), opened by a `sheet-rule` (a hairline with end ticks, inside a `relative` section).
+- Backgrounds: `bg-drafting` (graph-paper grid, hero), `bg-cyanotype` (blueprint sheet), `bg-ruled` (ruled lines behind chat logs).
 
 ### Mobile-web safe areas
 
-- `app/layout.tsx` exports `viewport: Viewport` with `viewportFit: "cover"` so iOS extends content under the dynamic island and home indicator. The `pt-safe` / `pb-safe` / `pl-safe` / `pr-safe` utilities in `app/globals.css` (Tailwind v4 `@utility`) carve the unsafe regions back out. Use them on any fixed-position chrome that touches a viewport edge — the chat header (`pt-safe`), the composer footer (`pb-safe` on a wrapper, **not** on the same element as the base `py-*`, since `max(env(...), 0px)` collapses to 0 on non-iOS), the mobile drawer, and the AuthModal overlay.
-- Chat shell uses `h-[100dvh]` (dynamic viewport height) rather than `h-screen` / `100vh` so iOS Safari's collapsing URL bar doesn't push the composer behind the home indicator.
-- `ChatSidebar` is a mobile drawer below `md:` (fixed off-canvas + backdrop + Escape/select close) and reverts to an inline `md:static` column at `md:` and above. The hamburger trigger in the chat header is `md:hidden`.
+- `app/layout.tsx` exports `viewport: Viewport` with `viewportFit: "cover"` so iOS extends content under the dynamic island and home indicator. The `pt-safe` / `pb-safe` / `pl-safe` / `pr-safe` utilities in `app/globals.css` carve the unsafe regions back out. Use them on any fixed-position chrome that touches a viewport edge: the chat header (`pt-safe`), the composer footer (`pb-safe` on a wrapper, **not** on the same element as the base `py-*`, since `max(env(...), 0px)` collapses to 0 on non-iOS), the mobile drawer, and the AuthModal overlay.
+- Chat shell uses `h-[100dvh]` rather than `h-screen` so iOS Safari's collapsing URL bar doesn't push the composer behind the home indicator.
+- `ChatSidebar` is a mobile drawer below `md:` and an inline column at `md:` and above.
 
 ## Component patterns
 
-### Chat input
-- Rounded `rounded-2xl` textarea with `resize-none`
-- Border `border-gray-200` → focus `border-gray-400` (no ring)
-- Send button absolutely positioned bottom-right, circular, fires on Enter (Shift+Enter for newline)
-- Up arrow SVG icon
+### Segmented control
+`SEG` / `SEG_BTN` in `components/landing/styles.ts`: `rounded-sm border-[1.5px] border-ink`, segments divided by `border-rule-strong`, the pressed segment (`aria-pressed`) is ink with sheet text. Used for language pickers, filters and the dashboard table filter.
+
+### Tags
+`TAG` in `styles.ts`: `type-data`, 1.5px ink border, 2px radius. Fill says who acts: ink (AI agent), paint (a person or Nexcierge), none (a partner or a document).
+
+### Chat input (`ChatComposer`)
+- `rounded-sm border-[1.5px] border-ink bg-white`, `resize-none`.
+- Send button: the paint primary recipe, square, bottom-right. Enter sends, Shift+Enter is a newline.
 
 ### Suggestion chips
-- Pill: `rounded-full px-3 py-1.5 border border-gray-200`
-- Hover: subtle `bg-gray-50` + text darkens to `text-gray-900`
+`rounded-full border-[1.5px] border-ink bg-white`, hover `bg-paint`.
 
-### Message bubbles
-- Self (outgoing — buyer's own / AM's own): `bg-[#0F2747] text-white`
-- Agent / incoming: `bg-white border border-gray-200 text-gray-900 shadow-[0_1px_2px_rgba(0,0,0,0.03)]`
-- **AM dashboard, AI messages:** the prior AI interview turns use the dark `bg-[#0F2747] text-white` "house" bubble (same colour as the AM's own replies) so they group with the Nexcierge side and stay distinct from the buyer's white bubbles. Alignment is unchanged — AI stays on the incoming (left) side; only the colour flips. The buyer's own view keeps AI messages white. Driven by `isAiInAmView` in `MessageBubble.tsx`; `AgentMarkdown` takes a `dark` prop that re-themes strong/links/code/headings/blockquote and the translation secondary line for white-on-navy contrast.
-- `max-w-[88%]` so long messages don't span full width
-- `whitespace-pre-wrap` on plain (self) bubbles to preserve linebreaks; agent bubbles render markdown
+### Message bubbles (`MessageBubble`)
+- Incoming: `bg-white border border-ink text-ink rounded-[2px_12px_12px_12px]`.
+- The viewer's own: `bg-ink text-sheet rounded-[12px_2px_12px_12px]`.
+- Error: white with a 1.5px `redline` border.
+- **AM dashboard, AI messages** keep the ink "house" bubble with the incoming corner shape, so they group with the Nexcierge side and stay distinct from the buyer's white bubbles (`isAiInAmView`; `AgentMarkdown`'s `dark` prop re-themes links to `text-paint`).
+- `max-w-[88%]`; plain (self) bubbles are `whitespace-pre-wrap`, agent bubbles render markdown.
 
-### Status pills (dashboard)
-- AI-related: `bg-[#DCE8F8] text-[#0F2747] ring-[#BFD3F0]` (Supplier Matching uses this — it's the soft AI accent)
-- Functional Tailwind tints for non-AI states: `emerald-*` for Quote Ready, `amber-*` for Negotiating, etc.
+### Brief card (`ProfileSummaryCard`)
+1.5px ink border, white body, paper header and footer bands. White rather than sheet because it sits in the sheet chat column next to white bubbles.
 
-### Dashboard primitives (components/dashboard/)
+### Active and selected states
+- Chat sidebar rows: a 3px paint left bar on a sheet row (an ink fill would hide the status dot).
+- Dashboard nav and the current stage row: ink fill with sheet text; the nav's icon and count badge turn paint.
 
-- **Nav rail** (`DashboardSidebar`): white `w-60` column, `border-r border-gray-200`. Active item: `bg-[#DCE8F8]/60 text-[#0F2747]` (powder blue wash + navy text); inactive: `text-gray-700 hover:bg-gray-50`. Count badges are `rounded-full text-[10px]` — `bg-gray-100 text-gray-600`, inverting to `bg-[#0F2747] text-white` on the active item.
-- **Stat card** (`StatCard`): white `rounded-2xl border border-gray-200 p-5` card with a `text-3xl font-semibold` value and a 36px circular icon chip top-right. Chip tones stay in-palette: `navy` = powder blue + midnight navy (the brand/AI stat), plus functional `amber` / `emerald` / `gray` tints.
-- **Data table** (`RfqTable`): lives inside a white `rounded-2xl border` card with its own header row (title left, filter pills right). `<table>` wrapped in `overflow-x-auto`; header cells `text-[11px] uppercase tracking-wider text-gray-400`; body rows `border-b border-gray-50 hover:bg-gray-50/70 cursor-pointer`. Filter pills: active `bg-[#0F2747] text-white`, inactive `text-gray-500 hover:bg-gray-50`. Paged client-side at 10 rows; the pager footer ("Showing X–Y of Z" + circular chevron prev/next buttons) sits inside the card behind a `border-t border-gray-100`, and only renders when there's more than one page.
-- **Buyer avatar**: initials in a `rounded-full bg-[#DCE8F8] text-[#0F2747]` circle (powder blue — buyers arrive via the AI funnel).
-- **Search input**: `rounded-full border-gray-200` with a left `Search` icon, focus ring `ring-[#0F2747]/15` — same treatment as the header language selector.
-- **Overview canvas**: the overview scroll area uses `bg-[#F7F8FA]` with white cards on top; chat/brief views stay on white.
-- **Detail panel** (`BriefSummary`): white `w-80` right column (`border-l border-gray-200`). Header holds a `text-sm font-semibold` title and an inline status pill (no close control — the chat header's back arrow is the only way out of a brief). Sections use sentence-case `text-[13px] font-semibold` headings separated by `border-t border-gray-100` hairlines — optionally with an inline badge (the lead-quality pill sits next to "AI interview quality"). A section can be `collapsible` (currently only "AI interview quality"): the heading becomes a disclosure button with a right-aligned chevron, collapsed by default, badge visible while collapsed. Field rows are a two-column grid: `grid-cols-[92px_1fr]`, label `text-gray-400` left, value `text-gray-800` wrapping right, `text-xs`. Empty fields are omitted, never placeholder'd.
+### Dashboard primitives (`components/dashboard/`)
+- **Stat card:** `border-[1.5px] border-ink bg-sheet p-5`, a `type-data` label and a `type-title text-3xl` value.
+- **Table (`RfqTable`):** inside a sheet panel; header cells in `type-data`; the filter is a segmented control.
+- Small dashboard inputs and selects use `border-rule-strong` and go ink on focus; full-size inputs use the 1.5px ink border.
 
-### Sourcing progress timeline (buyer rail + AM stage picker)
-- Vertical 8-step timeline (`SourcingProgressRail` buyer-side; `StageSection` is the AM's clickable variant). Stage order + slugs come from `lib/sourcingStages.ts`.
-- Dots: done = `bg-[#0F2747] text-white` with a tiny `Check`; current = `border-2 border-[#0F2747]` ring with a navy center dot; upcoming = `border border-gray-300` hollow. Connector is a 1px vertical line — `bg-[#0F2747]/30` above the current stage, `bg-gray-200` below.
-- Labels: current `font-semibold text-gray-900`, done `text-gray-700`, upcoming `text-gray-400`; done/current stages show a `text-[10px] text-gray-400` timestamp (time if today, short date otherwise).
-- Buyer rail cards reuse the standard white `rounded-2xl border border-gray-200 p-4` card with `text-[11px] uppercase tracking-wider text-gray-400` eyebrows ("Sourcing progress", "Next step").
+### Sourcing progress timeline
+Vertical 8-step timeline (`SourcingProgressRail` buyer-side, `StageSection` for the AM). Done = ink dot with a check, current = ink ring, upcoming = hollow. Stage order and slugs come from `lib/sourcingStages.ts`.
 
-### Buyer status pill (sidebar dot + rail pill)
-- Rail pill uses the standard pill recipe (`rounded-full px-2 py-0.5 text-[10px] font-medium`): draft `bg-gray-100 text-gray-600`, active sourcing `bg-[#DCE8F8] text-[#0F2747]` (AI/brand accent), delivered `bg-emerald-100 text-emerald-800`, closed `bg-gray-200 text-gray-700`. Labels are English-pinned via `lib/progressStrings.ts` (`stageShort`) — workspace chrome never localizes.
-- Sidebar rows use a 6px status dot instead of a pill: gray-300 draft/closed, amber-400 waiting on the AM (submitted / in review), blue-500 sourcing in motion, emerald-500 delivered.
+### Loading
+- Typing indicator: three dots using the `blip` animation, shown only until the first streamed token.
+- Skeletons (`ChatShellSkeleton`, `app/dashboard/loading.tsx`): `animate-pulse` bars in `bg-ink/10` on the real page's frame. Static and hook-free.
 
-### Loading indicator (agent typing)
-- Three small dots in agent bubble, `animate-bounce` with staggered delays (`0.15s`, `0.3s`)
-- Shown only while waiting for the FIRST streamed token. Once reply text arrives, the growing agent bubble is the indicator (no dots under a bubble that's already typing).
+## Landing-page primitives (`components/landing/`)
 
-### Skeletons (page loading)
-- `components/chat/ChatShellSkeleton.tsx` and `app/dashboard/loading.tsx`: `animate-pulse` bars in `bg-gray-100` (rounded-full for text lines, rounded-xl/2xl for blocks) laid out on the real page's frame, so nothing jumps when content arrives.
-- Match the real widths (chat sidebar `w-72`, progress rail `w-80`, composer height) and keep static text (e.g. the "Sourcing concierge" header) real, not a bar.
-- Static and hook-free, so they can render in prerendered HTML and in `loading.tsx`.
+- `SectionHead`: plotted `h2` plus lead.
+- `InView`: one-shot scroll choreography (`kind="plot" | "reveal" | "draw"`). See Animations.
+- `ProcessRoll`: the scroll driver for the pinned process section.
+- `rig/`: the hero's three.js machine drawings (`HeroRig` shell, `engine.ts`, `terms.ts`).
+- Copy lives in `lib/landingContent.ts`, never inline in components.
 
 ## Animations
 
-- Single easing curve everywhere: `cubic-bezier(0.22, 1, 0.36, 1)`
-- **Above-the-fold entrances are CSS, not framer-motion.** `.hero-in` (`app/globals.css`) fades + lifts on first paint; per-element `--hero-dy` (lift distance) and inline `animation-delay` / `animation-duration` give the stagger. framer-motion's `initial={{ opacity: 0 }}` server-renders content invisible until JS hydrates, which made the landing page look slow. Respects `prefers-reduced-motion` (no animation). Ambient loops (the hero card float/pulse) can stay on framer-motion since they never hide content.
-- `Reveal` wrapper does a 16px y-translate + opacity fade on scroll into view (once-only); fine below the fold, don't use it for first-screen content
-- Accordion uses Radix's height + opacity transitions defined in `globals.css`
-- No parallax, no spring physics, no auto-playing carousels
+- **Nothing server-renders hidden.** Entrances are CSS animations, not framer-motion `initial` props, so content is visible without JS.
+  - Above the fold: `.hero-in` (fade and lift) and `.plot-now` (headline clip reveal) run at first paint.
+  - Below the fold: `<InView>` sets `data-plot` / `data-reveal` / `data-draw` to `pending` only if the element is still below the viewport at mount, then `run` when it arrives. The keyframes are in `globals.css` under `prefers-reduced-motion: no-preference`.
+- **Process roll.** A custom variant, `roll:` (min-width 960px, min-height 700px, motion allowed), turns the section into a `position: sticky` pin whose scroll distance is computed in CSS (`--roll-dist`). `ProcessRoll` only writes scroll progress to `--roll-p` (framer-motion `useScroll` + `useSpring`). Because the height is pure CSS, hash links to later sections land correctly before and after hydration. Outside the variant it is a plain grid (wide) or spine (phones).
+- **Hero rig.** Loaded with a dynamic `import()` on idle; renders only while on screen and the tab is visible; disposes its WebGL context on unmount. Without WebGL the callouts become a 2 x 2 grid.
+- `Reveal` (framer-motion fade-up) is still used by `/about` and `/contact`. Never put a background that must stay visible on the element `Reveal` wraps.
+- No smooth-scroll library. `scroll-behavior: smooth` is set in CSS for motion-allowed users, with `data-scroll-behavior="smooth"` on `<html>` so Next 16 still jumps instantly on route changes.
 
 ## Accessibility
 
-- All buttons have `aria-label` where the icon alone isn't enough (e.g. send button)
-- Enter to submit, Shift+Enter for newline — standard chat UX
-- Disabled state visually distinct (`disabled:bg-gray-200 disabled:text-gray-400`)
-- Focus rings on all interactive elements use `ring-[#0F2747]`
-
-**TODO:** add focus-visible styles for non-button elements; prefers-reduced-motion check for the loading bounce.
-
-## Dark mode (planned, not built)
-
-- Use Tailwind's `dark:` variants
-- Background: `dark:bg-gray-950`
-- Text: `dark:text-gray-100`
-- Accent: brighten midnight navy slightly for better contrast (`#1D4ED8` itself may become the dark-mode default)
+- Focus: `focus-visible:ring-2 ring-blueprint` (paint on the blueprint sheet).
+- Toggle buttons use `aria-pressed`; live regions (`aria-live="polite"`) announce diagram and scope changes.
+- Decorative drawings (rig canvas, step icons, route stepper) are `aria-hidden`; the adjacent text carries the meaning.
+- All motion respects `prefers-reduced-motion`.
+- The phone dock is `inert` while off screen.
 
 ## How to apply when extending
 
-- **Stay within the gray + midnight-blue palette.** Don't introduce new neutral families (slate, stone, zinc).
-- **Reuse the variables in `globals.css`** when authoring custom styles. Don't hardcode `#0F2747` in CSS files; use `var(--color-accent)`. Tailwind utilities can keep the hex inline.
-- **New visual primitive (modal, dropdown, table) →** add a section to this doc with the canonical pattern before using it twice.
-- **New icon →** SVG inline, 14–16px, `stroke-width="1.5"`, `currentColor` for fill/stroke.
-- **Status pill that represents AI behavior →** use the powder-blue + midnight-navy combination.
-- **Always update `docs/DESIGN_SYSTEM.md` AND `/brand/PALETTE.md` when changing color tokens.**
+- **Use tokens.** No hex in class names, no new neutral families.
+- **Follow the surface rule** (paper, sheet, white) and the shape rule (square panels, 3px controls).
+- **One paint action per surface.** If two things are yellow, one of them should be `secondary`.
+- **Redline is for risk markup only**, never for errors (errors use the red scale) or emphasis.
+- **New visual primitive** (modal, dropdown, table): add a section here before using it twice.
+- **New icon:** inline SVG or lucide, `stroke-width="1.5"`, `currentColor`.
+- **Always update this file AND `/brand/PALETTE.md` when changing color tokens.**

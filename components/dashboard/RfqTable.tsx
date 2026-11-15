@@ -22,12 +22,18 @@ const TABS: { id: BriefTab; label: string }[] = [
 ];
 
 const STATUS_PILL: Record<ClaimStatus, { label: string; className: string }> = {
-  mine: { label: "Mine", className: "bg-emerald-100 text-emerald-800" },
+  mine: {
+    label: "Mine",
+    className: "bg-emerald-100 text-emerald-800 ring-1 ring-inset ring-emerald-700/30",
+  },
   unclaimed: {
     label: "Unclaimed",
-    className: "bg-amber-100 text-amber-800",
+    className: "bg-amber-100 text-amber-800 ring-1 ring-inset ring-amber-700/30",
   },
-  other: { label: "Other AM", className: "bg-gray-200 text-gray-600" },
+  other: {
+    label: "Other AM",
+    className: "bg-ink/10 text-ink-soft ring-1 ring-inset ring-ink/20",
+  },
 };
 
 function initials(name: string): string {
@@ -104,21 +110,21 @@ export function RfqTable({
   const pageRows = visible.slice(pageStart, pageStart + PAGE_SIZE);
 
   return (
-    <section className="rounded-2xl border border-gray-200 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-5 py-4">
-        <h2 className="text-sm font-semibold text-gray-900">
+    <section className="rounded-none border-[1.5px] border-ink bg-sheet">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b-[1.5px] border-ink px-5 py-4">
+        <h2 className="type-title text-sm font-bold text-ink">
           Incoming briefs
         </h2>
-        <div className="flex items-center gap-1">
+        <div className="inline-flex overflow-hidden rounded-sm border-[1.5px] border-ink">
           {TABS.map((t) => (
             <button
               key={t.id}
               onClick={() => onTabChange(t.id)}
               className={cn(
-                "rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+                "whitespace-nowrap border-r border-rule-strong px-3 py-1.5 text-xs font-semibold transition-colors last:border-r-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blueprint focus-visible:ring-inset",
                 tab === t.id
-                  ? "bg-[#0F2747] text-white"
-                  : "text-gray-500 hover:bg-gray-50 hover:text-gray-900",
+                  ? "bg-ink text-sheet"
+                  : "bg-transparent text-ink hover:bg-ink/10",
               )}
             >
               {t.label} · {tabCount(t.id)}
@@ -128,11 +134,11 @@ export function RfqTable({
       </div>
 
       {loading ? (
-        <div className="px-5 py-8 text-center text-xs text-gray-400">
+        <div className="px-5 py-8 text-center text-xs text-gray-500">
           Loading briefs…
         </div>
       ) : visible.length === 0 ? (
-        <div className="px-5 py-8 text-center text-xs text-gray-400">
+        <div className="px-5 py-8 text-center text-xs text-gray-500">
           {q
             ? "No briefs match your search."
             : tab === "unclaimed"
@@ -146,11 +152,11 @@ export function RfqTable({
           <div className="overflow-x-auto">
             <table className="w-full text-left">
             <thead>
-              <tr className="border-b border-gray-100 text-[11px] font-medium uppercase tracking-wider text-gray-400">
-                <th className="px-5 py-3 font-medium">Brief</th>
-                <th className="px-5 py-3 font-medium">Buyer</th>
-                <th className="px-5 py-3 font-medium">Status</th>
-                <th className="px-5 py-3 font-medium">Updated</th>
+              <tr className="border-b border-rule-strong type-data text-xs font-semibold text-ink-soft">
+                <th className="px-5 py-3 font-semibold">Brief</th>
+                <th className="px-5 py-3 font-semibold">Buyer</th>
+                <th className="px-5 py-3 font-semibold">Status</th>
+                <th className="px-5 py-3 font-semibold">Updated</th>
                 <th className="px-5 py-3" aria-label="Open" />
               </tr>
             </thead>
@@ -176,10 +182,10 @@ export function RfqTable({
                     // ph-no-capture: rows render buyer name, company, and
                     // machine type. Opening a brief isn't a tracked CTA, so
                     // dropping the row's autocapture click costs no analytics.
-                    className="ph-no-capture cursor-pointer border-b border-gray-50 transition-colors last:border-b-0 hover:bg-gray-50/70"
+                    className="ph-no-capture cursor-pointer border-b border-rule transition-colors last:border-b-0 hover:bg-ink/5"
                   >
                     <td className="max-w-[280px] px-5 py-3.5">
-                      <div className="truncate text-sm font-medium text-gray-900">
+                      <div className="truncate text-sm font-semibold text-ink">
                         {r?.machine_type || b.title || "New brief"}
                       </div>
                       {subtitle && (
@@ -190,7 +196,7 @@ export function RfqTable({
                     </td>
                     <td className="max-w-[240px] px-5 py-3.5">
                       <div className="flex items-center gap-2.5">
-                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#DCE8F8] text-[11px] font-medium text-[#0F2747]">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-ink bg-white text-[11px] font-semibold text-ink">
                           {initials(buyerName)}
                         </span>
                         <div className="min-w-0">
@@ -208,18 +214,18 @@ export function RfqTable({
                     <td className="px-5 py-3.5">
                       <span
                         className={cn(
-                          "inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-medium",
+                          "type-data inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold",
                           pill.className,
                         )}
                       >
                         {pill.label}
                       </span>
                     </td>
-                    <td className="whitespace-nowrap px-5 py-3.5 text-xs text-gray-500">
+                    <td className="type-data whitespace-nowrap px-5 py-3.5 text-xs text-gray-500">
                       {timeAgo(b.updated_at)}
                     </td>
                     <td className="px-5 py-3.5">
-                      <span className="flex items-center justify-end gap-2 text-gray-400">
+                      <span className="flex items-center justify-end gap-2 text-ink-soft">
                         <MessageSquare className="h-4 w-4" strokeWidth={1.5} />
                         <ChevronRight className="h-4 w-4" strokeWidth={1.5} />
                       </span>
@@ -232,8 +238,8 @@ export function RfqTable({
           </div>
 
           {pageCount > 1 && (
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 px-5 py-3">
-              <span className="text-xs text-gray-500">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-rule-strong px-5 py-3">
+              <span className="type-data text-xs text-gray-500">
                 Showing {pageStart + 1}–
                 {Math.min(pageStart + PAGE_SIZE, visible.length)} of{" "}
                 {visible.length}
@@ -243,18 +249,18 @@ export function RfqTable({
                   onClick={() => setPage(safePage - 1)}
                   disabled={safePage === 0}
                   aria-label="Previous page"
-                  className="flex h-7 w-7 items-center justify-center rounded-full border border-gray-200 text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-900 disabled:pointer-events-none disabled:opacity-40"
+                  className="flex h-7 w-7 items-center justify-center rounded-sm border border-ink bg-white text-ink transition-colors hover:bg-ink hover:text-sheet focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blueprint disabled:pointer-events-none disabled:opacity-40"
                 >
                   <ChevronLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
                 </button>
-                <span className="text-xs tabular-nums text-gray-500">
+                <span className="type-data text-xs text-gray-500">
                   Page {safePage + 1} of {pageCount}
                 </span>
                 <button
                   onClick={() => setPage(safePage + 1)}
                   disabled={safePage >= pageCount - 1}
                   aria-label="Next page"
-                  className="flex h-7 w-7 items-center justify-center rounded-full border border-gray-200 text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-900 disabled:pointer-events-none disabled:opacity-40"
+                  className="flex h-7 w-7 items-center justify-center rounded-sm border border-ink bg-white text-ink transition-colors hover:bg-ink hover:text-sheet focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blueprint disabled:pointer-events-none disabled:opacity-40"
                 >
                   <ChevronRight className="h-3.5 w-3.5" strokeWidth={1.75} />
                 </button>

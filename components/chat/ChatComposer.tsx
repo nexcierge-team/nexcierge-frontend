@@ -169,7 +169,7 @@ export function ChatComposer({
             disabled={disabled || attachDisabled}
             aria-label="Attach files"
             title="Attach documents or media"
-            className="absolute left-2.5 bottom-2.5 flex h-9 w-9 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 disabled:cursor-not-allowed disabled:text-gray-300 disabled:hover:bg-transparent"
+            className="absolute left-2.5 bottom-2.5 flex h-9 w-9 items-center justify-center rounded-sm text-ink-soft transition-colors hover:bg-ink/10 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blueprint disabled:cursor-not-allowed disabled:text-gray-300 disabled:hover:bg-transparent"
           >
             <Paperclip className="h-4 w-4" strokeWidth={1.75} />
           </button>
@@ -197,7 +197,7 @@ export function ChatComposer({
           // text-base (16px) below sm: prevents iOS Safari from auto-zooming
           // when the textarea is focused — anything <16px triggers the zoom.
           // Desktop keeps the original tighter 15px.
-          "w-full resize-none rounded-2xl border border-gray-200 bg-white px-5 py-3.5 pr-14 text-base text-gray-900 placeholder:text-gray-400 shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-colors focus:border-gray-400 focus:outline-none sm:text-[15px]",
+          "w-full resize-none rounded-sm border-[1.5px] border-ink bg-white px-5 py-3.5 pr-14 text-base text-ink placeholder:text-gray-400 transition-colors focus:border-ink focus:outline-none focus:ring-2 focus:ring-blueprint/30 sm:text-[15px]",
           // Make room for the paperclip when the attach affordance is on.
           showAttach && "pl-12",
           // Hide the textarea's scrollbar (auto-resize handles vertical growth up to max-height)
@@ -232,7 +232,7 @@ export function ChatComposer({
         type="submit"
         disabled={!canSubmit}
         aria-label={cs.sendAria}
-        className="absolute right-2.5 bottom-2.5 flex h-9 w-9 items-center justify-center rounded-full bg-gray-900 text-white shadow-sm transition-all duration-200 hover:bg-gray-800 disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none"
+        className="absolute right-2.5 bottom-2.5 flex h-9 w-9 items-center justify-center rounded-sm border-2 border-ink bg-paint text-ink btn-wipe hover:text-paint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blueprint focus-visible:ring-offset-2 disabled:pointer-events-none disabled:border-ink/25 disabled:bg-ink/5 disabled:text-ink/35"
       >
         <ArrowUp className="h-4 w-4" strokeWidth={2} />
       </button>
@@ -251,10 +251,10 @@ function AttachmentChip({
   return (
     <span
       className={cn(
-        "inline-flex max-w-[220px] items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs",
+        "inline-flex max-w-[220px] items-center gap-2 rounded-sm border px-2.5 py-1.5 text-xs",
         error
-          ? "border-red-200 bg-red-50 text-red-800"
-          : "border-gray-200 bg-gray-50 text-gray-700",
+          ? "border-red-700/40 bg-red-50 text-red-800"
+          : "border-rule-strong bg-white text-gray-700",
       )}
       title={pending.error || pending.name}
     >
@@ -265,14 +265,14 @@ function AttachmentChip({
         />
       ) : error ? (
         <AlertCircle
-          className="h-3.5 w-3.5 shrink-0 text-red-500"
+          className="h-3.5 w-3.5 shrink-0 text-red-700"
           strokeWidth={1.75}
         />
       ) : (
         <Paperclip className="h-3.5 w-3.5 shrink-0 text-gray-400" strokeWidth={1.75} />
       )}
       <span className="min-w-0 truncate font-medium">{pending.name}</span>
-      <span className="shrink-0 text-[10px] text-gray-400">
+      <span className="type-data shrink-0 text-[11px] text-gray-500">
         {error ? pending.error : humanFileSize(pending.size)}
       </span>
       {onRemove && (
@@ -280,7 +280,7 @@ function AttachmentChip({
           type="button"
           onClick={onRemove}
           aria-label={`Remove ${pending.name}`}
-          className="-mr-1 flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-700"
+          className="-mr-1 flex h-4 w-4 shrink-0 items-center justify-center rounded-sm text-gray-500 transition-colors hover:bg-ink/10 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blueprint"
         >
           <X className="h-3 w-3" strokeWidth={2} />
         </button>

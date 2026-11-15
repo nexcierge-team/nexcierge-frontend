@@ -67,17 +67,17 @@ export default function ContactPage() {
   return (
     <>
       <main>
-        <section className="bg-white">
-          <div className="mx-auto max-w-6xl px-6 pt-20 pb-24 sm:pt-28">
+        <section className="pt-[calc(var(--nav-h)+clamp(28px,5vw,64px))] pb-[clamp(60px,8vw,108px)]">
+          <div className="wrap">
             <Reveal>
               <div className="max-w-2xl">
-                <div className="text-xs font-medium uppercase tracking-[0.18em] text-[#0F2747]">
+                <div className="type-data text-sm font-semibold text-ink-soft">
                   Contact
                 </div>
-                <h1 className="mt-3 text-4xl font-semibold tracking-[-0.02em] text-gray-900 sm:text-5xl">
+                <h1 className="type-display mt-3 text-[length:clamp(2.2rem,1.3rem+3.4vw,3.7rem)] font-extrabold leading-[0.98] text-ink">
                   Talk to the team.
                 </h1>
-                <p className="mt-5 text-base leading-relaxed text-gray-600 sm:text-lg">
+                <p className="mt-5 text-base leading-relaxed text-ink-soft sm:text-lg">
                   For sourcing inquiries, the AI sourcing concierge is the
                   fastest path. For everything else, including partnerships,
                   press, and enterprise procurement, drop a note below.
@@ -89,23 +89,23 @@ export default function ContactPage() {
               <Reveal delay={0.05}>
                 <form
                   onSubmit={onSubmit}
-                  className="rounded-3xl border border-gray-200 bg-white p-7 shadow-[0_1px_2px_rgba(0,0,0,0.03)] sm:p-9"
+                  className="rounded-none border-[1.5px] border-ink bg-sheet p-7 sm:p-9"
                 >
                   {submitted ? (
                     <div className="flex flex-col items-center justify-center py-10 text-center">
                       <CheckCircle2
-                        className="h-7 w-7 text-[#0F2747]"
+                        className="h-7 w-7 text-ink"
                         strokeWidth={1.5}
                       />
-                      <h3 className="mt-4 text-xl font-semibold text-gray-900">
+                      <h3 className="type-title mt-4 text-xl font-bold text-ink">
                         Almost there.
                       </h3>
-                      <p className="mt-2 max-w-sm text-sm leading-relaxed text-gray-600">
+                      <p className="mt-2 max-w-sm text-sm leading-relaxed text-ink-soft">
                         Your mail client should open with the message ready to
                         send. If nothing happened, write to{" "}
                         <a
                           href={`mailto:${CONTACT_INBOX}`}
-                          className="font-medium text-[#0F2747] underline-offset-4 hover:underline"
+                          className="font-semibold text-blueprint underline underline-offset-4 hover:text-ink"
                         >
                           {CONTACT_INBOX}
                         </a>{" "}
@@ -166,7 +166,7 @@ export default function ContactPage() {
                       </Field>
 
                       <div className="flex items-center justify-between pt-2">
-                        <p className="text-xs text-gray-500">
+                        <p className="type-data text-sm font-semibold text-ink-soft">
                           We reply within one business day.
                         </p>
                         <Button type="submit" disabled={busy}>
@@ -180,32 +180,32 @@ export default function ContactPage() {
 
               <Reveal delay={0.1}>
                 <div className="space-y-7">
-                  <p className="text-sm leading-relaxed text-gray-500">
+                  <p className="text-sm leading-relaxed text-ink-soft">
                     Working hours are 09:00–18:00 China Standard Time (UTC+8).
                     Cross-border sourcing inquiries usually get a response
                     within a few hours during these windows.
                   </p>
 
-                  <div className="rounded-2xl border border-gray-200 bg-white">
-                    <ul className="divide-y divide-gray-100">
+                  <div className="rounded-none border-[1.5px] border-ink bg-sheet">
+                    <ul className="divide-y divide-rule-strong">
                       {CHANNELS.map((c) => (
                         <li
                           key={c.label}
                           className="flex items-start gap-4 px-6 py-5"
                         >
                           <c.icon
-                            className="mt-0.5 h-4 w-4 shrink-0 text-gray-400"
+                            className="mt-0.5 h-4 w-4 shrink-0 text-ink"
                             strokeWidth={1.5}
                           />
                           <div className="min-w-0 flex-1">
-                            <div className="text-xs font-medium uppercase tracking-[0.14em] text-gray-400">
+                            <div className="type-data text-[13px] font-semibold text-ink-soft">
                               {c.label}
                             </div>
-                            <div className="mt-1 whitespace-pre-line text-sm text-gray-900">
+                            <div className="mt-1 whitespace-pre-line text-sm font-semibold text-ink">
                               {c.href ? (
                                 <a
                                   href={c.href}
-                                  className="hover:text-[#0F2747] transition-colors"
+                                  className="text-blueprint underline underline-offset-4 transition-colors hover:text-ink"
                                 >
                                   {c.value}
                                 </a>
@@ -241,7 +241,7 @@ function Field({
     <div>
       <label
         htmlFor={htmlFor}
-        className="mb-1.5 block text-sm font-medium text-gray-900"
+        className="mb-1.5 block text-sm font-semibold text-ink"
       >
         {label}
       </label>

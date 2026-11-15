@@ -2,70 +2,68 @@
 
 import Link from "next/link";
 import { useUserRole } from "@/lib/useUserRole";
+import { FOOTER, NAV_LINKS } from "@/lib/landingContent";
+import { Wordmark } from "./Wordmark";
 
+// The footer is the drawing's title block: three ruled cells on ink.
 export function Footer() {
   const { role } = useUserRole();
   const isAccountManager = role === "account_manager";
 
-  const COLUMNS = [
-    {
-      title: "Company",
-      links: [
-        { href: "/about", label: "About" },
-        { href: "/contact", label: "Contact" },
-        ...(isAccountManager
-          ? [{ href: "/dashboard", label: "Dashboard" }]
-          : []),
-      ],
-    },
-    {
-      title: "Legal",
-      links: [
-        { href: "/contact", label: "Privacy" },
-        { href: "/contact", label: "Terms" },
-      ],
-    },
+  const links = [
+    { href: "/#risks", label: "Why deals go wrong" },
+    ...NAV_LINKS.map((l) =>
+      l.href === "/#agent" ? { ...l, label: "Intake agent" } : l,
+    ),
+    { href: "/about", label: "About" },
+    { href: "/contact", label: "Contact" },
+    ...(isAccountManager ? [{ href: "/dashboard", label: "Dashboard" }] : []),
   ];
 
+  const cell = "border-sheet/40 p-[18px] max-[859px]:border-b min-[860px]:border-r last:border-0";
+  const key = "type-data mb-1 text-[13px] font-semibold opacity-70";
+
   return (
-    <footer className="border-t border-gray-200 bg-white">
-      <div className="mx-auto grid max-w-6xl gap-12 px-6 py-16 md:grid-cols-[2fr_1fr_1fr]">
-        <div className="max-w-sm">
-          <div className="font-semibold tracking-[0.16em] text-[15px] text-gray-900">
-            NEXCIERGE
+    <footer className="bg-ink pb-[110px] pt-[clamp(40px,6vw,72px)] text-sheet min-[960px]:pb-[clamp(40px,6vw,72px)]">
+      <div className="wrap">
+        <div className="grid border-[1.5px] border-sheet min-[860px]:grid-cols-[2fr_1.4fr_1.4fr]">
+          <div className={cell}>
+            <div className={key}>Company</div>
+            <Wordmark className="text-[clamp(1.6rem,1rem+3vw,2.6rem)] text-sheet" />
+            <p className="mt-2.5 max-w-[36ch] opacity-85">{FOOTER.blurb}</p>
           </div>
-          <p className="mt-4 text-sm leading-relaxed text-gray-500">
-            The smart way to source industrial machinery: AI sourcing concierge,
-            verified Chinese manufacturers, managed procurement.
-          </p>
-        </div>
-
-        {COLUMNS.map((col) => (
-          <div key={col.title}>
-            <div className="text-xs font-medium uppercase tracking-wider text-gray-400">
-              {col.title}
+          <div className={cell}>
+            <div className={key}>Contact</div>
+            <div className="grid gap-1.5">
+              <a
+                href={`mailto:${FOOTER.email}`}
+                className="underline underline-offset-4"
+              >
+                {FOOTER.email}
+              </a>
+              <Link href="/contact" className="underline underline-offset-4">
+                Contact form
+              </Link>
             </div>
-            <ul className="mt-4 space-y-3">
-              {col.links.map((link) => (
-                <li key={link.label}>
-                  <Link
-                    href={link.href}
-                    className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
-                  >
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
           </div>
-        ))}
-      </div>
-
-      <div className="border-t border-gray-200">
-        <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-3 px-6 py-6 text-xs text-gray-400 md:flex-row md:items-center">
-          <div>© {new Date().getFullYear()} Nexcierge. All rights reserved.</div>
-          <div>Sourcing concierge for international machinery buyers.</div>
+          <div className={cell}>
+            <div className={key}>Sheets</div>
+            <div className="flex flex-wrap gap-x-5 gap-y-1.5">
+              {links.map((l) => (
+                <Link
+                  key={l.href}
+                  href={l.href}
+                  className="underline underline-offset-4"
+                >
+                  {l.label}
+                </Link>
+              ))}
+            </div>
+          </div>
         </div>
+        <p className="mt-[18px] text-sm opacity-75">
+          © {new Date().getFullYear()} Nexcierge. {FOOTER.legal}
+        </p>
       </div>
     </footer>
   );

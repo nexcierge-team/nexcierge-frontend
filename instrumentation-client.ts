@@ -12,12 +12,39 @@ const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
 // analytics (UTM params are already extracted into their own properties).
 // Defense-in-depth alongside the `ph-no-capture` class on buyer-content
 // elements, which stops autocapture from recording buyer free text.
-function scrubUrlProps(result: CaptureResult | null): CaptureResult | null {
-  if (!result?.properties) return result;
-  for (const k of ["$current_url", "$referrer"]) {
-    const v = result.properties[k];
-    if (typeof v === "string") result.properties[k] = v.replace(/[?#].*$/, "");
+//
+// posthog-js repeats the page URL under several keys: on the event itself
+// (`$current_url`, `$referrer`, `$session_entry_url`,
+// `$session_entry_referrer`) and inside the person-property payloads
+// (`$set` / `$set_once`: `$current_url`, `$initial_current_url`,
+// `$initial_referrer`, ...). All of them are scrubbed, so a query string
+// can't leak through a key we forgot.
+const URL_PROPS = [
+  "$current_url",
+  "$referrer",
+  "$session_entry_url",
+  "$session_entry_referrer",
+  "$initial_current_url",
+  "$initial_referrer",
+  "$prev_pageview_url",
+];
+
+function scrubBag(bag: unknown): void {
+  if (!bag || typeof bag !== "object") return;
+  const props = bag as Record<string, unknown>;
+  for (const k of URL_PROPS) {
+    const v = props[k];
+    if (typeof v === "string") props[k] = v.replace(/[?#].*$/, "");
   }
+}
+
+function scrubUrlProps(result: CaptureResult | null): CaptureResult | null {
+  if (!result) return result;
+  scrubBag(result.properties);
+  scrubBag(result.properties?.$set);
+  scrubBag(result.properties?.$set_once);
+  scrubBag(result.$set);
+  scrubBag(result.$set_once);
   return result;
 }
 

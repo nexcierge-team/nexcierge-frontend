@@ -66,16 +66,16 @@ export function LessonsPane({ onBack }: { onBack: () => void }) {
 
   return (
     <div className="flex h-full flex-col">
-      <header className="flex items-center gap-3 border-b border-gray-200 bg-white/85 px-6 py-4 backdrop-blur-xl">
+      <header className="flex items-center gap-3 border-b border-rule-strong bg-sheet px-6 py-4">
         <button
           onClick={onBack}
           aria-label="Back to overview"
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 md:hidden"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm text-ink-soft transition-colors hover:bg-ink/10 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blueprint md:hidden"
         >
           <ArrowLeft className="h-4 w-4" strokeWidth={1.5} />
         </button>
         <div>
-          <h1 className="text-sm font-semibold text-gray-900">
+          <h1 className="type-title text-sm font-bold text-ink">
             Agent lessons
           </h1>
           <p className="text-xs text-gray-500">
@@ -102,11 +102,11 @@ export function LessonsPane({ onBack }: { onBack: () => void }) {
             </p>
           ) : (
             <>
-              <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+              <div className="mb-2 type-data text-xs font-semibold text-ink-soft">
                 Needs review · {proposed.length}
               </div>
               {proposed.length === 0 ? (
-                <p className="mb-6 text-xs text-gray-400">
+                <p className="mb-6 text-xs text-gray-500">
                   Nothing waiting on you.
                 </p>
               ) : (
@@ -114,7 +114,7 @@ export function LessonsPane({ onBack }: { onBack: () => void }) {
                   {proposed.map((l) => (
                     <li
                       key={l.id}
-                      className="rounded-xl border border-gray-200 bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.03)]"
+                      className="rounded-none border-[1.5px] border-ink bg-sheet p-4"
                     >
                       {editingId === l.id ? (
                         <textarea
@@ -123,10 +123,10 @@ export function LessonsPane({ onBack }: { onBack: () => void }) {
                           rows={3}
                           maxLength={1000}
                           autoFocus
-                          className="w-full resize-none rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0F2747]/15"
+                          className="w-full resize-none rounded-sm border border-rule-strong bg-white px-3 py-2 text-sm text-ink focus:border-ink focus:outline-none focus:ring-2 focus:ring-blueprint/30"
                         />
                       ) : (
-                        <p className="text-sm font-medium text-gray-900">
+                        <p className="text-sm font-semibold text-ink">
                           {l.lesson_text}
                         </p>
                       )}
@@ -191,7 +191,7 @@ export function LessonsPane({ onBack }: { onBack: () => void }) {
                         )}
                         {busyId === l.id && (
                           <Loader2
-                            className="h-3.5 w-3.5 animate-spin text-gray-400"
+                            className="h-3.5 w-3.5 animate-spin text-ink-soft"
                             strokeWidth={1.75}
                           />
                         )}
@@ -203,21 +203,21 @@ export function LessonsPane({ onBack }: { onBack: () => void }) {
 
               {reviewed.length > 0 && (
                 <>
-                  <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+                  <div className="mb-2 type-data text-xs font-semibold text-ink-soft">
                     Reviewed · {reviewed.length}
                   </div>
                   <ul className="space-y-2">
                     {reviewed.map((l) => (
                       <li
                         key={l.id}
-                        className="flex items-start gap-2.5 rounded-lg bg-gray-50 px-3.5 py-2.5"
+                        className="flex items-start gap-2.5 rounded-none border border-rule-strong bg-sheet px-3.5 py-2.5"
                       >
                         <span
                           className={cn(
-                            "mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium",
+                            "type-data mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold",
                             l.status === "approved"
-                              ? "bg-emerald-100 text-emerald-800"
-                              : "bg-gray-200 text-gray-600",
+                              ? "bg-emerald-100 text-emerald-800 ring-1 ring-inset ring-emerald-700/30"
+                              : "bg-ink/10 text-ink-soft ring-1 ring-inset ring-ink/20",
                           )}
                         >
                           {l.status === "approved" ? "Approved" : "Rejected"}

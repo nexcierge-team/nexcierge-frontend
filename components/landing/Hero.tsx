@@ -1,67 +1,71 @@
-"use client";
-
-import type { CSSProperties } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { HeroChatPreview } from "./HeroChatPreview";
+import { cn } from "@/lib/utils";
+import { HERO } from "@/lib/landingContent";
+import { HeroRig } from "./rig/HeroRig";
+import { H1, LEAD } from "./styles";
 
+// Sheet 1. The headline is plotted in with a pure-CSS clip (`plot-now`)
+// and the rest staggers in with `hero-in`, so the server-rendered copy is
+// never waiting on hydration. The 3D rig is a lazy client island.
 export function Hero() {
   return (
-    <section className="relative overflow-hidden border-b border-gray-200/70">
-      <div className="mx-auto grid max-w-6xl items-center gap-16 px-6 pt-20 pb-24 lg:grid-cols-[1.05fr_0.95fr] lg:gap-12 lg:pt-28 lg:pb-32">
-        <div className="max-w-2xl">
-          <div
-            className="hero-in inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs text-gray-600"
-            style={{ "--hero-dy": "12px", animationDuration: "0.5s" } as CSSProperties}
-          >
-            <span className="h-1.5 w-1.5 rounded-full bg-[#0F2747]" />
-            AI sourcing concierge · now in private preview
-          </div>
-
-          <h1
-            className="hero-in mt-6 text-[2.75rem] font-semibold leading-[1.05] tracking-[-0.02em] text-gray-900 sm:text-5xl lg:text-[3.5rem]"
-            style={{ "--hero-dy": "16px", animationDelay: "50ms" } as CSSProperties}
-          >
-            Source machinery
-            <br className="hidden sm:block" />
-            <span className="text-gray-500"> without</span>
-            <span className="text-gray-900"> guesswork.</span>
-          </h1>
-
-          <p
-            className="hero-in mt-5 max-w-xl text-xl font-medium leading-snug text-gray-800 sm:text-2xl"
-            style={{ "--hero-dy": "14px", animationDelay: "100ms" } as CSSProperties}
-          >
-            From AI consultation to factory-floor validation, we handle every
-            step of your procurement.
+    <header
+      id="top"
+      className="bg-drafting relative pb-[clamp(40px,6vw,72px)] pt-[calc(var(--nav-h)+clamp(28px,5vw,64px))]"
+    >
+      <div className="wrap grid items-center gap-[clamp(24px,4vw,48px)] min-[960px]:grid-cols-[minmax(0,5.6fr)_minmax(0,6.4fr)]">
+        <div className="relative z-[2] grid gap-[22px]">
+          <h1 className={cn(H1, "plot-now")}>{HERO.title}</h1>
+          <p className={cn(LEAD, "hero-in")} style={{ animationDelay: "0.7s" }}>
+            {HERO.lead}
           </p>
-
-          <p
-            className="hero-in mt-6 max-w-xl text-lg leading-relaxed text-gray-600"
-            style={{ "--hero-dy": "12px", animationDelay: "150ms" } as CSSProperties}
-          >
-            Describe what you need. Our AI sourcing concierge helps identify
-            suppliers, qualify requirements, and connect you with a managed
-            sourcing workflow.
-          </p>
-
           <div
-            className="hero-in mt-9 flex flex-wrap items-center gap-3"
-            style={{ "--hero-dy": "12px", animationDelay: "250ms" } as CSSProperties}
+            className="hero-in flex flex-wrap gap-3"
+            style={{ animationDelay: "0.8s" }}
           >
-            <Button asChild variant="secondary" size="lg">
-              <Link href="#how-it-works">How it works</Link>
+            <Button asChild size="lg">
+              <Link href="/chat" data-ph-capture-attribute-cta="hero">
+                Start a brief
+              </Link>
             </Button>
-            <p className="text-sm text-gray-500">
-              or click the chat to start sourcing →
-            </p>
+            <Button asChild size="lg" variant="secondary">
+              <Link href="/#process">See how it works</Link>
+            </Button>
           </div>
+          <p
+            className="hero-in max-w-[52ch] text-[13px] text-ink-soft"
+            style={{ animationDelay: "0.9s" }}
+          >
+            {HERO.caption}
+          </p>
         </div>
-
-        <div className="flex justify-center lg:justify-end">
-          <HeroChatPreview />
-        </div>
+        <HeroRig />
       </div>
-    </section>
+
+      <div className="wrap">
+        <dl className="mt-[clamp(28px,4vw,48px)] grid grid-cols-2 border border-ink bg-sheet min-[960px]:grid-cols-4">
+          {HERO.ledger.map((cell, i) => (
+            <div
+              key={cell.term}
+              className={cn(
+                "hero-in border-rule-strong px-4 py-3.5",
+                i === 0 && "border-b border-r min-[960px]:border-b-0",
+                i === 1 && "border-b min-[960px]:border-b-0 min-[960px]:border-r",
+                i === 2 && "border-r",
+              )}
+              style={{ animationDelay: `${1.1 + i * 0.08}s`, ["--hero-dy" as string]: "0px" }}
+            >
+              <dt className="type-data text-[13px] font-semibold text-ink-soft">
+                {cell.term}
+              </dt>
+              <dd className="mt-0.5 font-bold leading-tight [font-stretch:108%]">
+                {cell.value}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+    </header>
   );
 }

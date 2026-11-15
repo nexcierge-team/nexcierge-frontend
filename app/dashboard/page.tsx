@@ -648,7 +648,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="flex h-screen bg-white">
+    <div className="flex h-screen bg-paper">
       <DashboardSidebar
         active={open ? "overview" : view}
         onNavigate={navigate}
@@ -679,7 +679,7 @@ export default function DashboardPage() {
             onGenerateLessons={generateLessons}
           />
         ) : openLoading ? (
-          <div className="flex h-full items-center justify-center text-sm text-gray-500">
+          <div className="flex h-full items-center justify-center text-sm text-ink-soft">
             <span className="inline-flex items-center gap-2">
               <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.75} />
               Loading brief…

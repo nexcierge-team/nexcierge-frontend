@@ -153,7 +153,7 @@ export function AuthModal({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 p-4 pt-safe pb-safe pl-safe pr-safe backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4 pt-safe pb-safe pl-safe pr-safe backdrop-blur-sm"
           onClick={isLoading ? undefined : onClose}
           role="dialog"
           aria-modal="true"
@@ -165,13 +165,13 @@ export function AuthModal({
             exit={{ opacity: 0, y: 8, scale: 0.97 }}
             transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
             onClick={(e) => e.stopPropagation()}
-            className="relative w-full max-w-md overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_24px_80px_-24px_rgba(0,0,0,0.25)]"
+            className="relative w-full max-w-md overflow-hidden rounded-none border-[1.5px] border-ink bg-sheet shadow-[0_18px_48px_-24px_rgba(14,36,64,0.45)]"
           >
             <button
               onClick={onClose}
               disabled={isLoading}
               aria-label="Close"
-              className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-sm text-ink-soft transition-colors hover:bg-ink/10 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blueprint disabled:cursor-not-allowed disabled:opacity-50"
             >
               <X className="h-4 w-4" strokeWidth={1.5} />
             </button>
@@ -179,23 +179,23 @@ export function AuthModal({
             <div className="px-6 pt-7 pb-6">
               <h2
                 id="auth-modal-title"
-                className="text-lg font-semibold tracking-[-0.01em] text-gray-900"
+                className="type-title text-lg font-bold text-ink"
               >
                 {title}
               </h2>
-              <p className="mt-1.5 text-sm leading-relaxed text-gray-500">
+              <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">
                 {description}
               </p>
 
               {flow.kind === "magic_link_sent" ? (
-                <div className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-4">
+                <div className="mt-6 rounded-none border border-emerald-700/40 bg-emerald-50 px-4 py-4">
                   <div className="flex items-start gap-3">
                     <CheckCircle2
-                      className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600"
+                      className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700"
                       strokeWidth={2}
                     />
                     <div>
-                      <p className="text-sm font-medium text-emerald-900">
+                      <p className="text-sm font-semibold text-emerald-900">
                         Check your email
                       </p>
                       <p className="mt-1 text-xs leading-relaxed text-emerald-800">
@@ -225,10 +225,10 @@ export function AuthModal({
                     Continue with Google
                   </Button>
 
-                  <div className="my-5 flex items-center gap-3 text-[11px] text-gray-400">
-                    <span className="h-px flex-1 bg-gray-200" />
+                  <div className="type-data my-5 flex items-center gap-3 text-xs font-semibold text-ink-soft">
+                    <span className="h-px flex-1 bg-rule-strong" />
                     OR
-                    <span className="h-px flex-1 bg-gray-200" />
+                    <span className="h-px flex-1 bg-rule-strong" />
                   </div>
 
                   <form onSubmit={sendMagicLink} className="space-y-3">
@@ -241,7 +241,7 @@ export function AuthModal({
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="you@company.com"
                         disabled={isLoading}
-                        className="w-full rounded-full border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[#0F2747] focus:outline-none focus:ring-2 focus:ring-[#0F2747]/15 disabled:opacity-50"
+                        className="w-full rounded-sm border-[1.5px] border-ink bg-white px-4 py-2.5 text-sm text-ink placeholder:text-gray-400 focus:border-ink focus:outline-none focus:ring-2 focus:ring-blueprint/30 disabled:opacity-50"
                       />
                     </label>
                     <Button
@@ -268,7 +268,7 @@ export function AuthModal({
                 <p className="mt-4 text-xs text-red-700">{flow.message}</p>
               )}
 
-              <p className="mt-6 text-[11px] leading-relaxed text-gray-400">
+              <p className="mt-6 text-[11px] leading-relaxed text-gray-500">
                 By continuing, you agree to Nexcierge&apos;s terms. No password
                 required. We use one-tap and email links.
               </p>

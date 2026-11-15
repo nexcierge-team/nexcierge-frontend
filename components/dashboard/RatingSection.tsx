@@ -25,9 +25,9 @@ function issueOptions(
 // Shared with BriefSummary, which renders the verdict pill inline in
 // the "AI brief quality" section heading.
 export const QUALITY_CHIP: Record<LeadQuality, string> = {
-  qualified: "bg-emerald-100 text-emerald-800",
-  partial: "bg-amber-100 text-amber-800",
-  junk: "bg-red-100 text-red-800",
+  qualified: "bg-emerald-100 text-emerald-800 ring-1 ring-inset ring-emerald-700/30",
+  partial: "bg-amber-100 text-amber-800 ring-1 ring-inset ring-amber-700/30",
+  junk: "bg-red-100 text-red-800 ring-1 ring-inset ring-red-700/30",
 };
 
 // Keyed by rfq.id in the parent so all state resets when the AM switches
@@ -144,7 +144,7 @@ export function RatingSection({
           )}
         </Button>
         {genState === "error" && (
-          <p className="text-[11px] text-red-600">{chrome.lessonsFailed}</p>
+          <p className="text-[11px] text-red-700">{chrome.lessonsFailed}</p>
         )}
         {genCount !== null &&
           (genCount > 0 ? (
@@ -158,7 +158,7 @@ export function RatingSection({
           ))}
         <button
           onClick={() => setEditing(true)}
-          className="inline-flex items-center gap-1 text-[11px] text-gray-400 transition-colors hover:text-gray-700"
+          className="inline-flex items-center gap-1 rounded-sm text-[11px] text-gray-500 transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blueprint"
         >
           <Pencil className="h-3 w-3" strokeWidth={1.75} />
           {chrome.editRating}
@@ -176,10 +176,10 @@ export function RatingSection({
             key={q}
             onClick={() => setQuality(q)}
             className={cn(
-              "flex-1 rounded-full border px-2 py-1.5 text-xs font-medium transition-colors",
+              "flex-1 rounded-sm border px-2 py-1.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blueprint",
               quality === q
                 ? cn("border-transparent", QUALITY_CHIP[q])
-                : "border-gray-200 bg-white text-gray-600 hover:border-gray-300",
+                : "border-rule-strong bg-white text-ink-soft hover:border-ink hover:text-ink",
             )}
           >
             {qualityLabel[q]}
@@ -200,7 +200,7 @@ export function RatingSection({
                 type="checkbox"
                 checked={issues.has(o.slug)}
                 onChange={() => toggleIssue(o.slug)}
-                className="h-3.5 w-3.5 rounded border-gray-300 accent-[#0F2747]"
+                className="h-3.5 w-3.5 rounded-sm border-rule-strong accent-ink"
               />
               {o.label}
             </label>
@@ -215,7 +215,7 @@ export function RatingSection({
           placeholder={chrome.notePlaceholder}
           rows={2}
           maxLength={2000}
-          className="w-full resize-none rounded-lg border border-gray-200 bg-white px-2.5 py-2 text-xs text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0F2747]/15"
+          className="w-full resize-none rounded-sm border border-rule-strong bg-white px-2.5 py-2 text-xs text-ink placeholder:text-gray-400 focus:border-ink focus:outline-none focus:ring-2 focus:ring-blueprint/30"
         />
       </div>
       <Button
@@ -228,7 +228,7 @@ export function RatingSection({
         {saving ? chrome.savingRating : chrome.saveRating}
       </Button>
       {saveError && (
-        <p className="text-[11px] text-red-600">{chrome.ratingFailed}</p>
+        <p className="text-[11px] text-red-700">{chrome.ratingFailed}</p>
       )}
     </div>
   );
