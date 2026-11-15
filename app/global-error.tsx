@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import posthog from "posthog-js";
+import { archivo } from "./fonts";
 import "./globals.css";
 
 // Root React error boundary. Next.js renders this in place of the whole
@@ -24,7 +25,7 @@ export default function GlobalError({
   }, [error]);
 
   return (
-    <html lang="en">
+    <html lang="en" className={archivo.variable}>
       <body className="min-h-screen bg-paper text-ink antialiased">
         <main className="flex min-h-screen flex-col items-center justify-center px-6 text-center">
           <p className="type-data text-sm font-semibold text-ink-soft">

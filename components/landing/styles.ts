@@ -2,7 +2,7 @@
 // sizing stay identical from sheet to sheet.
 
 export const H1 =
-  "type-display font-extrabold text-[clamp(2.2rem,1.3rem+3.4vw,3.7rem)] leading-[0.98]";
+  "type-display font-extrabold text-[clamp(2.2rem,1.3rem+3.1vw,3.4rem)] leading-[0.98]";
 
 export const H2 =
   "type-display font-extrabold text-[clamp(1.75rem,1.1rem+2.7vw,3.2rem)] leading-[1.03] max-w-[21ch]";

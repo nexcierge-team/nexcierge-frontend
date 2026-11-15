@@ -1,6 +1,6 @@
 import { cardStrings } from "@/lib/cardStrings";
 import { AGENT } from "@/lib/landingContent";
-import { AgentConsole } from "./AgentConsole";
+import { AgentConsole, type FileGroup } from "./AgentConsole";
 import { InView } from "./InView";
 import { SectionHead } from "./SectionHead";
 import { SECTION } from "./styles";
@@ -10,18 +10,21 @@ import { SECTION } from "./styles";
 // Labels come from the same table the real brief card uses, so the
 // preview and the product can't drift apart. Resolved here on the server
 // so the client island doesn't ship the whole i18n table.
-function fileLabels(language: string): string[] {
+function fileGroups(language: string): FileGroup[] {
   const s = cardStrings(language);
   return [
-    s.labelType,
-    s.labelApplication,
-    s.labelQuantity,
-    s.labelCountry,
-    s.labelCityPort,
-    s.labelTimeline,
-    s.labelName,
-    s.labelCompany,
-    s.labelEmail,
+    {
+      title: s.sectionMachine,
+      labels: [s.labelType, s.labelApplication, s.labelQuantity],
+    },
+    {
+      title: s.sectionDelivery,
+      labels: [s.labelCountry, s.labelCityPort, s.labelTimeline],
+    },
+    {
+      title: s.sectionBuyer,
+      labels: [s.labelName, s.labelCompany, s.labelEmail],
+    },
   ];
 }
 
@@ -35,7 +38,7 @@ export function Agent() {
       <div className="wrap">
         <SectionHead title={AGENT.title} lead={AGENT.lead} />
         <AgentConsole
-          fileLabels={{ en: fileLabels("en"), zh: fileLabels("zh") }}
+          fileGroups={{ en: fileGroups("en"), zh: fileGroups("zh") }}
         />
       </div>
     </section>

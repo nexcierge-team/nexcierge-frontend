@@ -221,7 +221,8 @@ export const CONSOLE_COPY: Record<
 export type HistoryKind = "chat" | "doc" | "pay";
 
 export const ACCOUNT: {
-  title: string;
+  // Two sentences, set on their own lines.
+  title: [string, string];
   lead: string;
   facts: { title: string; text: string }[];
   cta: string;
@@ -231,7 +232,7 @@ export const ACCOUNT: {
   filters: { key: "all" | HistoryKind; label: string; noun: [string, string] }[];
   history: { kind: HistoryKind; tag: string; label: string; status: string }[];
 } = {
-  title: "Log in once. The whole order lives there.",
+  title: ["Log in once.", "The whole order lives there."],
   lead: "Your account keeps the full history of every order, and you transact in it directly. Documents and payment links arrive in the same place, so nothing is scattered across email threads.",
   facts: [
     {

@@ -103,8 +103,11 @@ export default function AboutPage() {
           <div className="wrap">
             <div className="grid gap-px border-[1.5px] border-ink bg-rule-strong md:grid-cols-2">
               {PILLARS.map((p, i) => (
-                <Reveal key={p.title} delay={i * 0.05}>
-                  <div className="flex h-full flex-col gap-3 bg-sheet p-8">
+                // The sheet fill sits outside <Reveal>, so the grid's rule
+                // colour never shows through a cell that hasn't faded in.
+                <div key={p.title} className="bg-sheet">
+                <Reveal delay={i * 0.05}>
+                  <div className="flex h-full flex-col gap-3 p-8">
                     <p.icon className="h-6 w-6 text-ink" strokeWidth={1.5} />
                     <h3 className="type-title mt-2 text-xl font-bold leading-tight text-ink">
                       {p.title}
@@ -114,6 +117,7 @@ export default function AboutPage() {
                     </p>
                   </div>
                 </Reveal>
+                </div>
               ))}
             </div>
           </div>

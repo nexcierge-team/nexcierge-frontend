@@ -13,15 +13,22 @@ import {
 import { cn } from "@/lib/utils";
 import { SEG, SEG_BTN } from "./styles";
 
+// One section of the sourcing file (Machine / Delivery / Buyer), mirroring
+// how the real brief card groups the same fields.
+export interface FileGroup {
+  title: string;
+  labels: string[];
+}
+
 interface AgentConsoleProps {
-  fileLabels: { en: string[]; zh: string[] };
+  fileGroups: { en: FileGroup[]; zh: FileGroup[] };
 }
 
 const PANEL = "border-[1.5px] border-ink bg-sheet";
 const BAR =
   "flex flex-wrap items-center justify-between gap-3 border-b-[1.5px] border-ink px-3.5 py-3";
 
-export function AgentConsole({ fileLabels }: AgentConsoleProps) {
+export function AgentConsole({ fileGroups }: AgentConsoleProps) {
   const router = useRouter();
   const [lang, setLang] = useState<ConsoleLang>("en");
   const [view, setView] = useState<"en" | "zh">("en");
@@ -138,25 +145,34 @@ export function AgentConsole({ fileLabels }: AgentConsoleProps) {
             </button>
           </div>
         </header>
-        <dl>
-          {fileLabels[view].map((label, i) => (
-            <div
-              key={fileLabels.en[i]}
-              className="grid grid-cols-[minmax(96px,38%)_1fr] border-b border-rule"
-            >
-              <dt className="border-r border-rule px-3 py-2.5 text-ink-soft">
-                {label}
-              </dt>
-              <dd className="flex min-h-11 items-center px-3 py-2.5">
-                <span
-                  aria-hidden="true"
-                  className="block h-px w-12 bg-rule-strong"
-                />
-                <span className="sr-only">Not filled in yet</span>
-              </dd>
-            </div>
+        <div>
+          {fileGroups[view].map((group, g) => (
+            <section key={fileGroups.en[g].title}>
+              <h3 className="type-data border-b border-rule bg-paper px-3 py-1.5 text-[13px] font-bold">
+                {group.title}
+              </h3>
+              <dl>
+                {group.labels.map((label, i) => (
+                  <div
+                    key={fileGroups.en[g].labels[i]}
+                    className="grid grid-cols-[minmax(96px,38%)_1fr] border-b border-rule"
+                  >
+                    <dt className="border-r border-rule px-3 py-2 text-ink-soft">
+                      {label}
+                    </dt>
+                    <dd className="flex min-h-10 items-center px-3 py-2">
+                      <span
+                        aria-hidden="true"
+                        className="block h-px w-12 bg-rule-strong"
+                      />
+                      <span className="sr-only">Not filled in yet</span>
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
           ))}
-        </dl>
+        </div>
         <footer className="grid gap-1 px-3.5 py-3">
           <span className="type-data text-sm font-semibold">
             {AGENT.fileStatus}

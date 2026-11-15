@@ -33,7 +33,7 @@ export function ScopeSelector() {
       </div>
 
       <div className="relative pt-1.5" aria-hidden="true">
-        <div className="absolute left-[8.333%] right-[8.333%] top-5 h-1 bg-rule">
+        <div className="absolute left-[8.333%] right-[8.333%] top-[14px] h-1 bg-rule">
           <i
             className="absolute inset-0 origin-left bg-ink transition-transform duration-[600ms] ease-[cubic-bezier(0.2,0.7,0.2,1)]"
             style={{ transform: `scaleX(${option.upto / last})` }}

@@ -16,7 +16,7 @@ Part of the [`nexcierge-team`](https://github.com/nexcierge-team) stack.
 
 ## What's built
 
-- **Chat-first homepage (`/`)** — hero tagline, prominent chat input, suggested prompts. Once a message is sent, transitions to full chat view with messages and persistent input at bottom.
+- **Landing page (`/`)**: the "drafting sheet" marketing site (hero with 3D machine drawings, risks, process, agent console, account, Merchant of Record, delivery scope, FAQ). The agent console hands the first message to `/chat`. See `docs/ARCHITECTURE.md` and `docs/DESIGN_SYSTEM.md`.
 - **API proxy (`/api/chat`)** — forwards POST requests to the FastAPI backend, avoiding CORS issues.
 - **Header** with `NEXCIERGE` brand and `Login` link (login page not yet implemented).
 

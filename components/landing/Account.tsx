@@ -29,7 +29,8 @@ export function Account() {
       <div className="wrap grid gap-[clamp(28px,5vw,64px)] min-[960px]:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] min-[960px]:items-start">
         <div className="grid content-start gap-[22px]">
           <InView kind="plot" as="h2" className={H2}>
-            {ACCOUNT.title}
+            <span className="block">{ACCOUNT.title[0]}</span>
+            <span className="block">{ACCOUNT.title[1]}</span>
           </InView>
           <p className={LEAD}>{ACCOUNT.lead}</p>
           <FactList items={ACCOUNT.facts} />

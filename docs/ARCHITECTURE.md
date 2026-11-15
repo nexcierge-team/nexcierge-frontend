@@ -10,7 +10,8 @@
 | UI primitives | shadcn-style components (Radix + CVA) |
 | Animation | Framer Motion |
 | Icons | lucide-react |
-| Fonts | Inter via `next/font/google` |
+| Fonts | Archivo (variable, width axis) via `next/font/google` |
+| 3D (landing hero only) | `three`, lazy-loaded by `components/landing/rig/HeroRig.tsx` |
 | Auth + DB + Realtime | Supabase (`@supabase/ssr`, `@supabase/supabase-js`) |
 | CRM | HubSpot via `@hubspot/api-client` |
 | Analytics | PostHog Cloud US via `posthog-js`, initialised in `instrumentation-client.ts` |
@@ -25,7 +26,7 @@ app/
 ├── globals.css
 ├── (marketing)/            Route group (no URL segment): layout.tsx renders Header + Footer ONCE,
 │   ├── layout.tsx            so they stay mounted across /, /about, /contact navigations
-│   ├── page.tsx            Landing
+│   ├── page.tsx            Landing: Hero, Risks, Process, Agent, Account, MerchantOfRecord, Scope, FAQ, ClosingCTA (+ MobileDock)
 │   ├── about/page.tsx
 │   └── contact/page.tsx
 ├── chat/page.tsx           Buyer chat — uses `useChat` hook; Suspense fallback = ChatShellSkeleton
@@ -56,13 +57,16 @@ app/
 
 components/
 ├── ui/                     shadcn-style primitives (Button, Input, Textarea, Accordion)
-├── layout/                 Header / Footer for marketing
-├── landing/                Marketing sections + HeroChatPreview (mock chat card — every chat entry point on the homepage navigates to `/chat?new=1`, category pills/cards adding `&seed=<prompt>`, so each entry lands on a blank slate; `?new=1` reuses the user's never-started session when one exists rather than minting a new row per visit; no embedded chat modal)
+├── layout/                 Header (fixed, hides on scroll down; section anchors written as `/#id` so they work from /about and /contact), Footer (title block), Wordmark
+├── landing/                Marketing sections, one file per sheet. Copy lives in `lib/landingContent.ts`. Server components by default; client islands are InView (one-shot scroll choreography), ProcessRoll (scroll progress for the pinned process roll), AgentConsole, OrderHistory, MorDiagram, ScopeSelector, MobileDock and rig/ (three.js hero drawings: HeroRig shell renders tabs + callouts on the server and dynamic-imports engine.ts on idle).
+│                           **Landing to chat handoff** (AgentConsole): the landing page never mounts `useChat` and never calls `/api/chat/start`, so viewing it creates no anonymous user, session or RFQ. Starter chips are canned strings and navigate to `/chat?new=1&seed=<chip>`. Text the visitor types is their own words, so it is written to sessionStorage (`LANDING_SEED_KEY` in `lib/constants.ts`) and the navigation is a bare `/chat?new=1`; `app/chat/page.tsx` reads and clears it and auto-sends it exactly like a `?seed=`. `?new=1` reuses the user's never-started session when one exists rather than minting a row per visit. All "Start a brief" buttons link to plain `/chat` (returning buyers resume).
 ├── auth/
 │   ├── AuthProvider.tsx    App-wide auth context: one onAuthStateChange subscription (no getUser()
 │   │                         network calls), role fetched once per permanent user; useAuthUser /
 │   │                         useUserRole are thin readers of it
-│   ├── AccountMenu.tsx     Header/sidebar account control; lazy-loads AuthModal (next/dynamic) on first open
+│   ├── AccountMenu.tsx     Header/sidebar account control; opens the sign-in modal through useAuthModal
+│   ├── useAuthModal.tsx    One lazy AuthModal instance (next/dynamic, warmed on hover/focus) + open handler; shared by AccountMenu and LoginTrigger
+│   ├── LoginTrigger.tsx    Marketing "Log in": signed out opens the modal with login copy (lands on /chat); signed in is a link to /chat
 │   └── AuthModal.tsx       Google + magic-link, opens on 401 from /api/request-review
 ├── chat/
 │   ├── ChatSidebar.tsx     Presentational request list (dark New-sourcing-request button,
@@ -196,7 +200,7 @@ Server-side events (funnel order):
 
 PostHog is for product analytics/dashboards only; exact LLM cost/latency auditing lives in Postgres `llm_call_logs` (migration 0013).
 
-**Autocapture PII guard.** Autocapture records clicked-element text, which can include buyer free-text. Every element rendering buyer-entered content carries `ph-no-capture` (PostHog ignores autocapture on it + its children): `MessageBubble`, `ProfileSummaryCard`, `BriefSummary`, `BriefPane`, `RfqTable` — placed so CTAs stay outside the tagged region and remain captured. `instrumentation-client.ts`'s `before_send` also strips URL query/hash (auth codes, tokens, session ids) from `$current_url`/`$referrer`. **New component rendering buyer content → add `ph-no-capture`** (see `docs/TRACKING.md` § Autocapture & PII).
+**Autocapture PII guard.** Autocapture records clicked-element text, which can include buyer free-text. Every element rendering buyer-entered content carries `ph-no-capture` (PostHog ignores autocapture on it + its children): `MessageBubble`, `ProfileSummaryCard`, `BriefSummary`, `BriefPane`, `RfqTable` — placed so CTAs stay outside the tagged region and remain captured. `instrumentation-client.ts`'s `before_send` also strips URL query/hash (auth codes, tokens, session ids) from `$current_url`/`$referrer`. The scrub covers every URL-bearing key posthog-js sends (`$session_entry_url`, `$initial_current_url`, `$set`/`$set_once` copies, ...), not just those two. The landing sections render no buyer-entered text in the DOM (the agent console is an input; its chips are canned), so they carry no `ph-no-capture`. Marketing CTAs are tagged `data-ph-capture-attribute-cta="nav|menu|hero|closing|dock"` so clicks can be split by placement. **New component rendering buyer content → add `ph-no-capture`** (see `docs/TRACKING.md` § Autocapture & PII).
 
 ## Auth flow — anonymous-first
 

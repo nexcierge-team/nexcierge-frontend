@@ -20,7 +20,7 @@ export function MorDiagram() {
               {i > 0 && (
                 <div
                   aria-hidden="true"
-                  className="flex h-[54px] items-center gap-3 pl-7 min-[960px]:h-auto min-[960px]:w-[150px] min-[960px]:flex-col min-[960px]:justify-center min-[960px]:gap-2 min-[960px]:pl-0"
+                  className="flex h-[54px] items-center gap-3 pl-7 min-[960px]:h-auto min-[960px]:w-[132px] min-[960px]:flex-col min-[960px]:justify-center min-[960px]:gap-2 min-[960px]:pl-0"
                 >
                   <i className="flow-y block h-full w-0.5 bg-[repeating-linear-gradient(180deg,#fff_0_7px,transparent_7px_14px)] bg-[length:100%_14px] min-[960px]:hidden" />
                   <i className="flow-x hidden h-0.5 w-full bg-[repeating-linear-gradient(90deg,#fff_0_7px,transparent_7px_14px)] bg-[length:14px_100%] min-[960px]:block" />
@@ -35,7 +35,7 @@ export function MorDiagram() {
                 aria-controls="mor-detail"
                 onClick={() => setActive(node.key)}
                 className={cn(
-                  "grid gap-0.5 border-[1.5px] px-[18px] py-5 text-left transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-paint focus-visible:ring-offset-2 focus-visible:ring-offset-blueprint",
+                  "grid min-w-0 gap-0.5 border-[1.5px] px-4 py-5 text-left transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-paint focus-visible:ring-offset-2 focus-visible:ring-offset-blueprint",
                   isNex
                     ? "border-paint bg-paint text-ink"
                     : on

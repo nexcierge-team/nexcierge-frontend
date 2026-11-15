@@ -1,18 +1,8 @@
 import type { Metadata, Viewport } from "next";
-import { Archivo } from "next/font/google";
 import PostHogIdentify from "@/components/analytics/PostHogIdentify";
 import { AuthProvider } from "@/components/auth/AuthProvider";
+import { archivo } from "./fonts";
 import "./globals.css";
-
-// One variable family, three widths: expanded for headlines, normal for
-// reading, condensed for spec data (see the type-* utilities in
-// globals.css). The width axis needs the variable font, so no `weight`.
-const archivo = Archivo({
-  variable: "--font-archivo",
-  subsets: ["latin", "latin-ext"],
-  axes: ["wdth"],
-  display: "swap",
-});
 
 // viewport-fit=cover lets iOS extend the page into the dynamic island /
 // home-indicator area, then the `pt-safe` / `pb-safe` utilities defined
