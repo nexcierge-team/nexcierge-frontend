@@ -29,7 +29,7 @@ function Struck({ children }: { children: string }) {
 function ChainDiagram() {
   return (
     <figure className="mb-[clamp(28px,4vw,48px)] border-[1.5px] border-ink bg-sheet p-[clamp(16px,3vw,28px)]">
-      <div className="grid max-w-[900px] grid-cols-[auto_minmax(12px,1fr)_auto_minmax(10px,28px)_auto_minmax(12px,1fr)_auto] items-center gap-y-3">
+      <div className="grid grid-cols-[auto_minmax(12px,1fr)_auto_minmax(10px,28px)_auto_minmax(12px,1fr)_auto] items-center gap-y-3">
         <div className={ROW_LABEL}>The usual chain</div>
         <div className={NODE}>Buyer</div>
         <div className={LINK} />
