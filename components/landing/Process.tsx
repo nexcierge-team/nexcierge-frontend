@@ -45,16 +45,18 @@ export function Process() {
             {PROCESS.steps.map((step, i) => (
               <li
                 key={step.title}
-                className="relative grid grid-cols-[40px_1fr] gap-x-[18px] py-[22px] min-[960px]:grid-cols-1 min-[960px]:content-start min-[960px]:gap-y-[18px] min-[960px]:border min-[960px]:border-ink min-[960px]:bg-sheet min-[960px]:px-[26px] min-[960px]:pb-[30px] min-[960px]:pt-[26px] roll:w-[400px] roll:flex-none"
+                className="relative grid grid-cols-[40px_1fr] gap-x-[18px] py-[22px] min-[960px]:grid-cols-1 min-[960px]:grid-rows-[auto_1fr] min-[960px]:gap-y-[18px] min-[960px]:border min-[960px]:border-ink min-[960px]:bg-sheet min-[960px]:px-[26px] min-[960px]:pb-[30px] min-[960px]:pt-[26px] roll:w-[400px] roll:flex-none"
               >
                 <div className="type-display relative z-[1] grid h-10 w-10 place-items-center rounded-full bg-ink font-extrabold tabular-nums text-sheet min-[960px]:h-auto min-[960px]:w-auto min-[960px]:justify-items-start min-[960px]:rounded-none min-[960px]:bg-transparent min-[960px]:text-[3.2rem] min-[960px]:leading-[0.9] min-[960px]:text-ink">
                   {i + 1}
                 </div>
-                <div className="grid content-start gap-2.5 pb-1.5">
+                {/* On the card layouts the body fills the card and the tag sits on
+                    the last row, so the tags line up across cards. */}
+                <div className="grid content-start gap-2.5 pb-1.5 min-[960px]:grid-rows-[auto_auto_auto_1fr]">
                   <StepIcon name={step.icon} />
                   <h3 className={H3}>{step.title}</h3>
                   <p className="max-w-[46ch] text-ink-soft">{step.text}</p>
-                  <span className={cn(TAG, WHO[step.who])}>
+                  <span className={cn(TAG, WHO[step.who], "min-[960px]:self-end")}>
                     {step.whoLabel}
                   </span>
                 </div>
