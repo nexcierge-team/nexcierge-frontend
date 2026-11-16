@@ -25,7 +25,9 @@ export function Process() {
       className="roll-section relative py-[clamp(60px,8vw,108px)] roll:h-[calc(100vh+var(--roll-dist))] roll:py-0"
     >
       <InView kind="draw" className="sheet-rule" />
-      <div className="roll:sticky roll:top-0 roll:flex roll:h-screen roll:flex-col roll:justify-center roll:overflow-hidden roll:pb-6 roll:pt-[calc(var(--nav-h)+24px)]">
+      {/* Top-aligned with the same top padding as SECTION, so the rule to
+          title gap matches every other sheet whatever the viewport height. */}
+      <div className="roll:sticky roll:top-0 roll:flex roll:h-screen roll:flex-col roll:overflow-hidden roll:pb-6 roll:pt-[clamp(60px,8vw,108px)]">
         <div className="wrap roll:w-full">
           <SectionHead
             title={PROCESS.title}
