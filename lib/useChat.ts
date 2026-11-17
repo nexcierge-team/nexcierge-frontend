@@ -141,6 +141,7 @@ function rowToMessage(row: ChatMessagesRow): Message {
     translatedContent: row.translated_content,
     translatedTo: row.translated_to,
     readAt: row.read_at,
+    createdAt: row.created_at,
     attachments: attachmentsFromMetadata(row.metadata),
     suggestions: suggestionsFromMetadata(row.metadata),
     clientId:

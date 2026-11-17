@@ -16,13 +16,16 @@ In buyer funnel order:
 |---|---|---|
 | `$pageview` / autocapture | any page load, click, form interaction (automatic) | url, browser, country |
 | `chat_session_started` | a new chat session row is inserted | `source`: `bootstrap` (first `/chat` visit), `homepage_new` (a `/chat?new=1` entry from the landing page's agent console: a starter chip or a typed message), `sidebar_new` (returning user). Blank-slate requests that reuse an existing never-started session do **not** re-fire this, so counts aren't inflated by repeat homepage visits |
-| `signup_gate_shown` | an anonymous buyer uses up their free preview (3 messages) and the signup wall appears | `message_count` — the only browser-side custom event; pair with `auth_completed` (same person once they sign in) to measure wall → signup conversion |
+| `signup_gate_shown` | an anonymous buyer uses up their free preview (3 messages) and the signup wall appears | `message_count` — browser-side (as is `payment_link_opened`); pair with `auth_completed` (same person once they sign in) to measure wall → signup conversion |
 | `profile_completed` | the AI interview fills the last required field of the sourcing brief | `session_id` |
 | `auth_completed` | anonymous buyer signs in (Google or magic link) | `method`: `google_oauth` / `magic_link` |
 | `review_blocked` | buyer clicks *Request human review* but is turned away | `reason`: `missing_fields` (brief incomplete) / `auth_required` (still anonymous) — the drop-off `review_requested` can't capture |
 | `review_requested` | buyer clicks *Request human review* — **this is the conversion we get paid for** | `language`, `hubspot_synced`, `machine_type`, `delivery_country` |
 | `am_brief_claimed` | an account manager claims a handed-off brief | `session_id` |
 | `am_reply_sent` | an AM replies to a buyer | `translated`, `has_attachments` |
+| `am_payment_link_created` | an AM sends the buyer a payment link for a request | `session_id`, `payment_id`, `currency` |
+| `am_payment_status_updated` | an AM marks a payment link paid, cancels it, or reopens it | `session_id`, `payment_id`, `status` |
+| `payment_link_opened` | a buyer clicks *Pay now* in a request's Payments tab (browser-side) | `session_id`, `payment_id`, `currency`; pair with `am_payment_status_updated` (`status=paid`) for link → paid conversion |
 | `am_lead_rated` | an AM rates the AI interview's output on a claimed brief | `session_id`, `lead_quality` (`qualified`/`partial`/`junk`), `field_issues` |
 | `agent_lessons_proposed` | an AM clicks *Generate lessons* on a rated brief (Gemini drafts improvement lessons) | `session_id`, `lead_quality`, `lesson_count` |
 | `agent_lesson_reviewed` | an AM approves or rejects a proposed lesson in the Lessons view | `lesson_id`, `decision`, `edited` |
@@ -40,7 +43,7 @@ In buyer funnel order:
 
 Autocapture (`$autocapture`) records the **text** of clicked elements. That text can include buyer free-text — chat messages, machine type, company, notes — which violates the "never free text" rule. Two guards keep it out:
 
-1. **`ph-no-capture` class** on every element that renders buyer-entered content. PostHog ignores autocapture (and rageclick) on a tagged element *and its children*. Currently tagged: chat/AI message bubbles (`MessageBubble`), the buyer brief card (`ProfileSummaryCard`), and on the AM side the brief panel values + machine-type heading + notes (`BriefSummary`), the brief detail header (`BriefPane`), and inbox lead rows (`RfqTable`). Tags are placed so CTAs (Request human review, Save rating, Claim this brief) stay *outside* the tagged region and are still captured.
+1. **`ph-no-capture` class** on every element that renders buyer-entered content. PostHog ignores autocapture (and rageclick) on a tagged element *and its children*. Currently tagged: chat/AI message bubbles (`MessageBubble`), the buyer brief card (`ProfileSummaryCard`), request titles in the buyer sidebar, sidebar search box, chat header and progress rail (`ChatSidebar`, `app/chat/page.tsx`, `SourcingProgressRail`), and on the AM side the brief panel values + machine-type heading + notes (`BriefSummary`), the brief detail header (`BriefPane`), and inbox lead rows (`RfqTable`). Tags are placed so CTAs (Request human review, Save rating, Claim this brief) stay *outside* the tagged region and are still captured.
 2. **`before_send` URL scrub** (`instrumentation-client.ts`) strips query strings + hashes from every URL-bearing property on every event (`$current_url`, `$referrer`, `$session_entry_url`, `$session_entry_referrer`, `$initial_current_url`, `$initial_referrer`, `$prev_pageview_url`, including the copies inside `$set` / `$set_once`) — so auth codes (`/auth/callback?code=…`), magic-link tokens, and session ids never reach PostHog. UTM attribution is unaffected (those are extracted into their own props before `before_send`).
 
 **RULE — any new component that renders buyer-entered content in the DOM must carry `ph-no-capture` on the text element** (or a wrapper that excludes nearby CTAs). This is surgical, not global: we keep autocapture on for button/CTA analysis. If you ever need a hard guarantee instead, `autocapture: { mask_all_text: true }` masks *all* element text project-wide (but then click insights lose their labels and the "Start a brief" action must switch to a CSS-selector match).

@@ -70,7 +70,7 @@ Hand-rolled primary buttons (composer send, "New sourcing request") mirror the p
 
 - `app/layout.tsx` exports `viewport: Viewport` with `viewportFit: "cover"` so iOS extends content under the dynamic island and home indicator. The `pt-safe` / `pb-safe` / `pl-safe` / `pr-safe` utilities in `app/globals.css` carve the unsafe regions back out. Use them on any fixed-position chrome that touches a viewport edge: the chat header (`pt-safe`), the composer footer (`pb-safe` on a wrapper, **not** on the same element as the base `py-*`, since `max(env(...), 0px)` collapses to 0 on non-iOS), the mobile drawer, and the AuthModal overlay.
 - Chat shell uses `h-[100dvh]` rather than `h-screen` so iOS Safari's collapsing URL bar doesn't push the composer behind the home indicator.
-- `ChatSidebar` is a mobile drawer below `md:` and an inline column at `md:` and above.
+- `ChatSidebar` is a mobile drawer below `md:` and an inline column at `md:` and above; at `md:` it can collapse to a 56px icon rail.
 
 ## Component patterns
 
@@ -96,6 +96,13 @@ Hand-rolled primary buttons (composer send, "New sourcing request") mirror the p
 
 ### Brief card (`ProfileSummaryCard`)
 1.5px ink border, white body, paper header and footer bands. White rather than sheet because it sits in the sheet chat column next to white bubbles.
+
+### Buyer app shell (`/chat`)
+- **Sidebar status nav:** folder-style rows (lucide icon, label, count badge). Selected = ink fill, sheet text, icon and count badge turn paint (the dashboard nav recipe). Below it a small search input (`border-rule-strong`, ink on focus) and the request list under `type-data` recency headings.
+- **Collapsed rail:** `w-14` paper column of 36px icon buttons: expand, the paint New request square, a hairline, then the four status filters (selected = ink fill, paint icon).
+- **Workspace tabs:** underline tabs in the chat header (`border-b-2`; selected = ink border + ink text, rest = transparent + `ink-soft`, hover `rule-strong`). Count badges are `bg-ink/10` pills; an item needing the buyer's action (pending payment) uses the amber status pill. Tabs, not the segmented control, because they switch the whole panel rather than filter a list.
+- **Order-file lists** (Documents, Payments tabs): the landing `OrderHistory` row in product form: a 1.5px ink panel on `bg-paper`, one row per record with a `TAG` (no fill = document, paint = payment), the name, `type-data` meta, and the row action on the right. Payments add a paper summary band (Outstanding total) above the list. Empty states are a dashed `rule-strong` box with an icon chip and one sentence.
+- **Pay now** is the paint primary recipe; it is the surface's one paint action as long as one link is pending.
 
 ### Active and selected states
 - Chat sidebar rows: a 3px paint left bar on a sheet row (an ink fill would hide the status dot).

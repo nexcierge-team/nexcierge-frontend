@@ -16,6 +16,8 @@ import type {
 } from "@/lib/sourcingStages";
 import { QUALITY_CHIP, RatingSection } from "./RatingSection";
 import { StageSection, stageLabels } from "./StageSection";
+import { PaymentsSection } from "./PaymentsSection";
+import { useSessionPayments } from "@/lib/useSessionPayments";
 
 // Right-hand brief panel. Pinned to English in its entirety — headings,
 // field labels, enum values, AND the workflow chrome (status pill, CRM
@@ -57,6 +59,12 @@ export function BriefSummary({
         year: "numeric",
       })
     : "";
+
+  // Per-request payment links (migration 0027). Read here so the section
+  // badge and the list share one fetch + realtime channel.
+  const { payments, loading: paymentsLoading, upsertLocal } =
+    useSessionPayments(sessionId);
+  const pendingPayments = payments.filter((p) => p.status === "pending").length;
 
   const qualityLabel: Record<LeadQuality, string> = {
     qualified: chrome.qualityQualified,
@@ -150,6 +158,30 @@ export function BriefSummary({
               {chrome.claimToSetStage}
             </p>
           )}
+        </PanelSection>
+
+        <PanelSection
+          title="Payments"
+          collapsible
+          badge={
+            pendingPayments > 0 ? (
+              <span className="type-data inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800 ring-1 ring-inset ring-amber-700/30">
+                {pendingPayments} awaiting
+              </span>
+            ) : payments.length > 0 ? (
+              <span className="type-data inline-flex rounded-full bg-ink/10 px-2 py-0.5 text-[11px] font-semibold text-ink-soft ring-1 ring-inset ring-ink/20">
+                {payments.length}
+              </span>
+            ) : null
+          }
+        >
+          <PaymentsSection
+            sessionId={sessionId}
+            payments={payments}
+            loading={paymentsLoading}
+            canManage={canRate}
+            onSaved={upsertLocal}
+          />
         </PanelSection>
 
         <PanelSection title={chrome.sectionCrm}>

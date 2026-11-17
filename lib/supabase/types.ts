@@ -22,6 +22,8 @@ export type RfqStatus = "in_progress" | "submitted" | "won" | "lost";
 // rating card after handoff. Distinct from RfqStatus (deal outcome).
 export type LeadQuality = "qualified" | "partial" | "junk";
 export type AgentLessonStatus = "proposed" | "approved" | "rejected";
+// Lifecycle of an AM-issued payment link (migration 0027).
+export type PaymentStatus = "pending" | "paid" | "cancelled";
 
 type Json =
   | string
@@ -117,6 +119,23 @@ export interface AgentLessonsRow {
   created_by: string | null;
   reviewed_by: string | null;
   reviewed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// Payment link the AM sent the buyer for one sourcing request
+// (migration 0027). `amount` is Postgres numeric, which PostgREST may
+// serialize as a string; read it through paymentAmount() in lib/payments.ts.
+export interface PaymentRequestsRow {
+  id: string;
+  chat_session_id: string;
+  created_by: string | null;
+  label: string;
+  amount: number | string;
+  currency: string;
+  payment_url: string;
+  status: PaymentStatus;
+  paid_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -292,6 +311,36 @@ export type Database = {
           created_by?: string | null;
           reviewed_by?: string | null;
           reviewed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      payment_requests: {
+        Row: PaymentRequestsRow;
+        Insert: {
+          id?: string;
+          chat_session_id: string;
+          created_by?: string | null;
+          label: string;
+          amount: number;
+          currency: string;
+          payment_url: string;
+          status?: PaymentStatus;
+          paid_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          chat_session_id?: string;
+          created_by?: string | null;
+          label?: string;
+          amount?: number;
+          currency?: string;
+          payment_url?: string;
+          status?: PaymentStatus;
+          paid_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };

@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
-import { Check, UserRound, X } from "lucide-react";
+import { Check, ChevronRight, CreditCard, FileText, UserRound, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { PROGRESS_EN } from "@/lib/progressStrings";
+import { PROGRESS_EN, type WorkspaceTab } from "@/lib/progressStrings";
 import {
   SOURCING_STAGES,
   stageIndex,
@@ -31,6 +31,37 @@ interface SourcingProgressRailProps {
   // Mobile drawer control (ignored at xl+ where the rail is inline).
   open?: boolean;
   onClose?: () => void;
+  // "Order file" card: per-request document / payment counts, each row
+  // jumping to that workspace tab. Omitted → card hidden.
+  orderFile?: {
+    documents: number;
+    payments: number;
+    paymentsPending: number;
+    onOpen: (tab: WorkspaceTab) => void;
+  };
+}
+
+// Status pill for a request (label + tinted classes), shared by this
+// rail and the chat header. Drafts/closed muted, delivered emerald,
+// everything in flight blueprint.
+export function requestStatusPill(
+  status: ChatSessionStatus,
+  sourcingStage: SourcingStage | null,
+): { label: string; className: string } {
+  const ps = PROGRESS_EN;
+  if (status === "closed")
+    return { label: ps.statusClosed, className: "bg-ink/10 text-ink-soft ring-1 ring-inset ring-ink/20" };
+  if (status === "ai")
+    return { label: ps.statusDraft, className: "bg-sheet text-ink-soft ring-1 ring-inset ring-ink/20" };
+  if (sourcingStage === "delivered")
+    return {
+      label: ps.stageShort.delivered,
+      className: "bg-emerald-100 text-emerald-800 ring-1 ring-inset ring-emerald-700/30",
+    };
+  return {
+    label: ps.stageShort[sourcingStage ?? "brief_submitted"],
+    className: "bg-blueprint/12 text-blueprint ring-1 ring-inset ring-blueprint/30",
+  };
 }
 
 // "Today → time, otherwise short date" — matches how a buyer reads a
@@ -60,6 +91,7 @@ export function SourcingProgressRail({
   handoffRequestedAt,
   open = false,
   onClose,
+  orderFile,
 }: SourcingProgressRailProps) {
   // Workspace chrome is English-pinned — only the chat itself and the
   // RFQ card localize (see lib/progressStrings.ts).
@@ -76,20 +108,7 @@ export function SourcingProgressRail({
     return () => document.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  const pill =
-    status === "closed"
-      ? { label: ps.statusClosed, className: "bg-ink/10 text-ink-soft ring-1 ring-inset ring-ink/20" }
-      : status === "ai"
-        ? { label: ps.statusDraft, className: "bg-sheet text-ink-soft ring-1 ring-inset ring-ink/20" }
-        : sourcingStage === "delivered"
-          ? {
-              label: ps.stageShort.delivered,
-              className: "bg-emerald-100 text-emerald-800 ring-1 ring-inset ring-emerald-700/30",
-            }
-          : {
-              label: ps.stageShort[sourcingStage ?? "brief_submitted"],
-              className: "bg-blueprint/12 text-blueprint ring-1 ring-inset ring-blueprint/30",
-            };
+  const pill = requestStatusPill(status, sourcingStage);
 
   const nextStepBody = sourcingStage
     ? ps.nextStep[sourcingStage]
@@ -211,6 +230,31 @@ export function SourcingProgressRail({
             </ol>
           </div>
 
+          {orderFile && (
+            <div className="mt-4 rounded-none border-[1.5px] border-ink bg-sheet">
+              <h3 className="type-data border-b border-rule-strong px-4 py-2.5 text-xs font-semibold text-ink-soft">
+                {ps.orderFile}
+              </h3>
+              <OrderFileRow
+                icon={<FileText className="h-4 w-4" strokeWidth={1.5} />}
+                label={ps.tabLabel.documents}
+                value={String(orderFile.documents)}
+                onClick={() => orderFile.onOpen("documents")}
+              />
+              <OrderFileRow
+                icon={<CreditCard className="h-4 w-4" strokeWidth={1.5} />}
+                label={ps.tabLabel.payments}
+                value={
+                  orderFile.paymentsPending > 0
+                    ? `${orderFile.paymentsPending} ${ps.paymentStatus.pending.toLowerCase()}`
+                    : String(orderFile.payments)
+                }
+                highlight={orderFile.paymentsPending > 0}
+                onClick={() => orderFile.onOpen("payments")}
+              />
+            </div>
+          )}
+
           <div className="mt-4 flex gap-3 rounded-none border border-rule-strong bg-sheet p-4">
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-ink text-sheet">
               <UserRound className="h-4 w-4" strokeWidth={1.75} />
@@ -227,5 +271,41 @@ export function SourcingProgressRail({
         </div>
       </aside>
     </>
+  );
+}
+
+function OrderFileRow({
+  icon,
+  label,
+  value,
+  highlight = false,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  highlight?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-center gap-2.5 border-b border-rule px-4 py-2.5 text-left text-sm text-ink transition-colors last:border-b-0 hover:bg-ink/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blueprint"
+    >
+      <span className="text-ink-soft">{icon}</span>
+      <span className="min-w-0 flex-1 font-semibold">{label}</span>
+      <span
+        className={cn(
+          "type-data rounded-full px-2 py-0.5 text-[11px] font-semibold",
+          highlight
+            ? "bg-amber-100 text-amber-800 ring-1 ring-inset ring-amber-700/30"
+            : "bg-ink/10 text-ink",
+        )}
+      >
+        {value}
+      </span>
+      <ChevronRight className="h-3.5 w-3.5 text-ink-soft" strokeWidth={1.75} />
+    </button>
   );
 }
