@@ -79,6 +79,9 @@ export interface Message {
   clientId?: string;
   // True while this agent bubble is still receiving streamed text.
   streaming?: boolean;
+  // chat_messages.created_at for persisted rows (absent on optimistic /
+  // streaming bubbles). Used by the Documents tab to date each file.
+  createdAt?: string;
 }
 
 /**

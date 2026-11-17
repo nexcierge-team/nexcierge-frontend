@@ -1,17 +1,27 @@
 "use client";
 
-import { Suspense, useState, useRef, useEffect } from "react";
+import { Suspense, useState, useRef, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Lock, Menu, PanelRight, Sparkles } from "lucide-react";
+import { Lock, Menu, PanelRight } from "lucide-react";
 import { ChatSidebar } from "@/components/chat/ChatSidebar";
 import { ChatComposer } from "@/components/chat/ChatComposer";
 import {
   MessageBubble,
   TypingIndicator,
 } from "@/components/chat/MessageBubble";
-import { SourcingProgressRail } from "@/components/chat/SourcingProgressRail";
+import {
+  SourcingProgressRail,
+  requestStatusPill,
+} from "@/components/chat/SourcingProgressRail";
+import {
+  DocumentsPanel,
+  documentsFromMessages,
+} from "@/components/chat/DocumentsPanel";
+import { PaymentsPanel } from "@/components/chat/PaymentsPanel";
+import { useSessionPayments } from "@/lib/useSessionPayments";
+import { cn } from "@/lib/utils";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { LANDING_SEED_KEY, SUGGESTED_PROMPTS } from "@/lib/constants";
 import { useChat } from "@/lib/useChat";
@@ -20,7 +30,7 @@ import { useStableCallback } from "@/lib/useStableCallback";
 import { ChatShellSkeleton } from "@/components/chat/ChatShellSkeleton";
 import type { Message } from "@/types/chat";
 import { chatStrings } from "@/lib/chatStrings";
-import { PROGRESS_EN } from "@/lib/progressStrings";
+import { PROGRESS_EN, type WorkspaceTab } from "@/lib/progressStrings";
 import type { ChatSessionsRow } from "@/lib/supabase/types";
 
 // Cycled by the empty-state composer as an animated placeholder — one phrase
@@ -33,6 +43,17 @@ const HERO_PLACEHOLDERS = [
   "हमें बताएं कि आपको कौन-सी मशीनरी चाहिए…",
   "Cuéntanos qué maquinaria estás buscando…",
 ];
+
+const SIDEBAR_COLLAPSED_KEY = "nx_sidebar_collapsed";
+const WORKSPACE_TABS: WorkspaceTab[] = ["chat", "documents", "payments"];
+
+function readCollapsed(): boolean {
+  try {
+    return window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
 
 // Reads and clears a message typed into the landing page's agent console
 // (see components/landing/AgentConsole.tsx). Storage can throw in locked-
@@ -114,6 +135,31 @@ function ChatPageInner() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   // Below-xl drawer state for the sourcing-progress rail (inline at xl+).
   const [railOpen, setRailOpen] = useState(false);
+  // Desktop collapsed sidebar (icon rail), remembered per browser. The
+  // page is client-rendered (useSearchParams bailout), so reading storage
+  // in the initializer can't mismatch server HTML.
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() =>
+    typeof window === "undefined" ? false : readCollapsed(),
+  );
+  function toggleSidebarCollapsed() {
+    setSidebarCollapsed((v) => {
+      try {
+        window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, v ? "0" : "1");
+      } catch {
+        // Storage blocked: the toggle still works for this page view.
+      }
+      return !v;
+    });
+  }
+  // Request workspace tab (Chat / Documents / Payments). Stored with the
+  // session it was picked for and read through a guard, so switching
+  // requests always lands on Chat without an effect-based reset.
+  const [tabState, setTabState] = useState<{
+    sessionId: string | null;
+    tab: WorkspaceTab;
+  }>({ sessionId: null, tab: "chat" });
+  // Message to scroll to when "Show in chat" switches back to the Chat tab.
+  const scrollTargetRef = useRef<string | null>(null);
   // Latest realtime chat_sessions row for the ACTIVE session — overrides
   // the useChat bootstrap baseline so the rail reflects AM claims and
   // stage advances live. Cleared on session switch.
@@ -153,6 +199,35 @@ function ChatPageInner() {
   const railStage = liveRow?.sourcing_stage ?? sourcingStage;
   const railHistory = liveRow?.sourcing_stage_history ?? sourcingStageHistory;
   const railHandoffAt = liveRow?.handoff_requested_at ?? handoffRequestedAt;
+  const isDraft = railStatus === "ai";
+
+  const tab: WorkspaceTab =
+    tabState.sessionId === sessionId ? tabState.tab : "chat";
+  function openTab(next: WorkspaceTab) {
+    setTabState({ sessionId, tab: next });
+    setRailOpen(false);
+  }
+
+  // Per-request order file: documents come from the loaded thread's
+  // attachments; payment links from payment_requests (skipped for drafts,
+  // which can't have any until an AM claims the brief).
+  const documents = useMemo(() => documentsFromMessages(messages), [messages]);
+  const { payments, loading: paymentsLoading } = useSessionPayments(
+    sessionId,
+    !isDraft,
+  );
+  const paymentsPending = payments.filter((p) => p.status === "pending").length;
+
+  // Coming back to the Chat tab: jump to the message "Show in chat"
+  // pointed at, otherwise to the latest message.
+  useEffect(() => {
+    if (tab !== "chat") return;
+    const target = scrollTargetRef.current;
+    scrollTargetRef.current = null;
+    const el = target ? document.getElementById(`msg-${target}`) : null;
+    if (el) el.scrollIntoView({ block: "center" });
+    else endRef.current?.scrollIntoView({ block: "end" });
+  }, [tab]);
 
   // Smooth-scroll when a message is added or the typing dots appear; while
   // a reply streams, keep the growing bubble pinned to the bottom without
@@ -225,6 +300,11 @@ function ChatPageInner() {
   // (and every subsequent switch) doesn't flash the empty-state UI
   // before the real messages arrive.
   const isEmpty = !bootstrapping && messages.length === 0 && !bootstrapError;
+  const showTabs = !isEmpty && !bootstrapError && !!sessionId;
+  const headerPill = requestStatusPill(railStatus, railStage);
+  const headerTitle =
+    railTitle ||
+    (isEmpty ? PROGRESS_EN.newRequest : bootstrapping ? "" : PROGRESS_EN.untitledRequest);
 
   return (
     // h-[100dvh] tracks the iOS Safari dynamic viewport (collapsing URL
@@ -242,47 +322,143 @@ function ChatPageInner() {
         onDelete={deleteSession}
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
+        collapsed={sidebarCollapsed}
+        onToggleCollapsed={toggleSidebarCollapsed}
       />
 
       <div className="flex h-full min-w-0 flex-1 flex-col bg-sheet">
-        <div className="flex items-center justify-between border-b border-rule-strong bg-sheet px-4 pt-safe sm:px-6">
-          <div className="type-title flex min-w-0 items-center gap-2 py-4 text-sm font-bold text-ink">
-            <button
-              type="button"
-              onClick={() => setSidebarOpen(true)}
-              aria-label={cs.historyAria}
-              className="-ml-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-sm text-ink-soft transition-colors hover:bg-ink/10 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blueprint md:hidden"
-            >
-              <Menu className="h-5 w-5" strokeWidth={1.75} />
-            </button>
-            <Sparkles className="h-4 w-4 shrink-0 text-ink" strokeWidth={1.75} />
-            <span className="truncate">Sourcing concierge</span>
+        <header className="border-b border-rule-strong bg-sheet pt-safe">
+          <div className="flex items-center justify-between gap-3 px-4 sm:px-6">
+            <div className="flex min-w-0 items-center gap-2 py-3">
+              <button
+                type="button"
+                onClick={() => setSidebarOpen(true)}
+                aria-label={cs.historyAria}
+                className="-ml-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-sm text-ink-soft transition-colors hover:bg-ink/10 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blueprint md:hidden"
+              >
+                <Menu className="h-5 w-5" strokeWidth={1.75} />
+              </button>
+              {/* ph-no-capture: the title derives from the buyer's first
+                  message. */}
+              <h1 className="ph-no-capture type-title min-w-0 truncate text-sm font-bold text-ink sm:text-[15px]">
+                {headerTitle}
+              </h1>
+              {!isEmpty && !bootstrapping && (
+                <span
+                  className={cn(
+                    "type-data inline-flex shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold xl:hidden",
+                    headerPill.className,
+                  )}
+                >
+                  {headerPill.label}
+                </span>
+              )}
+            </div>
+            <div className="flex shrink-0 items-center gap-3 py-3">
+              <button
+                type="button"
+                onClick={() => setRailOpen(true)}
+                aria-label={PROGRESS_EN.progressAria}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm text-ink-soft transition-colors hover:bg-ink/10 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blueprint xl:hidden"
+              >
+                <PanelRight className="h-4 w-4" strokeWidth={1.75} />
+              </button>
+              <Link
+                href="/"
+                className="text-sm font-semibold text-ink-soft underline-offset-4 transition-colors hover:text-ink hover:underline"
+              >
+                Exit
+              </Link>
+            </div>
           </div>
-          <div className="flex shrink-0 items-center gap-3 py-4">
-            <button
-              type="button"
-              onClick={() => setRailOpen(true)}
-              aria-label={PROGRESS_EN.progressAria}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm text-ink-soft transition-colors hover:bg-ink/10 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blueprint xl:hidden"
-            >
-              <PanelRight className="h-4 w-4" strokeWidth={1.75} />
-            </button>
-            <Link
-              href="/"
-              className="text-sm font-semibold text-ink-soft underline-offset-4 transition-colors hover:text-ink hover:underline"
-            >
-              Exit
-            </Link>
-          </div>
-        </div>
 
-        <div className="flex-1 overflow-y-auto bg-ruled">
+          {showTabs && (
+            <div
+              role="tablist"
+              aria-label={PROGRESS_EN.tabsAria}
+              className="-mb-px flex gap-1 overflow-x-auto px-3 sm:px-5"
+            >
+              {WORKSPACE_TABS.map((t) => {
+                const selected = tab === t;
+                const badge =
+                  t === "documents"
+                    ? documents.length
+                    : t === "payments"
+                      ? paymentsPending || payments.length
+                      : 0;
+                const attention = t === "payments" && paymentsPending > 0;
+                return (
+                  <button
+                    key={t}
+                    type="button"
+                    role="tab"
+                    id={`tab-${t}`}
+                    aria-selected={selected}
+                    aria-controls="workspace-panel"
+                    onClick={() => openTab(t)}
+                    className={cn(
+                      "flex shrink-0 items-center gap-1.5 border-b-2 px-3 pb-2.5 pt-1.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blueprint",
+                      selected
+                        ? "border-ink text-ink"
+                        : "border-transparent text-ink-soft hover:border-rule-strong hover:text-ink",
+                    )}
+                  >
+                    {PROGRESS_EN.tabLabel[t]}
+                    {badge > 0 && (
+                      <span
+                        className={cn(
+                          "type-data min-w-5 rounded-full px-1.5 py-px text-center text-[11px] font-semibold",
+                          attention
+                            ? "bg-amber-100 text-amber-800 ring-1 ring-inset ring-amber-700/30"
+                            : "bg-ink/10 text-ink",
+                        )}
+                        aria-label={
+                          attention
+                            ? `${badge} ${PROGRESS_EN.paymentStatus.pending.toLowerCase()}`
+                            : undefined
+                        }
+                      >
+                        {badge}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </header>
+
+        <div
+          id="workspace-panel"
+          role={showTabs ? "tabpanel" : undefined}
+          aria-labelledby={showTabs ? `tab-${tab}` : undefined}
+          className={cn(
+            "flex-1 overflow-y-auto",
+            showTabs && tab !== "chat" ? "bg-paper" : "bg-ruled",
+          )}
+        >
           {bootstrapError ? (
             <div className="mx-auto flex h-full max-w-2xl items-center justify-center px-6">
               <div className="rounded-none border-[1.5px] border-redline bg-white px-6 py-5 text-sm text-red-900">
                 {bootstrapError}
               </div>
             </div>
+          ) : showTabs && tab === "documents" ? (
+            <DocumentsPanel
+              documents={documents}
+              isDraft={isDraft}
+              onShowInChat={(messageId) => {
+                scrollTargetRef.current = messageId;
+                openTab("chat");
+              }}
+            />
+          ) : showTabs && tab === "payments" ? (
+            <PaymentsPanel
+              sessionId={sessionId}
+              payments={payments}
+              loading={paymentsLoading}
+              isDraft={isDraft}
+            />
           ) : (
             <AnimatePresence mode="wait">
               {isEmpty ? (
@@ -343,23 +519,29 @@ function ChatPageInner() {
                 >
                   <div className="space-y-5">
                     {messages.map((m, i) => (
-                      <MessageBubble
+                      // Anchor for the Documents tab's "Show in chat".
+                      <div
                         key={messageKey(m)}
-                        message={m}
-                        reviewRequested={reviewRequested}
-                        reviewSubmitting={reviewSubmitting}
-                        onRequestReview={requestReview}
-                        onRetry={retry}
-                        // Only error bubbles show Retry; passing `loading` to
-                        // every bubble would re-render all of them per turn.
-                        retryDisabled={m.error ? loading : false}
-                        sessionLanguage={language}
-                        onSuggestion={
-                          i === messages.length - 1 && !loading && !signupRequired
-                            ? send
-                            : undefined
-                        }
-                      />
+                        id={`msg-${m.id}`}
+                        className="scroll-mt-6"
+                      >
+                        <MessageBubble
+                          message={m}
+                          reviewRequested={reviewRequested}
+                          reviewSubmitting={reviewSubmitting}
+                          onRequestReview={requestReview}
+                          onRetry={retry}
+                          // Only error bubbles show Retry; passing `loading` to
+                          // every bubble would re-render all of them per turn.
+                          retryDisabled={m.error ? loading : false}
+                          sessionLanguage={language}
+                          onSuggestion={
+                            i === messages.length - 1 && !loading && !signupRequired
+                              ? send
+                              : undefined
+                          }
+                        />
+                      </div>
                     ))}
                     {(awaitingReply || otherIsTyping) && <TypingIndicator />}
                     <div ref={endRef} />
@@ -370,7 +552,7 @@ function ChatPageInner() {
           )}
         </div>
 
-        {!isEmpty && !bootstrapError && (
+        {!isEmpty && !bootstrapError && tab === "chat" && (
           // pb-safe on the outer carves the home-indicator gap below the
           // composer's normal py-* rhythm — without the wrapper the inset
           // would override py-3 instead of adding to it.
@@ -417,6 +599,16 @@ function ChatPageInner() {
         handoffRequestedAt={railHandoffAt}
         open={railOpen}
         onClose={() => setRailOpen(false)}
+        orderFile={
+          showTabs
+            ? {
+                documents: documents.length,
+                payments: payments.length,
+                paymentsPending,
+                onOpen: openTab,
+              }
+            : undefined
+        }
       />
 
       {/* Handoff gate (401 on Request human review). Suppressed while the

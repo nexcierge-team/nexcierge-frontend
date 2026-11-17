@@ -1,4 +1,5 @@
-// Static placeholder for the chat page's layout: sidebar (md+), header,
+// Static placeholder for the chat page's app shell: sidebar (md+: new
+// request button, status nav, list), header with title + workspace tabs,
 // a few message lines, a disabled composer, progress rail (xl+). Rendered
 // as the /chat Suspense fallback (so it's in the prerendered HTML and
 // paints before any JS runs) and by app/chat/loading.tsx during client
@@ -19,20 +20,32 @@ export function ChatShellSkeleton() {
       aria-busy="true"
       aria-label="Loading chat"
     >
-      <aside className="hidden h-full w-72 shrink-0 flex-col gap-3 border-r border-rule-strong bg-paper p-4 md:flex">
+      <aside className="hidden h-full w-72 shrink-0 flex-col gap-2 border-r border-rule-strong bg-paper px-3 py-4 md:flex">
+        <Bar className="mx-1 mb-2 h-4 w-24" />
         <Bar className="h-9 w-full rounded-sm" />
-        <Bar className="mt-4 h-3 w-24" />
-        <Bar className="h-8 w-full rounded-sm" />
-        <Bar className="h-8 w-full rounded-sm" />
-        <Bar className="h-8 w-3/4 rounded-sm" />
+        <div className="mt-3 space-y-1.5">
+          <Bar className="h-7 w-full rounded-sm" />
+          <Bar className="h-7 w-full rounded-sm" />
+          <Bar className="h-7 w-full rounded-sm" />
+          <Bar className="h-7 w-full rounded-sm" />
+        </div>
+        <Bar className="mt-3 h-8 w-full rounded-sm" />
+        <Bar className="mt-3 h-3 w-16" />
+        <Bar className="h-10 w-full rounded-sm" />
+        <Bar className="h-10 w-full rounded-sm" />
       </aside>
 
       <div className="flex h-full min-w-0 flex-1 flex-col bg-sheet">
-        <div className="flex items-center justify-between border-b border-rule-strong px-4 pt-safe sm:px-6">
-          <div className="type-title flex items-center gap-2 py-4 text-sm font-bold text-ink">
-            <span className="truncate">Sourcing concierge</span>
+        <div className="border-b border-rule-strong px-4 pt-safe sm:px-6">
+          <div className="flex items-center justify-between py-[18px]">
+            <Bar className="h-4 w-48" />
+            <Bar className="h-4 w-10" />
           </div>
-          <Bar className="h-4 w-10" />
+          <div className="flex gap-5 pb-3">
+            <Bar className="h-4 w-10" />
+            <Bar className="h-4 w-20" />
+            <Bar className="h-4 w-16" />
+          </div>
         </div>
 
         <div className="flex-1 overflow-hidden">

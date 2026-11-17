@@ -66,6 +66,9 @@ Easiest path — paste each `.sql` file's contents into the SQL editor in the Su
                                   pre-sign-in anonymous user, and makes that FK ON DELETE SET NULL.
                                   Without it the 0005 anonymous-user cleanup fails outright as soon
                                   as one signed-in buyer's anonymous user is due for deletion)
+0027_payment_requests.sql        (per-request payment links: AM-issued, buyer read-only, live via
+                                  realtime. Apply BEFORE deploying the Payments tab; without it the
+                                  tab logs a fetch error and shows "no payment links yet")
 ```
 
 > **Model config is now DB-driven.** After `0015`, the live interview/pills/translate models are set from the AM dashboard (**Models** pane) and stored in `app_settings`; the backend's `GEMINI_*_MODEL` env vars are only the fallback. No operator step is required beyond running the migration — but confirm the seed values equal what Render currently runs so no buyer-facing model silently changes on deploy.

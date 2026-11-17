@@ -14,6 +14,10 @@
 // subtitle and the header status pill.
 
 import type { SourcingStage } from "@/lib/sourcingStages";
+import type { DateGroup, RequestFilter } from "@/lib/requestFilters";
+import type { PaymentStatus } from "@/lib/supabase/types";
+
+export type WorkspaceTab = "chat" | "documents" | "payments";
 
 export interface ProgressStrings {
   newRequest: string;
@@ -32,6 +36,42 @@ export interface ProgressStrings {
   stageLabel: Record<SourcingStage, string>;
   nextStepPre: string;
   nextStep: Record<SourcingStage, string>;
+  // App shell: sidebar
+  searchPlaceholder: string;
+  searchAria: string;
+  noMatches: string;
+  filterAria: string;
+  filterLabel: Record<RequestFilter, string>;
+  filterEmpty: Record<RequestFilter, string>;
+  dateGroup: Record<DateGroup, string>;
+  collapseSidebar: string;
+  expandSidebar: string;
+  // App shell: request workspace tabs
+  tabsAria: string;
+  tabLabel: Record<WorkspaceTab, string>;
+  orderFile: string;
+  // Documents tab
+  documentsTitle: string;
+  documentsLead: string;
+  documentsEmptyDraft: string;
+  documentsEmpty: string;
+  documentFrom: string;
+  documentDownload: string;
+  documentUnavailable: string;
+  documentTag: { image: string; file: string };
+  showInChat: string;
+  // Payments tab
+  paymentsTitle: string;
+  paymentsLead: string;
+  paymentsEmptyDraft: string;
+  paymentsEmpty: string;
+  paymentsOutstanding: string;
+  paymentsAllSettled: string;
+  payNow: string;
+  paymentTag: string;
+  paymentStatus: Record<PaymentStatus, string>;
+  paymentsTrust: string;
+  loadingItems: string;
 }
 
 export const PROGRESS_EN: ProgressStrings = {
@@ -87,6 +127,68 @@ export const PROGRESS_EN: ProgressStrings = {
     delivered:
       "Your order has been delivered. Message your account manager with any questions.",
   },
+  searchPlaceholder: "Search requests",
+  searchAria: "Search your requests",
+  noMatches: "No requests match your search.",
+  filterAria: "Filter requests by status",
+  filterLabel: {
+    all: "All",
+    draft: "Drafts",
+    active: "In progress",
+    done: "Completed",
+  },
+  filterEmpty: {
+    all: "No requests yet.",
+    draft: "No drafts. Every brief has been sent for review.",
+    active: "Nothing in progress. Send a brief for review to start sourcing.",
+    done: "No completed orders yet.",
+  },
+  dateGroup: {
+    today: "Today",
+    week: "Previous 7 days",
+    month: "Previous 30 days",
+    older: "Older",
+  },
+  collapseSidebar: "Collapse sidebar",
+  expandSidebar: "Expand sidebar",
+  tabsAria: "Request sections",
+  tabLabel: {
+    chat: "Chat",
+    documents: "Documents",
+    payments: "Payments",
+  },
+  orderFile: "Order file",
+  documentsTitle: "Documents",
+  documentsLead:
+    "Every file your account manager sends for this request: offers, audit reports, contracts, invoices and shipping papers.",
+  documentsEmptyDraft:
+    "Documents arrive once your account manager starts working on this request. Finish your brief and request a human review first.",
+  documentsEmpty:
+    "No documents yet. Offers, audit reports and contracts for this request will appear here as your account manager sends them.",
+  documentFrom: "From your account manager",
+  documentDownload: "Download",
+  documentUnavailable: "Unavailable",
+  documentTag: { image: "Image", file: "Document" },
+  showInChat: "Show in chat",
+  paymentsTitle: "Payments",
+  paymentsLead:
+    "Payment links for this request. Pay only from links listed here.",
+  paymentsEmptyDraft:
+    "Payment links arrive after your account manager has agreed terms with you. Finish your brief and request a human review first.",
+  paymentsEmpty:
+    "No payment links yet. When a deposit or balance is due, the link will appear here.",
+  paymentsOutstanding: "Outstanding",
+  paymentsAllSettled: "Nothing outstanding",
+  payNow: "Pay now",
+  paymentTag: "Payment",
+  paymentStatus: {
+    pending: "Awaiting payment",
+    paid: "Paid",
+    cancelled: "Cancelled",
+  },
+  paymentsTrust:
+    "Nexcierge is the only place your payment goes. We never send bank details by email; if anyone does, tell your account manager.",
+  loadingItems: "Loading…",
 };
 
 // English "2h ago" / "yesterday" style relative time via the built-in

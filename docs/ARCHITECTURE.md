@@ -53,6 +53,8 @@ app/
             ├── route.ts                     GET — load brief + transcript + RFQ (+ sourcing stage)
             ├── claim/route.ts               POST — claim unassigned brief (auto-sets stage in_review)
             ├── stage/route.ts               POST — AM manually sets the sourcing stage
+            ├── payments/route.ts            POST — AM sends a payment link for this request
+            ├── payments/[paymentId]/route.ts  PATCH — AM marks a payment link paid / cancelled / pending
             └── messages/route.ts            POST — AM reply
 
 components/
@@ -69,11 +71,18 @@ components/
 │   ├── LoginTrigger.tsx    Marketing "Log in": signed out opens the modal with login copy (lands on /chat); signed in is a link to /chat
 │   └── AuthModal.tsx       Google + magic-link, opens on 401 from /api/request-review
 ├── chat/
-│   ├── ChatSidebar.tsx     Presentational request list (dark New-sourcing-request button,
-│   │                         status dots, relative times); data comes from useSessionsList
-│   │                         called once in app/chat/page.tsx
+│   ├── ChatSidebar.tsx     App sidebar: New sourcing request, status nav (All / Drafts /
+│   │                         In progress / Completed + counts, persisted per browser), search,
+│   │                         recency-grouped list; collapses to an icon rail at md+. Data comes
+│   │                         from useSessionsList called once in app/chat/page.tsx
 │   ├── SourcingProgressRail.tsx  Buyer right rail: title + status pill + 8-stage sourcing
-│   │                         timeline + next-step card. Inline at xl+, right drawer below
+│   │                         timeline + Order file card (documents / payments counts, jump to
+│   │                         tab) + next-step card. Inline at xl+, right drawer below.
+│   │                         Exports requestStatusPill (shared with the chat header)
+│   ├── DocumentsPanel.tsx  Documents tab: every AM attachment in this request's thread
+│   │                         (derived from messages, no table), batch-signed download links
+│   ├── PaymentsPanel.tsx   Payments tab: this request's payment links (outstanding total,
+│   │                         Pay now on pending rows, trust note)
 │   ├── ChatShellSkeleton.tsx  Static chat-page placeholder (prerendered /chat HTML + chat/loading.tsx)
 │   ├── ChatComposer.tsx    Controlled (dashboard) or uncontrolled (buyer chat: owns its text so typing
 │   │                         doesn't re-render the page); onSubmit(text) returning false keeps the text
@@ -95,6 +104,7 @@ components/
     ├── BriefSummary.tsx    Brief-details sidebar (buyer / machine / delivery / specs / CRM / rating)
     ├── RatingSection.tsx   Lead-quality rating + Generate-lessons card
     ├── StageSection.tsx    Manual sourcing-stage picker (assigned AM only)
+    ├── PaymentsSection.tsx Per-request payment links: list + send / mark paid / cancel (assigned AM)
     ├── LanguageSelector.tsx  AM working-language dropdown
     ├── LessonsPane.tsx     Lessons review queue
     └── SettingsPane.tsx    Live Gemini model config
@@ -108,6 +118,11 @@ lib/
 ├── progressStrings.ts      English-pinned strings for the buyer sidebar + progress rail
 │                             chrome (workspace chrome never localizes — only chat + RFQ
 │                             card do) + relativeTime() helper
+├── requestFilters.ts       Buyer sidebar status buckets (draft / active / done) + recency groups
+├── payments.ts             Pure payment-link helpers: validation (https only), money formatting,
+│                             outstanding totals
+├── useSessionPayments.ts   One request's payment_requests rows (RLS read) + payments:${id} realtime
+│                             channel; shared by the buyer Payments tab and the AM brief sidebar
 ├── useSessionsList.ts      Lifted session list: seeded from the bootstrap payload (no fetch of its
 │                             own on load) + one sessions:${userId} realtime channel feeding
 │                             ChatSidebar AND the rail (incl. onActiveSessionUpdate side-channel
@@ -151,7 +166,7 @@ lib/
                             + advanceDealStage(dealId, stageId) for pipeline transitions
 
 supabase/
-├── migrations/             0001..0026 — users + chat tables + rfqs + RLS + cleanup + read_at + language/translation + rate_limits + … + sourcing stage (0020) + its backfill (0021) + llm_call_logs stream metrics (0022) + chat_sessions.language_resolved_at (0023) + RLS initplan rewrite (0024) + check_rate_limit locked to service_role (0025) + message sender repair / FK set null (0026)
+├── migrations/             0001..0026 — users + chat tables + rfqs + RLS + cleanup + read_at + language/translation + rate_limits + … + sourcing stage (0020) + its backfill (0021) + llm_call_logs stream metrics (0022) + chat_sessions.language_resolved_at (0023) + RLS initplan rewrite (0024) + check_rate_limit locked to service_role (0025) + message sender repair / FK set null (0026) + per-request payment links (0027)
 └── README.md               Step-by-step setup the human operator does once
 
 types/
@@ -183,13 +198,16 @@ Server-side events (funnel order):
 | Event | Where | Notes |
 |---|---|---|
 | `chat_session_started` | `/api/chat/start`, `/api/chat/sessions` POST | `source`: bootstrap / homepage_new / sidebar_new; fires only when a row is actually inserted — reusing a never-started session doesn't re-fire |
-| `signup_gate_shown` | `lib/useChat.ts` (**browser**) | anonymous buyer exhausted the free preview (`FREE_MESSAGE_LIMIT`) and the signup wall opened; `message_count`. The one browser-side custom capture — guarded on `NEXT_PUBLIC_POSTHOG_KEY` like `PostHogIdentify`, fires once per session |
+| `signup_gate_shown` | `lib/useChat.ts` (**browser**) | anonymous buyer exhausted the free preview (`FREE_MESSAGE_LIMIT`) and the signup wall opened; `message_count`. Browser-side custom capture (with `payment_link_opened`), guarded on `NEXT_PUBLIC_POSTHOG_KEY` like `PostHogIdentify`, fires once per session |
 | `profile_completed` | `/api/chat` | fires on the turn `rfqs.is_complete` flips false→true |
 | `auth_completed` | `/auth/callback` | `method`: google_oauth / magic_link |
 | `review_blocked` | `/api/request-review` | buyer clicked handoff but was blocked; `reason`: missing_fields (409) / auth_required (401) — the funnel drop-off `review_requested` can't show |
 | `review_requested` | `/api/request-review` | **core conversion**; `language`, `hubspot_synced`, `machine_type`, `delivery_country` (category dims for conversion breakdowns) |
 | `am_brief_claimed` | `/api/am/sessions/[id]/claim` | distinct_id = the AM |
 | `am_stage_updated` | `/api/am/sessions/[id]/stage` | AM manually set the buyer-visible sourcing stage; `stage` (enum slug) |
+| `am_payment_link_created` | `/api/am/sessions/[id]/payments` POST | AM sent the buyer a payment link; `session_id`, `payment_id`, `currency` (never the label or URL) |
+| `am_payment_status_updated` | `/api/am/sessions/[id]/payments/[paymentId]` PATCH | `status`: paid / cancelled / pending (reopen) |
+| `payment_link_opened` | `components/chat/PaymentsPanel.tsx` (**browser**) | buyer clicked Pay now; `session_id`, `payment_id`, `currency`. Guarded on `NEXT_PUBLIC_POSTHOG_KEY` like `signup_gate_shown` |
 | `am_reply_sent` | `/api/am/sessions/[id]/messages` | `translated`, `has_attachments` |
 | `am_lead_rated` | `/api/am/sessions/[id]/rating` | AM's verdict on the AI interview; `lead_quality`, `field_issues` |
 | `agent_lessons_proposed` | `/api/am/sessions/[id]/lessons` | one per Generate-lessons click; `lead_quality`, `lesson_count` |
@@ -200,7 +218,7 @@ Server-side events (funnel order):
 
 PostHog is for product analytics/dashboards only; exact LLM cost/latency auditing lives in Postgres `llm_call_logs` (migration 0013).
 
-**Autocapture PII guard.** Autocapture records clicked-element text, which can include buyer free-text. Every element rendering buyer-entered content carries `ph-no-capture` (PostHog ignores autocapture on it + its children): `MessageBubble`, `ProfileSummaryCard`, `BriefSummary`, `BriefPane`, `RfqTable` — placed so CTAs stay outside the tagged region and remain captured. `instrumentation-client.ts`'s `before_send` also strips URL query/hash (auth codes, tokens, session ids) from `$current_url`/`$referrer`. The scrub covers every URL-bearing key posthog-js sends (`$session_entry_url`, `$initial_current_url`, `$set`/`$set_once` copies, ...), not just those two. The landing sections render no buyer-entered text in the DOM (the agent console is an input; its chips are canned), so they carry no `ph-no-capture`. Marketing CTAs are tagged `data-ph-capture-attribute-cta="nav|menu|hero|closing|dock"` so clicks can be split by placement. **New component rendering buyer content → add `ph-no-capture`** (see `docs/TRACKING.md` § Autocapture & PII).
+**Autocapture PII guard.** Autocapture records clicked-element text, which can include buyer free-text. Every element rendering buyer-entered content carries `ph-no-capture` (PostHog ignores autocapture on it + its children): `MessageBubble`, `ProfileSummaryCard`, request titles in `ChatSidebar` / the chat header / `SourcingProgressRail`, `BriefSummary`, `BriefPane`, `RfqTable` — placed so CTAs stay outside the tagged region and remain captured. `instrumentation-client.ts`'s `before_send` also strips URL query/hash (auth codes, tokens, session ids) from `$current_url`/`$referrer`. The scrub covers every URL-bearing key posthog-js sends (`$session_entry_url`, `$initial_current_url`, `$set`/`$set_once` copies, ...), not just those two. The landing sections render no buyer-entered text in the DOM (the agent console is an input; its chips are canned), so they carry no `ph-no-capture`. Marketing CTAs are tagged `data-ph-capture-attribute-cta="nav|menu|hero|closing|dock"` so clicks can be split by placement. **New component rendering buyer content → add `ph-no-capture`** (see `docs/TRACKING.md` § Autocapture & PII).
 
 ## Auth flow — anonymous-first
 
@@ -332,6 +350,20 @@ All stage writes funnel through `updateSourcingStage()` in `lib/db/sessions.ts`.
 **How the buyer sees it live.** `chat_sessions` is already in the realtime publication with replica identity full, so stage columns ride existing UPDATE payloads. The session list + its `sessions:${userId}` channel are lifted into `lib/useSessionsList.ts` (called once by `app/chat/page.tsx`) and feed both `ChatSidebar` (now presentational) and the rail; its `onActiveSessionUpdate` side-channel forwards UPDATEs for the active session **before** the untitled-row filter, and the page overlays that row on the `useChat` bootstrap baseline (read-time guard on `row.id === sessionId`, no reset effect). `useChat` also optimistically flips `status`/`sourcing_stage` on a successful `requestReview()`.
 
 **Language policy.** All rail + sidebar chrome (stage labels, short status labels, next-step copy) lives in `lib/progressStrings.ts` and is **English-pinned by design** — only the conversation itself (chat bubbles + composer chrome via `chatStrings`) and the RFQ summary card (`cardStrings`) follow the buyer's language; workspace chrome around them stays English, matching the AM side's English-pinned brief sidebar (`lib/amBriefStrings.ts`). `progressStrings.ts` also exports an English `relativeTime()` built on `Intl.RelativeTimeFormat` for the sidebar's "2h ago" stamps.
+
+## Buyer app shell + per-request order file
+
+`/chat` is an app, not just a chat: each sourcing request (one `chat_session`) is a workspace with its own **Chat / Documents / Payments** tabs, and the sidebar is the list of those workspaces.
+
+**Sidebar (`ChatSidebar`).** New sourcing request, then a status nav with live counts: All, Drafts (`status='ai'`), In progress (`in_handoff` and not delivered), Completed (`closed` or stage `delivered`). Buckets live in `lib/requestFilters.ts`. Below it a title search and the filtered list grouped by recency (Today / Previous 7 days / Previous 30 days / Older, on `updated_at`). The chosen filter persists in `localStorage` (`nx_request_filter`); at `md+` the sidebar collapses to a 56px icon rail (new request + the four filters), remembered as `nx_sidebar_collapsed`. Both storage reads are wrapped in try/catch and default safely. All counts are computed client-side from the existing session list, so the shell adds no request.
+
+**Header + tabs (`app/chat/page.tsx`).** Title (ph-no-capture) + status pill (below `xl`, where the rail is a drawer), then a `role="tablist"` row. Tabs are hidden on the empty welcome screen. The selected tab is stored together with the session id it was picked for and read through a guard, so switching requests always lands on Chat with no reset effect. The composer only renders on Chat. Badges: document count; payments show the pending count in amber (else the total).
+
+**Documents tab (`DocumentsPanel`).** Derived from the loaded thread: every `metadata.attachments` entry on this request's messages, newest first, dated by `Message.createdAt` (hydrated from `chat_messages.created_at`). No table and no extra query; signed URLs are minted in one `createSignedUrls` batch when the tab opens. "Show in chat" switches to Chat and scrolls to the message (`#msg-<id>` wrapper around each bubble).
+
+**Payments tab (`PaymentsPanel`) + model.** `payment_requests` (migration `0027`): `chat_session_id`, `label`, `amount numeric(14,2)`, ISO `currency`, `payment_url` (CHECK https), `status` pending / paid / cancelled, `paid_at`. Phase 1 has no processor integration: the assigned AM pastes the link their processor issued (`PaymentsSection` in the brief sidebar → `POST /api/am/sessions/[id]/payments`) and marks it paid when funds land (`PATCH .../payments/[paymentId]`). RLS: buyer owner + any AM read; only the assigned AM inserts/updates (the routes run on the AM's scoped client, so RLS is the real gate; explicit 409s give clear errors). The table is in `supabase_realtime` with replica identity full; `lib/useSessionPayments.ts` reads the rows and subscribes on `payments:<sessionId>`, so the buyer's tab updates live. The buyer page skips the read for drafts (no AM, so no rows). The UI only renders a Pay now link for `https:` URLs (`isSafePaymentUrl`), opened with `rel="noopener noreferrer"`. Sending a link does **not** post a chat message; the AM should mention it in the thread (or a follow-up can add a system message).
+
+**Rail.** The progress rail gains an **Order file** card (document count, payment count / pending) whose rows jump to the tabs.
 
 ## Returning-buyer identity reuse
 
