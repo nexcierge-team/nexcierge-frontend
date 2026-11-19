@@ -1,167 +1,161 @@
-// All copy for the marketing landing page (app/(marketing)/page.tsx).
-// Server and client sections import from here so wording lives in one
-// place. House rule: no em dashes in user-facing strings.
+// All copy for the public marketing pages: the homepage, /how-it-works,
+// /services and /why-nexcierge. Server and client sections import from
+// here so wording lives in one place. House rule: no em dashes in
+// user-facing strings.
 //
-// Product claims on this page (Merchant of Record, QIMA as a named
-// inspection partner, financing, documents and payment links in the buyer
-// account) were confirmed with the business before publishing. Check with
-// them again before adding new ones.
+// Product claims on these pages (Nexcierge as Merchant of Record, QIMA
+// as a named inspection partner, financing, documents and payment links
+// in the buyer account) were confirmed with the business before
+// publishing. Do not add testimonials, order counts, supplier counts,
+// certifications, guarantees or response-time promises without checking
+// with them first.
 
 export const NAV_LINKS = [
-  { href: "/#process", label: "How it works" },
-  { href: "/#agent", label: "Try the agent" },
-  { href: "/#account", label: "Your account" },
-  { href: "/#mor", label: "Merchant of Record" },
-  { href: "/#scope", label: "Services" },
+  { href: "/how-it-works", label: "How it works" },
+  { href: "/services", label: "Services" },
+  { href: "/why-nexcierge", label: "Why Nexcierge" },
 ] as const;
+
+// One label per destination, used everywhere a CTA appears.
+export const CTA = {
+  start: "Start a request",
+  howItWorks: "How it works",
+  signIn: "Sign in",
+  account: "Your account",
+} as const;
+
+// ── Homepage ─────────────────────────────────────────────────
 
 export const HERO = {
   title: "Buy machinery from anywhere, under one contract.",
-  lead: "Tell our AI agent what you need, in your language, whether it is a 21-tonne excavator, a small filling machine or lab equipment. A local account manager sources it, the factory is audited, and Nexcierge sells it to you as Merchant of Record.",
-  caption:
-    "Each drawing is an example sourcing file. Every term is held in the buyer's language and the supplier's.",
-  ledger: [
-    { term: "Brief", value: "AI agent, in your language" },
-    { term: "Sourcing", value: "Local account manager" },
-    { term: "Factory audit", value: "Partners like QIMA" },
-    { term: "Contract", value: "Nexcierge as Merchant of Record" },
-  ],
+  lead: "Tell us what equipment you need. We’ll find the right manufacturer, help verify the supplier, and handle your purchase under one contract.",
 } as const;
 
-export const RISKS = {
-  title: "Three ways a cross-border equipment deal goes wrong",
-  lead: "Buying equipment from another country usually means a chain of intermediaries, a price that moves, and a spec sheet nobody fully read. We took a red pencil to the usual process.",
-  chainCaption:
-    "The usual chain puts intermediaries between you and the factory. Nexcierge replaces them with one seller.",
+export const BENEFITS = {
+  title: "A simpler way to buy equipment overseas.",
   items: [
     {
-      risk: "Hook pricing",
-      riskText:
-        "A low quote wins your order. The real price shows up after the deposit is paid.",
-      fix: "The seller quotes the price",
-      fixText:
-        "Nexcierge quotes as the company that will invoice you. The price we quote is the price we contract.",
-      scribble:
-        "M12,34 C8,10 186,2 192,26 C198,54 26,60 8,40 C0,28 26,12 72,8",
+      title: "One company to work with",
+      text: "Your contract, invoice, and payment are with Nexcierge. One company stays responsible for your order.",
     },
     {
-      risk: "Disintermediation",
-      riskText:
-        "Someone in the chain gets cut out halfway through the deal, and accountability leaves with them.",
-      fix: "One counterparty, start to finish",
-      fixText:
-        "Your contract, invoice and payment all sit with Nexcierge. There is no chain to fall apart, and one company answers for the order.",
-      scribble:
-        "M10,30 C10,6 190,6 190,30 C190,56 14,56 8,32 C6,22 30,10 64,8",
+      title: "Suppliers you can verify",
+      text: "We help source manufacturers and coordinate independent inspections when needed.",
     },
     {
-      risk: "Lost in translation",
-      riskText:
-        "Technical specifications pass through several languages and arrive meaning something else.",
-      fix: "Specs translated term by term",
-      fixText:
-        "A multilingual AI agent takes the brief in your language and translates each technical requirement. A local account manager works from the compiled file.",
-      scribble:
-        "M14,36 C6,12 184,0 192,24 C200,52 30,62 10,42 C2,30 22,14 60,10",
+      title: "Support from start to finish",
+      text: "From finding the right machine to arranging delivery, our team helps you through the process.",
     },
   ],
 } as const;
 
-export type StepWho = "ai" | "human" | "partner";
-export type StepIcon =
-  | "brief"
-  | "translate"
-  | "person"
-  | "audit"
-  | "contract"
-  | "ship";
-
-export const PROCESS: {
-  title: string;
-  lead: string;
-  scaleFrom: string;
-  scaleTo: string;
-  steps: {
-    title: string;
-    text: string;
-    who: StepWho;
-    whoLabel: string;
-    icon: StepIcon;
-  }[];
-} = {
-  title: "From first message to machine on site",
-  lead: "Six stages. Software handles the interview and the paperwork, and people handle the factory.",
-  scaleFrom: "First message",
-  scaleTo: "Machine on site",
-  steps: [
+export const STEPS = {
+  title: "From your requirements to the right machine.",
+  lead: "Tell us what you’re looking for. We’ll help with the details, find suitable manufacturers, and guide you through the purchase.",
+  cta: "Explore how it works",
+  items: [
     {
-      title: "Brief the agent",
-      text: "Our AI agent interviews you the way a sourcing engineer would: machine type, capacity, application, destination. You answer in your own language.",
-      who: "ai",
-      whoLabel: "AI agent",
-      icon: "brief",
+      title: "Tell us what you need",
+      text: "Describe the equipment you’re looking for in your own language. Our sourcing assistant helps gather the details.",
     },
     {
-      title: "Specs translated and compiled",
-      text: "The agent translates your requirements into exact technical terms, cross-references them, and compiles one sourcing file.",
-      who: "ai",
-      whoLabel: "AI agent",
-      icon: "translate",
+      title: "We find and verify suppliers",
+      text: "Our team works with manufacturers, reviews specifications, and helps arrange inspections when needed.",
     },
     {
-      title: "A person sources the machine",
-      text: "A local account manager takes the file, sources the machine and comes back to you with an offer.",
-      who: "human",
-      whoLabel: "Account manager",
-      icon: "person",
-    },
-    {
-      title: "The factory is audited",
-      text: "Factory audits run through inspection partners such as QIMA, so you know who is building your machine.",
-      who: "partner",
-      whoLabel: "Inspection partner",
-      icon: "audit",
-    },
-    {
-      title: "One contract, one payment",
-      text: "Nexcierge is the Merchant of Record. You contract with us, and the documents and payment links arrive in your account.",
-      who: "human",
-      whoLabel: "Nexcierge",
-      icon: "contract",
-    },
-    {
-      title: "Shipped, financed, installed",
-      text: "Add logistics, financing and on-site installation to the same order, so the machine arrives ready to work.",
-      who: "human",
-      whoLabel: "Nexcierge",
-      icon: "ship",
+      title: "Purchase with confidence",
+      text: "Receive a quote from Nexcierge and complete your purchase through one company. We can also help coordinate shipping and installation.",
     },
   ],
-};
+} as const;
 
-// ── Agent console ──────────────────────────────────────────────
-// Static chrome for the landing entry point. Nothing here is a scripted
-// reply: the first thing the visitor sends goes to the real agent on /chat.
+export const MOR = {
+  title: "One contract. One company accountable.",
+  lead: [
+    "Unlike supplier directories that simply connect you with manufacturers, Nexcierge is your seller. We purchase the equipment from the supplier and sell it directly to you.",
+    "Your contract, invoice, and payment are with Nexcierge.",
+  ],
+  cta: "Why this matters",
+  diagramLabel:
+    "How an order is structured: you buy from Nexcierge, and Nexcierge buys from the manufacturer.",
+  nodes: {
+    you: { title: "You", sub: "The buyer" },
+    nex: { title: "Nexcierge", sub: "Your seller and point of contact" },
+    factory: { title: "Manufacturer", sub: "Builds your equipment" },
+  },
+  flows: ["Contract, invoice, payment", "Purchase order"],
+} as const;
+
+export const CLOSING = {
+  title: "Tell us what you’re looking for.",
+  lead: "Whether you know the exact model or are still figuring out the specifications, we’re here to help.",
+  secondary: "Learn how Nexcierge works",
+} as const;
+
+// ── How it works ─────────────────────────────────────────────
+
+export const HOW = {
+  title: "From your first request to the right equipment.",
+  lead: "Tell us what you need. We’ll help turn your requirements into a clear sourcing brief, find suitable manufacturers, and guide you through the purchase.",
+  processTitle: "Six stages, one team.",
+  processLead:
+    "Software helps with the questions and the paperwork. People handle the manufacturers, the checks, and the decisions.",
+  stages: [
+    {
+      title: "Tell us what you need",
+      text: "Describe the machine you’re looking for in your own language. Our sourcing assistant will ask a few questions to understand your requirements.",
+      who: "Sourcing assistant",
+    },
+    {
+      title: "We prepare your sourcing brief",
+      text: "Your answers are organized into a clear document covering the machine, specifications, quantity, destination, and timeline.",
+      who: "Sourcing assistant",
+    },
+    {
+      title: "Our team finds suppliers",
+      text: "A local sourcing manager reviews your requirements, contacts manufacturers, and works with you to identify suitable options.",
+      who: "Account manager",
+    },
+    {
+      title: "Verify the manufacturer",
+      text: "We help coordinate factory inspections and equipment checks where needed, so you can make a more informed decision.",
+      who: "Inspection partner",
+    },
+    {
+      title: "Review your quote",
+      text: "Receive a quote from Nexcierge with the equipment details, pricing, and agreed terms in one place.",
+      who: "Nexcierge",
+    },
+    {
+      title: "Complete your purchase",
+      text: "Purchase directly from Nexcierge. Depending on your order, we can also help coordinate shipping, delivery, and installation.",
+      who: "Nexcierge",
+    },
+  ],
+} as const;
+
+// ── Sourcing assistant console (How it works page) ──────────
+// Static chrome for the entry point. Nothing here is a scripted reply:
+// the first thing the visitor sends goes to the real assistant on /chat.
 
 export type ConsoleLang = "en" | "es" | "fr" | "zh" | "ar";
 
-export const CONSOLE_LANGS: { code: ConsoleLang; label: string }[] = [
-  { code: "en", label: "EN" },
-  { code: "es", label: "ES" },
-  { code: "fr", label: "FR" },
-  { code: "zh", label: "中文" },
-  { code: "ar", label: "عربي" },
+export const CONSOLE_LANGS: { code: ConsoleLang; label: string; name: string }[] = [
+  { code: "en", label: "EN", name: "English" },
+  { code: "es", label: "ES", name: "Español" },
+  { code: "fr", label: "FR", name: "Français" },
+  { code: "zh", label: "中文", name: "中文" },
+  { code: "ar", label: "عربي", name: "العربية" },
 ];
 
 export const AGENT = {
-  title: "Brief the agent in your own language",
-  lead: "Tell the agent which machine you need, in any language. It interviews you like a sourcing engineer and compiles the answers into one sourcing file for your account manager.",
-  agentName: "Intake agent",
-  fileTitle: "Sourcing file",
-  fileStatus: "The agent fills these in as you answer.",
-  fileNote:
-    "Your conversation is saved, so you can pick it up where you left it.",
-  hint: "Your first message opens the live agent.",
+  title: "Start with a simple conversation.",
+  lead: "Tell us what equipment you’re looking for. Our sourcing assistant helps gather the details and prepare a brief for our team.",
+  agentName: "Sourcing assistant",
+  fileTitle: "Your sourcing brief",
+  fileStatus: "Filled in as you answer.",
+  fileNote: "Your conversation is saved, so you can pick it up where you left off.",
+  hint: "Sending a message opens your request.",
 } as const;
 
 export const CONSOLE_COPY: Record<
@@ -170,8 +164,8 @@ export const CONSOLE_COPY: Record<
 > = {
   en: {
     greeting:
-      "Hello. I'm the Nexcierge intake agent. Tell me which machine you need and I'll build your sourcing file.",
-    placeholder: "Describe the machine you need…",
+      "Hello. I’m the Nexcierge sourcing assistant. Tell me what equipment you need, and I’ll help prepare your sourcing brief.",
+    placeholder: "Describe the equipment you need…",
     chips: [
       "I need a 21-tonne excavator",
       "A 4-head liquid filling machine",
@@ -180,8 +174,8 @@ export const CONSOLE_COPY: Record<
   },
   es: {
     greeting:
-      "Hola. Soy el agente de Nexcierge. Dígame qué máquina necesita y prepararé su expediente de compra.",
-    placeholder: "Describa la máquina que necesita…",
+      "Hola. Soy el asistente de compras de Nexcierge. Dígame qué equipo necesita y le ayudaré a preparar su solicitud.",
+    placeholder: "Describa el equipo que necesita…",
     chips: [
       "Necesito una excavadora de 21 toneladas",
       "Una llenadora de líquidos de 4 cabezales",
@@ -190,24 +184,24 @@ export const CONSOLE_COPY: Record<
   },
   fr: {
     greeting:
-      "Bonjour. Je suis l'agent Nexcierge. Dites-moi de quelle machine vous avez besoin et je prépare votre dossier d'achat.",
-    placeholder: "Décrivez la machine dont vous avez besoin…",
+      "Bonjour. Je suis l’assistant d’achat de Nexcierge. Dites-moi de quel équipement vous avez besoin et je vous aide à préparer votre demande.",
+    placeholder: "Décrivez l’équipement dont vous avez besoin…",
     chips: [
-      "J'ai besoin d'une pelle de 21 tonnes",
+      "J’ai besoin d’une pelle de 21 tonnes",
       "Une remplisseuse de liquides à 4 têtes",
       "Une centrifugeuse de laboratoire de paillasse",
     ],
   },
   zh: {
     greeting:
-      "您好，我是 Nexcierge 采购助手。请告诉我您需要哪种设备，我来为您整理采购档案。",
+      "您好，我是 Nexcierge 采购助手。请告诉我您需要哪种设备，我来帮您整理采购需求。",
     placeholder: "请描述您需要的设备…",
     chips: ["我需要一台 21 吨挖掘机", "一台四头液体灌装机", "一台台式实验室离心机"],
   },
   ar: {
     greeting:
-      "مرحباً. أنا وكيل Nexcierge. أخبرني ما المعدّة التي تحتاجها وسأجهّز ملف التوريد الخاص بك.",
-    placeholder: "صف المعدّة التي تحتاجها…",
+      "مرحباً. أنا مساعد التوريد في Nexcierge. أخبرني ما المعدّات التي تحتاجها وسأساعدك في إعداد طلبك.",
+    placeholder: "صف المعدّات التي تحتاجها…",
     chips: [
       "أحتاج حفارة بوزن 21 طناً",
       "آلة تعبئة سوائل بأربعة رؤوس",
@@ -216,114 +210,50 @@ export const CONSOLE_COPY: Record<
   },
 };
 
-// ── Account ───────────────────────────────────────────────────
+// ── Services ─────────────────────────────────────────────────
 
-export type HistoryKind = "chat" | "doc" | "pay";
-
-export const ACCOUNT: {
-  // Two sentences, set on their own lines.
-  title: [string, string];
-  lead: string;
-  facts: { title: string; text: string }[];
-  cta: string;
-  panelTitle: string;
-  orderLabel: string;
-  orderName: string;
-  filters: { key: "all" | HistoryKind; label: string; noun: [string, string] }[];
-  history: { kind: HistoryKind; tag: string; label: string; status: string }[];
-} = {
-  title: ["Log in once.", "The whole order lives there."],
-  lead: "Your account keeps the full history of every order, and you transact in it directly. Documents and payment links arrive in the same place, so nothing is scattered across email threads.",
-  facts: [
+export const SERVICES = {
+  title: "The support you need, from sourcing to delivery.",
+  lead: "Every equipment purchase is different. Choose the services you need, and we’ll help coordinate the process.",
+  items: [
     {
-      title: "History",
-      text: "Every brief and conversation is saved. Pick an order up where you left it.",
+      id: "sourcing",
+      title: "Equipment sourcing",
+      text: "We work with manufacturers to find equipment that matches your specifications, budget, and timeline.",
     },
     {
-      title: "Documents",
-      text: "All the documents for your order are delivered to your account.",
+      id: "verification",
+      title: "Supplier verification",
+      text: "We help coordinate independent inspections and checks so you can better understand the manufacturer and equipment before purchasing.",
     },
     {
-      title: "Payment links",
-      text: "Pay from the link we send to your account. Nexcierge is the only place your payment goes.",
+      id: "shipping",
+      title: "International shipping",
+      text: "We can help arrange freight and coordinate delivery to your destination.",
+    },
+    {
+      id: "financing",
+      title: "Financing",
+      text: "Ask us about financing options that may be available for your order.",
+    },
+    {
+      id: "installation",
+      title: "Installation support",
+      text: "Where available, we can help coordinate installation and commissioning with qualified local partners.",
     },
   ],
-  cta: "Log in to your account",
-  panelTitle: "Order history",
-  orderLabel: "Order",
-  orderName: "4-head liquid filling machine, 100 to 1,000 ml",
-  filters: [
-    { key: "all", label: "All", noun: ["item", "items"] },
-    { key: "chat", label: "Chats", noun: ["chat", "chats"] },
-    { key: "doc", label: "Documents", noun: ["document", "documents"] },
-    { key: "pay", label: "Payments", noun: ["payment", "payments"] },
-  ],
-  history: [
-    { kind: "chat", tag: "Chat", label: "Brief with the intake agent", status: "Saved" },
-    { kind: "doc", tag: "Document", label: "Sourcing file", status: "Compiled" },
-    { kind: "chat", tag: "Chat", label: "Messages with your account manager", status: "Saved" },
-    { kind: "doc", tag: "Document", label: "Offer", status: "Received" },
-    { kind: "doc", tag: "Document", label: "Factory audit report", status: "Received" },
-    { kind: "doc", tag: "Document", label: "Contract and invoice", status: "Received" },
-    { kind: "pay", tag: "Payment", label: "Payment link", status: "Paid" },
-    { kind: "doc", tag: "Document", label: "Shipping documents", status: "Received" },
-  ],
-};
+} as const;
 
-// ── Merchant of Record ────────────────────────────────────────
-
-export type MorKey = "you" | "nex" | "factory" | "audit" | "pay" | "services";
-
-export const MOR: {
-  title: string;
-  lead: string;
-  nodes: { key: MorKey; title: string; sub: string }[];
-  flows: [string, string];
-  chips: { key: MorKey; label: string }[];
-  detail: Record<MorKey, string>;
-  ones: string[];
-} = {
-  title: "We are the seller on your contract",
-  lead: "Most platforms introduce you to a supplier and step back. Nexcierge operates as Merchant of Record: we buy the machine and sell it to you. One accountable company stands between your money and the factory.",
-  nodes: [
-    { key: "you", title: "You", sub: "Buyer" },
-    { key: "nex", title: "Nexcierge", sub: "Merchant of Record" },
-    { key: "factory", title: "Factory", sub: "Audited supplier" },
-  ],
-  flows: ["Contract, invoice, payment", "Purchase order, payment"],
-  chips: [
-    { key: "audit", label: "Factory audits" },
-    { key: "pay", label: "Secured payment" },
-    { key: "services", label: "Logistics, financing, installation" },
-  ],
-  detail: {
-    you: "You sign one contract and pay one invoice, both with Nexcierge. You never wire a deposit to a factory you have not met.",
-    nex: "Nexcierge buys the machine from the factory and sells it to you as Merchant of Record. Price, payment and delivery are our responsibility under one contract.",
-    factory:
-      "The factory builds and supplies the machine under a purchase order from Nexcierge. It is audited on site by an inspection partner.",
-    audit:
-      "Independent inspection partners such as QIMA audit the factory on the ground, so the supplier behind your machine has been checked in person.",
-    pay: "Your payment goes to one place: Nexcierge. You pay from the payment link sent to your account, through a secured payment flow.",
-    services:
-      "Freight, financing and on-site installation can be added to the same order and stay under the same contract.",
-  },
-  ones: [
-    "contract to sign",
-    "invoice to pay",
-    "place your payment goes",
-    "company accountable",
-  ],
-};
-
-// ── Delivery scope ────────────────────────────────────────────
-
+// Delivery selector. Incoterms are named as the *typical* term for each
+// option and only claim what that term covers; anything beyond it (import
+// clearance, unloading, installation) is stated as separate.
 export const SCOPE = {
-  title: "Choose how far we carry it",
-  lead: "Logistics, financing and installation are optional. Add them to the same order and they stay under the same contract.",
+  title: "Choose how your equipment gets to you.",
+  lead: "From collection at the export port to delivery at your site, we’ll help you understand the available options.",
   stops: [
-    "Factory gate",
+    "Factory",
     "Export port",
-    "Freight",
+    "Sea freight",
     "Your port",
     "Your site",
     "Installed",
@@ -333,128 +263,157 @@ export const SCOPE = {
       upto: 1,
       title: "Machine only",
       term: "Typical term: FOB",
-      text: "We source, audit and contract the machine and hand it over at the export port. You arrange the freight from there.",
+      text: "We deliver the machine on board the vessel at the export port, cleared for export. You arrange freight, insurance, and everything after that.",
     },
     {
       upto: 3,
       title: "Shipped to your port",
       term: "Typical term: CIF",
-      text: "We also book the freight and insure the cargo as far as your destination port or airport.",
+      text: "We also arrange sea freight and basic cargo insurance to your destination port. Unloading, import clearance, and duties stay with you. Under CIF, risk passes to you once the machine is loaded at origin.",
     },
     {
       upto: 4,
       title: "Delivered to site",
       term: "Typical term: DAP",
-      text: "We carry the machine through to your site, inland transport included.",
+      text: "We arrange transport through to your site, ready for unloading. Import clearance and duties stay with you unless your contract says otherwise.",
     },
     {
       upto: 5,
       title: "Installed and running",
-      term: "Delivered, then installed",
-      text: "Our post-sale team installs the machine on site and hands it over ready to work.",
+      term: "Delivery plus installation, agreed separately",
+      text: "Where available, we coordinate installation and commissioning on site with qualified local partners, on top of the delivery term in your contract.",
     },
   ],
-  financing: "Add financing",
+  note: "Your quote and contract set out exactly which delivery term applies to your order.",
+  financing: "I’m interested in financing",
   financingText:
-    "Financing is arranged alongside the order, under the same contract as the machine.",
+    "Mention it in your request. Your account manager will explain the financing options that may be available for your order.",
 } as const;
 
-export const CLOSING = {
-  title: "Tell the agent what you need",
-  lead: "Start the brief now, in your own language. An account manager picks it up from there.",
-  cta: "Start a brief",
-  partner: "Supplier or service partner?",
-  partnerLink: "Contact us",
+// ── Why Nexcierge ────────────────────────────────────────────
+
+export const WHY = {
+  title: "A better way to buy equipment across borders.",
+  lead: "International equipment purchases can involve multiple suppliers, intermediaries, and service providers. We bring the process together, with one company responsible for your purchase.",
+  seller: {
+    title: "We’re your seller, not just an introduction.",
+    text: [
+      "Many sourcing platforms connect buyers with manufacturers and leave them to manage the transaction. Nexcierge operates differently.",
+      "We purchase equipment from the supplier and sell it directly to you under an agreed contract.",
+    ],
+    plain:
+      "In trade terms, Nexcierge is the Merchant of Record: the company you buy from. Your contract, invoice, and payment are with us.",
+  },
+  points: [
+    {
+      title: "Know who you’re buying from.",
+      text: "We help identify suitable manufacturers, review equipment specifications, and coordinate independent inspections where needed.",
+      note: "Factory inspections are carried out by independent inspection partners such as QIMA.",
+    },
+    {
+      title: "Clear terms, from the beginning.",
+      text: "Your quote and contract set out the equipment, price, payment terms, and agreed delivery responsibilities.",
+    },
+    {
+      title: "Real people behind every order.",
+      text: "Our sourcing team works with manufacturers and helps coordinate the details that matter to your purchase.",
+    },
+  ],
+  account: {
+    title: "Everything in one place.",
+    text: "Keep your conversations, documents, quotes, and payment information together in your Nexcierge account.",
+    cta: "Sign in",
+    signedInCta: "View your orders",
+  },
+  faqTitle: "Common questions",
+  faq: [
+    {
+      question: "How do I know the quoted price is final?",
+      answer:
+        "Your formal quote and contract set out the agreed price, scope, and payment terms. Any changes should be documented and agreed before proceeding.",
+    },
+    {
+      question: "Who is responsible for my order?",
+      answer:
+        "Nexcierge is your contractual seller. Your purchase agreement identifies the responsibilities and terms that apply to your order.",
+    },
+    {
+      question: "How do you avoid specification mistakes?",
+      answer:
+        "We organize your requirements into a sourcing brief and review technical details with suppliers before finalizing the order.",
+    },
+    {
+      question: "Can I describe my requirements in my own language?",
+      answer:
+        "Yes. Our sourcing assistant replies in the language you write in, and your requirements are organized into a brief for our team.",
+    },
+    {
+      question: "Do I deal with the manufacturer directly?",
+      answer:
+        "Your account manager handles communication with manufacturers on your behalf and keeps you updated in your account. Because you buy from Nexcierge, there is one company to talk to about your order.",
+    },
+    {
+      question: "Can you source custom or modified equipment?",
+      answer:
+        "Tell us about the changes you need when you start your request. Your account manager will check what suitable manufacturers can offer before you receive a quote.",
+    },
+  ],
 } as const;
+
+// ── Account preview (Why Nexcierge page) ─────────────────────
+
+export type HistoryKind = "chat" | "doc" | "pay";
+
+export const ACCOUNT: {
+  panelTitle: string;
+  orderLabel: string;
+  orderName: string;
+  filters: { key: "all" | HistoryKind; label: string; noun: [string, string] }[];
+  history: { kind: HistoryKind; label: string; status: string }[];
+} = {
+  panelTitle: "Order activity",
+  orderLabel: "Example order",
+  orderName: "4-head liquid filling machine, 100 to 1,000\u00a0ml",
+  filters: [
+    { key: "all", label: "All activity", noun: ["item", "items"] },
+    { key: "chat", label: "Messages", noun: ["conversation", "conversations"] },
+    { key: "doc", label: "Documents", noun: ["document", "documents"] },
+    { key: "pay", label: "Payments", noun: ["payment", "payments"] },
+  ],
+  history: [
+    { kind: "chat", label: "Sourcing request", status: "Saved" },
+    { kind: "doc", label: "Sourcing brief", status: "Ready" },
+    { kind: "chat", label: "Messages with your account manager", status: "Saved" },
+    { kind: "doc", label: "Supplier quote", status: "Received" },
+    { kind: "doc", label: "Inspection report", status: "Received" },
+    { kind: "doc", label: "Contract and invoice", status: "Received" },
+    { kind: "pay", label: "Payment", status: "Paid" },
+    { kind: "doc", label: "Shipping documents", status: "Received" },
+  ],
+};
+
+// ── Footer ───────────────────────────────────────────────────
 
 export const FOOTER = {
-  blurb:
-    "AI-powered procurement for industrial machinery and equipment, sold under one contract.",
+  blurb: "Industrial equipment sourcing, made simpler.",
   email: "nexcierge.ai@gmail.com",
-  legal:
-    "QIMA is named as an inspection partner and is a trademark of its owner.",
+  legal: "QIMA is named as an inspection partner and is a trademark of its owner.",
+  columns: [
+    {
+      title: "Company",
+      links: [
+        { href: "/how-it-works", label: "How it works" },
+        { href: "/why-nexcierge", label: "Why Nexcierge" },
+        { href: "/contact", label: "Contact" },
+      ],
+    },
+    {
+      title: "Services",
+      links: [
+        { href: "/services#sourcing", label: "Equipment sourcing" },
+        { href: "/services#verification", label: "Supplier verification" },
+        { href: "/services#delivery", label: "Shipping and delivery" },
+      ],
+    },
+  ],
 } as const;
-
-// ── FAQ ───────────────────────────────────────────────────────
-
-export const FAQ_SECTIONS: {
-  title: string;
-  items: { question: string; answer: string }[];
-}[] = [
-  {
-    title: "General Procurement & Sourcing",
-    items: [
-      {
-        question: "How does Nexcierge source machinery?",
-        answer:
-          "Nexcierge operates as a direct industrial supplier. We utilize an advanced AI-driven configuration engine to capture your technical requirements and then leverage our internal engineering and operational teams to supply, vet, and deliver the equipment directly to your facility.",
-      },
-      {
-        question: "Do I get to speak to the factory directly?",
-        answer:
-          "To ensure absolute quality control, data privacy, and price security, Nexcierge acts as your exclusive Merchant of Record. We handle all direct communication and negotiation with the manufacturers. This ensures your proprietary IP is protected and you have a single point of accountability for your entire order.",
-      },
-      {
-        question: "Can you source custom or modified machinery?",
-        answer:
-          "Yes. Our AI-driven configuration process is designed specifically for custom technical requirements. Whether you need specialized mold geometries, PLC integration changes (e.g., Siemens or Allen-Bradley), or specific production capacities, we manage these modifications as part of our direct supply service.",
-      },
-    ],
-  },
-  {
-    title: "Security, Trust & Data Privacy",
-    items: [
-      {
-        question: "How do you protect my company's proprietary IP?",
-        answer:
-          "Nexcierge employs \"Strict UID Isolation\" in our backend systems. Your technical specifications and corporate identity are siloed. Manufacturers receive only the necessary engineering blueprints required to fulfill your order, ensuring your competitive advantage and proprietary tweaks remain confidential.",
-      },
-      {
-        question: "Is my payment secure?",
-        answer:
-          "We eliminate the risks of international wire fraud by acting as your principal partner. You transact directly with Nexcierge through institutional-grade financial gateways (Stripe/Airwallex). Your funds are managed securely, and we assume full liability for the fulfillment of your order.",
-      },
-      {
-        question:
-          "What if the machine I receive doesn't meet the specifications?",
-        answer:
-          "Because Nexcierge is your direct supplier and owner of the invoice, we are legally and contractually responsible for ensuring your machinery meets the approved engineering blueprints. If the machine does not perform to your approved technical specifications, we handle the resolution directly.",
-      },
-    ],
-  },
-  {
-    title: "Logistics & Installation",
-    items: [
-      {
-        question: "Does Nexcierge handle shipping and export compliance?",
-        answer:
-          "Yes. As your end-to-end principal, we manage all cross-border logistics, including HS code classification, crating, export documentation, and international freight, delivering your equipment seamlessly to your destination.",
-      },
-      {
-        question: "How is the machine installed at my facility?",
-        answer:
-          "Installation anxiety is a major challenge in global trade. Nexcierge manages this by coordinating our \"Fly-In\" technical teams. Depending on your location and machine complexity, we organize for qualified technicians to arrive on-site to handle final calibration, setup, and operator training.",
-      },
-      {
-        question: "Do you provide translated technical manuals and interfaces?",
-        answer:
-          "Absolutely. Providing equipment with manuals or PLC interfaces in a language you cannot read is a non-starter. Our local engineering teams ensure all technical documentation and machine control interfaces are translated and standardized for your team.",
-      },
-    ],
-  },
-  {
-    title: "Working with Nexcierge",
-    items: [
-      {
-        question: "Why is there a Sourcing Deposit?",
-        answer:
-          "The Sourcing Deposit is a fully refundable authorization hold. It serves two purposes: it filters for serious enterprise buyers, and it activates our \"Human-in-the-Loop\" coordination team to begin physically vetting the shortlisted facilities and negotiating your final quote.",
-      },
-      {
-        question: "Are you a trading company or a directory?",
-        answer:
-          "Neither. Nexcierge is a tech-enabled industrial supplier. Unlike directories that simply match you with a factory, we own the fulfillment process, the technical liability, and the shipping logistics. You are buying from a partner who guarantees the result.",
-      },
-    ],
-  },
-];

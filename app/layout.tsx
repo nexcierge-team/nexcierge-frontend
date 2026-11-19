@@ -17,7 +17,7 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: "Nexcierge | Buy machinery from anywhere, under one contract.",
   description:
-    "Brief our AI agent in your language. A local account manager sources the machine, the factory is audited, and Nexcierge sells it to you as Merchant of Record.",
+    "Tell us what equipment you need. We find the right manufacturer, help verify the supplier, and handle your purchase under one contract.",
   metadataBase: new URL("https://nexcierge.com"),
   // Pre-launch: keep the deployed preview out of search engines. Remove
   // before public launch so Google can index the marketing pages.
@@ -25,7 +25,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Nexcierge | Buy machinery from anywhere, under one contract.",
     description:
-      "AI-powered procurement for industrial machinery and equipment, sold under one contract.",
+      "International equipment sourcing: one company, one contract, from the first request to delivery.",
     type: "website",
   },
 };

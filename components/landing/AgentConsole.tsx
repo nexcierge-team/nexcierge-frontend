@@ -24,9 +24,9 @@ interface AgentConsoleProps {
   fileGroups: { en: FileGroup[]; zh: FileGroup[] };
 }
 
-const PANEL = "border-[1.5px] border-ink bg-sheet";
+const PANEL = "min-w-0 border border-rule-strong bg-sheet";
 const BAR =
-  "flex flex-wrap items-center justify-between gap-3 border-b-[1.5px] border-ink px-3.5 py-3";
+  "flex flex-wrap items-center justify-between gap-3 border-b border-rule px-4 py-3";
 
 export function AgentConsole({ fileGroups }: AgentConsoleProps) {
   const router = useRouter();
@@ -60,16 +60,18 @@ export function AgentConsole({ fileGroups }: AgentConsoleProps) {
   }
 
   return (
-    <div className="grid items-start gap-4 min-[960px]:grid-cols-2 min-[960px]:gap-6">
+    <div className="grid items-start gap-5 min-[960px]:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] min-[960px]:gap-8">
       <div className={cn(PANEL, "grid")}>
         <div className={BAR}>
-          <span className="type-title font-extrabold">{AGENT.agentName}</span>
+          <span className="type-title font-semibold">{AGENT.agentName}</span>
           <div className={SEG} role="group" aria-label="Conversation language">
             {CONSOLE_LANGS.map((l) => (
               <button
                 key={l.code}
                 type="button"
                 aria-pressed={lang === l.code}
+                aria-label={l.name}
+                lang={l.code}
                 onClick={() => setLang(l.code)}
                 className={SEG_BTN}
               >
@@ -81,12 +83,13 @@ export function AgentConsole({ fileGroups }: AgentConsoleProps) {
 
         <div
           dir={dir}
-          className="bg-ruled flex min-h-[220px] flex-col gap-2.5 px-3.5 py-4 min-[960px]:min-h-[260px]"
+          lang={lang}
+          className="flex min-h-[220px] flex-col gap-3 bg-white px-4 py-5 min-[960px]:min-h-[260px]"
         >
-          <p className="max-w-[86%] self-start rounded-[2px_12px_12px_12px] border border-ink bg-white px-[13px] py-2.5 leading-[1.4] rtl:rounded-[12px_2px_12px_12px]">
+          <p className="max-w-[88%] self-start rounded-[2px_12px_12px_12px] bg-paper px-4 py-3 leading-[1.5] rtl:rounded-[12px_2px_12px_12px]">
             {copy.greeting}
           </p>
-          <div className="mt-auto flex flex-wrap gap-2 pt-3">
+          <div className="mt-auto flex flex-wrap gap-2 pt-4">
             {copy.chips.map((chip) => (
               <button
                 key={chip}
@@ -94,7 +97,7 @@ export function AgentConsole({ fileGroups }: AgentConsoleProps) {
                 onClick={() => sendChip(chip)}
                 onPointerEnter={warm}
                 onFocus={warm}
-                className="min-h-[42px] rounded-full border-[1.5px] border-ink bg-white px-[15px] py-[9px] text-[15px] font-semibold transition-colors hover:bg-paint active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blueprint"
+                className="min-h-11 rounded-full border border-rule-strong bg-white px-4 py-2 text-[15px] font-medium text-ink transition-colors hover:border-ink hover:bg-paint/40 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blueprint motion-reduce:active:scale-100"
               >
                 {chip}
               </button>
@@ -104,7 +107,8 @@ export function AgentConsole({ fileGroups }: AgentConsoleProps) {
 
         <div
           dir={dir}
-          className="border-t border-rule-strong px-3.5 pb-3.5 pt-3"
+          lang={lang}
+          className="border-t border-rule px-4 pb-4 pt-3"
           onPointerEnter={warm}
           onFocus={warm}
         >
@@ -115,18 +119,18 @@ export function AgentConsole({ fileGroups }: AgentConsoleProps) {
             language={lang}
             rows={1}
           />
-          <p className="type-data mt-2 text-[13px] font-semibold text-ink-soft" dir="ltr">
+          <p className="mt-2 text-[13px] text-ink-soft" dir="ltr" lang="en">
             {AGENT.hint}
           </p>
         </div>
       </div>
 
-      <aside className={PANEL} aria-label={AGENT.fileTitle}>
+      <aside className={PANEL} aria-labelledby="brief-preview-title">
         <header className={BAR}>
-          <strong className="type-title font-extrabold">
+          <h3 id="brief-preview-title" className="type-title font-semibold">
             {AGENT.fileTitle}
-          </strong>
-          <div className={SEG} role="group" aria-label="File language">
+          </h3>
+          <div className={SEG} role="group" aria-label="Brief language">
             <button
               type="button"
               aria-pressed={view === "en"}
@@ -140,30 +144,29 @@ export function AgentConsole({ fileGroups }: AgentConsoleProps) {
               aria-pressed={view === "zh"}
               onClick={() => setView("zh")}
               className={SEG_BTN}
+              lang="zh"
             >
               中文
             </button>
           </div>
         </header>
-        <div>
+        <div className="px-4 pb-2" lang={view}>
           {fileGroups[view].map((group, g) => (
-            <section key={fileGroups.en[g].title}>
-              <h3 className="type-data border-b border-rule bg-paper px-3 py-1.5 text-[13px] font-bold">
+            <section key={fileGroups.en[g].title} className="pt-4">
+              <h4 className="type-data text-[13px] font-medium text-ink-soft">
                 {group.title}
-              </h3>
-              <dl>
+              </h4>
+              <dl className="mt-1.5">
                 {group.labels.map((label, i) => (
                   <div
                     key={fileGroups.en[g].labels[i]}
-                    className="grid grid-cols-[minmax(96px,38%)_1fr] border-b border-rule"
+                    className="grid min-h-10 grid-cols-[minmax(104px,42%)_1fr] items-center gap-3 border-b border-rule py-2 last:border-b-0"
                   >
-                    <dt className="border-r border-rule px-3 py-2 text-ink-soft">
-                      {label}
-                    </dt>
-                    <dd className="flex min-h-10 items-center px-3 py-2">
+                    <dt className="text-[15px] text-ink">{label}</dt>
+                    <dd className="flex items-center">
                       <span
                         aria-hidden="true"
-                        className="block h-px w-12 bg-rule-strong"
+                        className="block h-px w-10 bg-rule-strong"
                       />
                       <span className="sr-only">Not filled in yet</span>
                     </dd>
@@ -173,10 +176,8 @@ export function AgentConsole({ fileGroups }: AgentConsoleProps) {
             </section>
           ))}
         </div>
-        <footer className="grid gap-1 px-3.5 py-3">
-          <span className="type-data text-sm font-semibold">
-            {AGENT.fileStatus}
-          </span>
+        <footer className="grid gap-1 border-t border-rule px-4 py-3">
+          <span className="text-sm font-medium text-ink">{AGENT.fileStatus}</span>
           <span className="text-sm text-ink-soft">{AGENT.fileNote}</span>
         </footer>
       </aside>

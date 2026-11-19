@@ -1,37 +1,34 @@
 import { MOR } from "@/lib/landingContent";
-import { MorDiagram } from "./MorDiagram";
-import { SectionHead } from "./SectionHead";
+import { ArrowLink } from "./ArrowLink";
+import { MorFlow } from "./MorFlow";
+import { H2, SECTION } from "./styles";
 
-// Sheet 6: the one cyanotype sheet on the page.
+// Homepage section 4: the one dark section on the page. Nexcierge is the
+// seller (Merchant of Record), explained in plain words.
 export function MerchantOfRecord() {
   return (
     <section
-      id="mor"
-      className="bg-cyanotype relative py-[clamp(60px,8vw,108px)] text-white"
+      aria-labelledby="mor-title"
+      className={`bg-navy-grid text-white ${SECTION}`}
     >
-      <div className="wrap">
-        <div className="grid gap-[clamp(32px,5vw,64px)] min-[960px]:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] min-[960px]:items-start">
-          <SectionHead
-            title={MOR.title}
-            lead={MOR.lead}
-            onBlueprint
-            className="mb-0"
-          />
-          <MorDiagram />
-        </div>
-
-        <ul className="mt-[clamp(40px,6vw,72px)] grid grid-cols-2 border-t border-white/50 min-[960px]:grid-cols-4">
-          {MOR.ones.map((label) => (
-            <li key={label} className="grid gap-0.5 pb-1.5 pt-5">
-              <b className="type-display text-[clamp(3rem,2rem+5vw,6rem)] font-extrabold leading-[0.9] text-paint">
-                1
-              </b>
-              <span className="max-w-[14ch] font-semibold leading-tight [font-stretch:108%]">
-                {label}
-              </span>
-            </li>
+      <div className="wrap grid gap-[clamp(40px,5vw,72px)] min-[1060px]:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] min-[1060px]:items-center">
+        <div className="grid justify-items-start gap-5">
+          <h2 id="mor-title" className={`${H2} text-white`}>
+            {MOR.title}
+          </h2>
+          {MOR.lead.map((p) => (
+            <p
+              key={p}
+              className="max-w-[54ch] text-[clamp(1.0625rem,1rem+0.3vw,1.1875rem)] leading-[1.6] text-white/80"
+            >
+              {p}
+            </p>
           ))}
-        </ul>
+          <ArrowLink href="/why-nexcierge" tone="light" cta="mor" className="mt-2">
+            {MOR.cta}
+          </ArrowLink>
+        </div>
+        <MorFlow tone="dark" />
       </div>
     </section>
   );

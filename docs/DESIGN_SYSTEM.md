@@ -1,6 +1,8 @@
 # Design System
 
-The site reads as an engineering drawing: pale drafting film, ink linework, square panels, machine-paint yellow for the one primary action, a single blueprint-blue sheet, and red pencil only where a risk is being marked up. One typeface at three widths.
+The site reads as an engineering drawing: pale drafting film, ink linework, square panels, machine-paint yellow for the one primary action, and red pencil only where something is being marked up in the app. One typeface at three widths.
+
+The marketing pages (redesigned November 2026) aim for "a trusted machinery trading company with good technology", not an AI startup: whitespace and rules instead of boxed cards, one dark (navy) section per page, a faint grid only in the hero, no decorative numbers, badges or scribbles, one CTA label per destination ("Start a request", "How it works", "Sign in").
 
 The canonical color reference for the whole company lives at [`/brand/PALETTE.md`](../../brand/PALETTE.md). What follows is how those tokens are used inside the frontend.
 
@@ -55,16 +57,17 @@ Hand-rolled primary buttons (composer send, "New sourcing request") mirror the p
   - `type-display` (125%): headlines and the wordmark. Pair with `font-extrabold`.
   - `type-title` (112%): card titles, button labels, panel headers. Pair with `font-bold`.
   - `type-data` (78%, tabular numerals): small labels, tags, meta, spec data. Pair with `font-semibold` or `font-bold`.
-- **Landing sizes** live in `components/landing/styles.ts` (`H1`, `H2`, `H3`, `LEAD`), fluid via `clamp()`.
+- **Marketing sizes** live in `components/landing/styles.ts`, fluid via `clamp()`: `H1` 36 to 60px bold, `H2` 28 to 44px semibold, `H3` 19 to 23px semibold (balanced wrap), `LEAD` 17 to 20px, `BODY` 16px at 1.65 line height, `LABEL` 13px condensed. Measure is capped at roughly 58 to 62ch.
 - **Wordmark:** `components/layout/Wordmark.tsx` (typeset "Nexcierge"). No logo file exists yet.
 - Body feature settings: `'rlig', 'calt'`.
 
 ## Spacing and layout
 
-- Marketing container: the `wrap` utility (max 1320px, fluid `--gutter`). Chat content stays `max-w-2xl`.
-- The marketing header is fixed at `--nav-h` (60px). A page's first section pads its top by `calc(var(--nav-h) + clamp(28px,5vw,64px))`.
-- Section rhythm on marketing pages: `py-[clamp(60px,8vw,108px)]` (`SECTION` in `styles.ts`), opened by a `sheet-rule` (a hairline with end ticks, inside a `relative` section).
-- Backgrounds: `bg-drafting` (graph-paper grid, hero), `bg-cyanotype` (blueprint sheet), `bg-ruled` (ruled lines behind chat logs).
+- Marketing container: the `wrap` utility (max 1320px, `--gutter` = `clamp(20px, 5vw, 72px)`: 20px phones, ~40px tablets, 64 to 72px desktop). Chat content stays `max-w-2xl`.
+- The marketing header is fixed at `--nav-h` (60px). An inner page's first section uses `PAGE_TOP` (or `PageHero`, which includes it).
+- Section rhythm on marketing pages: `SECTION` = `py-[clamp(64px,9vw,128px)]`. Sections are separated by background (sheet, then a `bg-paper` band, then the navy section), not by rules. `ClosingCTA` opens with a hairline rule and only bottom padding of its own.
+- Surfaces: marketing pages sit on `bg-sheet` (the warm off-white); `bg-paper` is the secondary band. The app (chat, dashboard) stays on paper.
+- Backgrounds: `bg-drafting` (faint 96px grid on sheet, fading out at the bottom; page heroes), `bg-navy-grid` (ink with a 3.5% white grid; the one dark marketing section), `bg-cyanotype` (blueprint grid, currently unused), `bg-ruled` (ruled lines behind chat logs).
 
 ### Mobile-web safe areas
 
@@ -75,10 +78,10 @@ Hand-rolled primary buttons (composer send, "New sourcing request") mirror the p
 ## Component patterns
 
 ### Segmented control
-`SEG` / `SEG_BTN` in `components/landing/styles.ts`: `rounded-sm border-[1.5px] border-ink`, segments divided by `border-rule-strong`, the pressed segment (`aria-pressed`) is ink with sheet text. Used for language pickers, filters and the dashboard table filter.
+`SEG` / `SEG_BTN` in `components/landing/styles.ts`: `rounded-sm border border-rule-strong`, segments divided by `border-rule`, 40px tall, the pressed segment (`aria-pressed`) is ink with sheet text; wraps rather than overflowing. Used for the assistant console's language pickers and the dashboard table filter. Where a filter must wrap on phones (the Why page's order activity), use text tabs with a paint underline on the pressed tab instead.
 
-### Tags
-`TAG` in `styles.ts`: `type-data`, 1.5px ink border, 2px radius. Fill says who acts: ink (AI agent), paint (a person or Nexcierge), none (a partner or a document).
+### Labels instead of tags
+The marketing pages no longer use boxed tags (the old `TAG` primitive was removed). Who handles a step, or what kind a record is, is set as a plain `LABEL` (13px condensed, ink-soft); the order-activity preview adds a small dot per kind (ink = message, outline = document, paint = payment). The app's own panels keep their existing tag styling.
 
 ### Chat input (`ChatComposer`)
 - `rounded-sm border-[1.5px] border-ink bg-white`, `resize-none`.
@@ -101,7 +104,7 @@ Hand-rolled primary buttons (composer send, "New sourcing request") mirror the p
 - **Sidebar status nav:** folder-style rows (lucide icon, label, count badge). Selected = ink fill, sheet text, icon and count badge turn paint (the dashboard nav recipe). Below it a small search input (`border-rule-strong`, ink on focus) and the request list under `type-data` recency headings.
 - **Collapsed rail:** `w-14` paper column of 36px icon buttons: expand, the paint New request square, a hairline, then the four status filters (selected = ink fill, paint icon).
 - **Workspace tabs:** underline tabs in the chat header (`border-b-2`; selected = ink border + ink text, rest = transparent + `ink-soft`, hover `rule-strong`). Count badges are `bg-ink/10` pills; an item needing the buyer's action (pending payment) uses the amber status pill. Tabs, not the segmented control, because they switch the whole panel rather than filter a list.
-- **Order-file lists** (Documents, Payments tabs): the landing `OrderHistory` row in product form: a 1.5px ink panel on `bg-paper`, one row per record with a `TAG` (no fill = document, paint = payment), the name, `type-data` meta, and the row action on the right. Payments add a paper summary band (Outstanding total) above the list. Empty states are a dashed `rule-strong` box with an icon chip and one sentence.
+- **Order-file lists** (Documents, Payments tabs): a 1.5px ink panel on `bg-paper`, one row per record with a tag (no fill = document, paint = payment), the name, `type-data` meta, and the row action on the right. Payments add a paper summary band (Outstanding total) above the list. Empty states are a dashed `rule-strong` box with an icon chip and one sentence.
 - **Pay now** is the paint primary recipe; it is the surface's one paint action as long as one link is pending.
 
 ### Active and selected states
@@ -122,20 +125,21 @@ Vertical 8-step timeline (`SourcingProgressRail` buyer-side, `StageSection` for 
 
 ## Landing-page primitives (`components/landing/`)
 
-- `SectionHead`: plotted `h2` plus lead.
-- `InView`: one-shot scroll choreography (`kind="plot" | "reveal" | "draw"`). See Animations.
-- `ProcessRoll`: the scroll driver for the pinned process section.
-- `rig/`: the hero's three.js machine drawings (`HeroRig` shell, `engine.ts`, `terms.ts`).
+- `PageHero`: inner-page opening (h1, lead, optional action row) on `bg-drafting`.
+- `ArrowLink`: the secondary "learn more →" text link (44px tall hit area; `tone="light"` on navy).
+- `ClosingCTA`: the shared closing invitation (`placement` sets the PostHog `cta` tag; `secondary` swaps the trailing link).
+- `MorFlow`: You → Nexcierge → Manufacturer. A container query (`@[34rem]`) switches it from vertical to horizontal, so it never shrinks labels or scrolls sideways. `tone` dark/light, `showFlows` adds the paperwork labels.
+- `InView`: one-shot fade-up on scroll (`kind="reveal"`). See Animations.
+- `rig/`: the hero's three.js machine drawing (`HeroRig` shell, `engine.ts`, `terms.ts`). The engine holds four models (0 excavator, 1 filling machine, 2 lab centrifuge, 3 CNC vertical machining centre); the hero shows the CNC (`MACHINE` in `HeroRig.tsx`, one-line switch) with two callouts, spindle speed and table size. The CNC is drawn without an enclosure so its axes read, and its pose runs a pocketing cycle: the head plunges (Z), the table traces a rectangle under the spinning tool (X on the table, Y on the saddle), then retracts. The engine takes `start` (which model is drawn first), `anchorIndex` (which model anchors the callouts point at) and `cycle` (off: no machine cycling); its surface colour matches sheet so the drawing reads as linework, and its floor grid is drawn at 45% opacity.
 - Copy lives in `lib/landingContent.ts`, never inline in components.
 
 ## Animations
 
 - **Nothing server-renders hidden.** Entrances are CSS animations, not framer-motion `initial` props, so content is visible without JS.
-  - Above the fold: `.hero-in` (fade and lift) and `.plot-now` (headline clip reveal) run at first paint.
-  - Below the fold: `<InView>` sets `data-plot` / `data-reveal` / `data-draw` to `pending` only if the element is still below the viewport at mount, then `run` when it arrives. The keyframes are in `globals.css` under `prefers-reduced-motion: no-preference`.
-- **Process roll.** A custom variant, `roll:` (min-width 960px, min-height 760px, motion allowed), turns the section into a `position: sticky` pin whose scroll distance is computed in CSS (`--roll-dist`). `ProcessRoll` only writes scroll progress to `--roll-p` (framer-motion `useScroll` + `useSpring`). Because the height is pure CSS, hash links to later sections land correctly before and after hydration. The pinned box is top-aligned with the same top padding as `SECTION` (not vertically centered), so the sheet-rule to title gap matches the other sheets at every viewport height; the 760px floor is what that padding plus the header and cards need without clipping. Outside the variant it is a plain grid (wide) or spine (phones).
-- **Hero rig.** Loaded with a dynamic `import()` on idle; renders only while on screen and the tab is visible; disposes its WebGL context on unmount. Without WebGL the callouts become a 2 x 2 grid.
-- `Reveal` (framer-motion fade-up) is still used by `/about` and `/contact`. Never put a background that must stay visible on the element `Reveal` wraps.
+  - Above the fold: `.hero-in` (a short fade and lift) runs at first paint.
+  - Below the fold: `<InView>` sets `data-reveal` to `pending` only if the element is still below the viewport at mount, then `run` when it arrives. The keyframes are in `globals.css` under `prefers-reduced-motion: no-preference`.
+  - The headline "plot" wipe, sheet-rule draw-in, red-pencil scribbles, animated MoR flow lines and the pinned process roll were removed in the redesign (too much motion for the brand); their CSS is gone too.
+- **Hero rig.** Loaded with a dynamic `import()` on idle; renders only while on screen and the tab is visible; disposes its WebGL context on unmount. Without WebGL the two callouts show as plain spec boxes.
 - No smooth-scroll library. `scroll-behavior: smooth` is set in CSS for motion-allowed users, with `data-scroll-behavior="smooth"` on `<html>` so Next 16 still jumps instantly on route changes.
 
 ## Accessibility

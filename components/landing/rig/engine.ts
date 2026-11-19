@@ -15,8 +15,18 @@ import { LineSegmentsGeometry } from "three/addons/lines/LineSegmentsGeometry.js
 export interface RigOptions {
   // The rig box. Must be position: relative with a definite size.
   host: HTMLElement;
-  // The four callout elements, in spec order.
+  // The callout elements to aim leader lines at.
   callouts: HTMLElement[];
+  // Which of the model's four anchors (top-left, top-right, bottom-left,
+  // bottom-right) each callout points at. Defaults to 0, 1, 2, 3.
+  anchorIndex?: number[];
+  // Cycle through the example machines on a timer. Off by default: the
+  // hero shows the excavator only.
+  cycle?: boolean;
+  // Which machine is drawn first (index into the models below:
+  // 0 excavator, 1 filling machine, 2 lab centrifuge, 3 CNC machining
+  // centre). Defaults to 0.
+  start?: number;
   // prefers-reduced-motion: draw once, no animation loop.
   reduce: boolean;
   // A switch to machine `i` has started (update the tab state).
@@ -35,7 +45,8 @@ export interface RigHandle {
 
 const C = {
   ink: 0x0e2440,
-  paper: 0xe7ebe6,
+  // Surfaces match the page (sheet) so the drawing reads as linework.
+  paper: 0xf6f8f4,
   paint: 0xffc62b,
   tone: 0xc7d0cf,
   grid: 0xa9b6bd,
@@ -102,7 +113,13 @@ export function createRig(opts: RigOptions): RigHandle | null {
   const scene = new T.Scene();
   const cam = new T.OrthographicCamera(-1, 1, 1, -1, -100, 200);
   const lineMat = new LineMaterial({ color: C.ink, linewidth: 1.6 });
-  const gridMat = new LineMaterial({ color: C.grid, linewidth: 1 });
+  // The floor grid is kept faint so the machine carries the drawing.
+  const gridMat = new LineMaterial({
+    color: C.grid,
+    linewidth: 1,
+    transparent: true,
+    opacity: 0.45,
+  });
   const root = new T.Group();
   scene.add(root);
 
@@ -453,18 +470,187 @@ export function createRig(opts: RigOptions): RigHandle | null {
     };
   }
 
+  // ── 4. CNC vertical machining centre, 1,000 mm class (metres) ──
+  // Drawn as a bare machine (no enclosure) so the axes read: the saddle
+  // moves on Y, the table on X, the spindle head on Z. The pose runs a
+  // simple pocketing cycle: plunge, trace a rectangle, retract.
+  {
+    const M = model(true);
+    const g = M.group;
+    g.position.set(2.6, 0, 0.2);
+    g.scale.setScalar(2.15);
+
+    // Base, feet, chip-tray door and the Y-axis rails.
+    for (const p of [[-0.85, -0.75], [0.85, -0.75], [-0.85, 0.75], [0.85, 0.75]])
+      solid(box(0.16, 0.08, 0.16, p[0], 0.04, p[1]), g, C.tone);
+    solid(box(2.0, 0.62, 1.8, 0, 0.39, 0), g);
+    lines(
+      rect(-0.8, 0.16, 0.8, 0.56, 0.902).concat([-0.3, 0.36, 0.902, 0.3, 0.36, 0.902]),
+      g,
+    );
+    for (const x of [-0.45, 0.45]) solid(box(0.08, 0.05, 1.6, x, 0.725, 0.05), g, C.tone);
+
+    // Column with its Z-axis rails, and the tool magazine on the side
+    // facing the camera (+x).
+    solid(box(0.9, 2.3, 0.85, 0, 1.85, -0.6), g, C.paint);
+    lines([-0.3, 0.75, -0.173, -0.3, 2.95, -0.173, 0.3, 0.75, -0.173, 0.3, 2.95, -0.173], g);
+    const magazine = new T.Group();
+    magazine.position.set(0.53, 2.3, -0.62);
+    g.add(magazine);
+    {
+      const disc = new T.CylinderGeometry(0.4, 0.4, 0.12, 28);
+      disc.rotateZ(Math.PI / 2);
+      solid(disc, magazine, C.tone);
+      const a: number[] = [];
+      const x = 0.062;
+      for (let i = 0; i < 12; i++) {
+        const c = (i / 12) * Math.PI * 2;
+        const cy = Math.cos(c) * 0.29;
+        const cz = Math.sin(c) * 0.29;
+        for (let k = 0; k < 8; k++) {
+          const p = (k / 8) * Math.PI * 2;
+          const q = ((k + 1) / 8) * Math.PI * 2;
+          a.push(x, cy + Math.cos(p) * 0.05, cz + Math.sin(p) * 0.05, x, cy + Math.cos(q) * 0.05, cz + Math.sin(q) * 0.05);
+        }
+      }
+      lines(a, magazine);
+    }
+
+    // Saddle (Y) carrying the table (X), the vise and the workpiece.
+    // Head and saddle sit forward of the column face (z -0.175) by
+    // AXIS_Z, so the tool is centred over the workpiece.
+    const AXIS_Z = 0.15;
+    const saddle = new T.Group();
+    saddle.position.z = AXIS_Z;
+    g.add(saddle);
+    solid(box(1.3, 0.16, 0.64, 0, 0.83, 0), saddle);
+    lines([-0.65, 0.912, -0.15, 0.65, 0.912, -0.15, -0.65, 0.912, 0.15, 0.65, 0.912, 0.15], saddle);
+    const table = new T.Group();
+    saddle.add(table);
+    solid(box(2.0, 0.12, 0.55, 0, 0.97, 0), table, C.tone);
+    {
+      const a: number[] = [];
+      for (const z of [-0.16, 0, 0.16]) a.push(-0.98, 1.032, z, 0.98, 1.032, z);
+      lines(a, table);
+    }
+    solid(box(0.52, 0.14, 0.36, 0, 1.1, 0), table, C.tone);
+    solid(box(0.42, 0.12, 0.28, 0, 1.23, 0), table);
+    // The pocket the cycle cuts, outlined on the workpiece's top face.
+    {
+      const pa = 0.13;
+      const pb = 0.07;
+      const y = 1.292;
+      lines([-pa, y, -pb, pa, y, -pb, pa, y, -pb, pa, y, pb, pa, y, pb, -pa, y, pb, -pa, y, pb, -pa, y, -pb], table);
+    }
+
+    // Spindle head (Z) with motor, spindle nose, holder and end mill.
+    const head = new T.Group();
+    head.position.set(0, 2.1, AXIS_Z);
+    g.add(head);
+    solid(box(0.62, 0.75, 0.62, 0, 0.375, 0), head, C.paint);
+    lines(rect(-0.2, 0.42, 0.2, 0.62, 0.312), head);
+    solid(drum(0.2, 0.42, 0, 0.96, 0, 24), head, C.tone);
+    {
+      let a: number[] = [];
+      for (let y = 0.84; y <= 1.1; y += 0.07) a = a.concat(ring(0, 0, 0.202, y, 20, true));
+      lines(a, head);
+    }
+    const spindle = new T.Group();
+    head.add(spindle);
+    solid(drum(0.11, 0.18, 0, -0.09, 0, 20), spindle, C.tone);
+    solid(box(0.05, 0.05, 0.05, 0.1, -0.05, 0), spindle, C.paint);
+    {
+      const holder = new T.CylinderGeometry(0.075, 0.045, 0.12, 16);
+      holder.translate(0, -0.24, 0);
+      solid(holder, spindle);
+    }
+    solid(drum(0.035, 0.28, 0, -0.44, 0, 12), spindle);
+    {
+      // Two flutes, drawn as helices so the spin is visible.
+      const a: number[] = [];
+      for (const ph of [0, Math.PI]) {
+        for (let k = 0; k < 14; k++) {
+          const y0 = -0.3 - (k / 14) * 0.27;
+          const y1 = -0.3 - ((k + 1) / 14) * 0.27;
+          const p0 = ph + k * 0.5;
+          const p1 = ph + (k + 1) * 0.5;
+          a.push(Math.cos(p0) * 0.037, y0, Math.sin(p0) * 0.037, Math.cos(p1) * 0.037, y1, Math.sin(p1) * 0.037);
+        }
+      }
+      lines(a, spindle);
+    }
+
+    // Operator pendant on an L-shaped arm off the column's front corner
+    // (in front of the magazine).
+    solid(box(0.3, 0.06, 0.06, 0.5, 2.8, -0.12), g);
+    solid(box(0.06, 0.06, 0.4, 0.62, 2.8, 0.05), g);
+    solid(box(0.06, 0.45, 0.06, 0.62, 2.55, 0.22), g);
+    solid(box(0.56, 0.66, 0.08, 0.72, 2.0, 0.28), g, C.tone);
+    lines(
+      rect(0.5, 2.06, 0.94, 2.28, 0.322).concat(
+        ring(0.56, 1.84, 0.03, 0.322, 8),
+        ring(0.66, 1.84, 0.03, 0.322, 8),
+        ring(0.76, 1.84, 0.03, 0.322, 8),
+        ring(0.88, 1.84, 0.045, 0.322, 10),
+      ),
+      g,
+    );
+
+    M.anchors = [
+      anchor(magazine, 0.07, 0.3, 0.1),
+      anchor(head, 0.15, 1.05, 0.12),
+      anchor(table, -0.85, 1.03, 0.22),
+      anchor(g, 0.88, 1.84, 0.33),
+    ];
+
+    // Rectangle perimeter, s in [0, 1) -> (x, z) on the pocket outline.
+    const PA = 0.13;
+    const PB = 0.07;
+    const PER = 4 * PA + 4 * PB;
+    const onRect = (s: number): [number, number] => {
+      const d = s * PER;
+      if (d < 2 * PA) return [-PA + d, -PB];
+      if (d < 2 * PA + 2 * PB) return [PA, -PB + (d - 2 * PA)];
+      if (d < 4 * PA + 2 * PB) return [PA - (d - 2 * PA - 2 * PB), PB];
+      return [-PA, PB - (d - 4 * PA - 2 * PB)];
+    };
+    const UP_Y = 2.2;
+    const CUT_Y = 1.84;
+    M.pose = (t) => {
+      spindle.rotation.y = t * 14;
+      const u = (t * 0.12) % 1;
+      let px = -PA;
+      let pz = -PB;
+      let hy = UP_Y;
+      if (u < 0.12) {
+        hy = lerp(UP_Y, CUT_Y, easeInOut(u / 0.12));
+      } else if (u < 0.82) {
+        [px, pz] = onRect((u - 0.12) / 0.7);
+        hy = CUT_Y;
+      } else if (u < 0.92) {
+        hy = lerp(CUT_Y, UP_Y, easeInOut((u - 0.82) / 0.1));
+      }
+      head.position.y = hy;
+      // The tool stays put in X and Y; the table moves under it.
+      table.position.x = -px;
+      saddle.position.z = AXIS_Z - pz;
+    };
+  }
+
+  const start = clamp(opts.start ?? 0, 0, models.length - 1);
   models.forEach((m, i) => {
-    m.group.visible = i === 0;
+    m.group.visible = i === start;
   });
 
   // ── Camera ──────────────────────────────────────────────────
-  const target = new T.Vector3(3.0, 2.35, 0);
+  const target = new T.Vector3(2.55, 2.3, 0);
   const dir = new T.Vector3(0.52, 0.4, 1).normalize();
   cam.position.copy(target).addScaledVector(dir, 60);
   cam.lookAt(target);
 
   // ── Callout leaders ─────────────────────────────────────────
-  const callouts = calloutEls.map((node) => {
+  const anchorIndex = opts.anchorIndex ?? calloutEls.map((_, i) => i);
+  const callouts = calloutEls.map((node, i) => {
     const line = document.createElementNS(NS, "line");
     line.setAttribute("stroke", "#0E2440");
     line.setAttribute("stroke-width", "1");
@@ -474,10 +660,16 @@ export function createRig(opts: RigOptions): RigHandle | null {
     dot.setAttribute("stroke", "#0E2440");
     dot.setAttribute("stroke-width", "1.25");
     svg.append(line, dot);
-    return { node, line, dot, rect: null as null | { l: number; t: number; r: number; b: number } };
+    return {
+      node,
+      line,
+      dot,
+      anchor: anchorIndex[i] ?? i,
+      rect: null as null | { l: number; t: number; r: number; b: number },
+    };
   });
 
-  let active = 0;
+  let active = start;
   let W = 0;
   let H = 0;
   let disposed = false;
@@ -498,7 +690,7 @@ export function createRig(opts: RigOptions): RigHandle | null {
     gridMat.resolution.set(W, H);
     lineMat.linewidth = W < 520 ? 1.3 : 1.6;
     const a = W / H;
-    const hh = Math.max(3.75, 5.5 / a);
+    const hh = Math.max(3.9, 6.1 / a);
     cam.left = -hh * a;
     cam.right = hh * a;
     cam.top = hh;
@@ -512,8 +704,8 @@ export function createRig(opts: RigOptions): RigHandle | null {
 
   function leaders() {
     const anchors = models[active].anchors;
-    callouts.forEach((c, i) => {
-      const a = anchors[i];
+    callouts.forEach((c) => {
+      const a = anchors[c.anchor];
       if (!c.rect || !a) return;
       va.setFromMatrixPosition(a.matrixWorld).project(cam);
       const x = (va.x * 0.5 + 0.5) * W;
@@ -592,7 +784,7 @@ export function createRig(opts: RigOptions): RigHandle | null {
   });
   io.observe(host);
 
-  const hero = host.closest("header") ?? host;
+  const hero = host.closest("[data-hero]") ?? host;
   const onScroll = () => {
     state.pt = clamp(window.scrollY / (hero as HTMLElement).offsetHeight, 0, 1);
   };
@@ -638,7 +830,7 @@ export function createRig(opts: RigOptions): RigHandle | null {
 
   let busy = false;
   if (!reduce) {
-    const first = models[0];
+    const first = models[start];
     const all = base.draw.concat(first.draw);
     busy = true;
     plot(all, 0);
@@ -669,7 +861,7 @@ export function createRig(opts: RigOptions): RigHandle | null {
     );
   } else {
     full(base);
-    full(models[0]);
+    full(models[start]);
   }
   kick();
 
@@ -731,8 +923,9 @@ export function createRig(opts: RigOptions): RigHandle | null {
     return true;
   }
 
-  // Cycle through the machines until the visitor picks one or scrolls on.
-  const cycle = reduce
+  // Cycle through the machines (when asked to) until the visitor picks
+  // one or scrolls on.
+  const cycle = reduce || !opts.cycle
     ? 0
     : window.setInterval(() => {
         if (visible && !document.hidden && !picked && window.scrollY < 200)

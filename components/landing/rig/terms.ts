@@ -1,4 +1,6 @@
-// The example sourcing files shown in the hero. Each machine has four
+// Example machines for the hero drawing (the hero shows one machine,
+// the CNC machining centre, with two of its callouts; see HeroRig).
+// Order matches the models in engine.ts. Each machine has four
 // spec callouts; every spec term is held in the five languages the
 // callouts cycle through. Kept free of three.js imports so the shell can
 // render the callouts on the server.
@@ -26,6 +28,10 @@ export const TERMS = {
   rcf: { en: "Max. RCF", zh: "最大相对离心力", es: "FCR máxima", fr: "FCR max.", ar: "أقصى قوة طرد مركزي" },
   speed: { en: "Max. speed", zh: "最高转速", es: "Velocidad máxima", fr: "Vitesse max.", ar: "السرعة القصوى" },
   supply: { en: "Power supply", zh: "电源", es: "Alimentación", fr: "Alimentation", ar: "مصدر الطاقة" },
+  magazine: { en: "Tool magazine", zh: "刀库容量", es: "Almacén de herramientas", fr: "Magasin d'outils", ar: "مخزن الأدوات" },
+  spindle: { en: "Spindle speed", zh: "主轴转速", es: "Velocidad del husillo", fr: "Vitesse de broche", ar: "سرعة عمود الدوران" },
+  tablesize: { en: "Table size", zh: "工作台尺寸", es: "Tamaño de la mesa", fr: "Dimensions de la table", ar: "أبعاد طاولة العمل" },
+  posacc: { en: "Positioning accuracy", zh: "定位精度", es: "Precisión de posicionamiento", fr: "Précision de positionnement", ar: "دقة تحديد الموضع" },
 } satisfies Record<string, Record<TermLang, string>>;
 
 export type TermKey = keyof typeof TERMS;
@@ -64,6 +70,16 @@ export const MACHINES: Machine[] = [
       ["rcf", "21,380 × g"],
       ["speed", "15,000 rpm"],
       ["supply", "220 to 240 V"],
+    ],
+  },
+  {
+    // Typical figures for a 1,000 mm class vertical machining centre.
+    name: "CNC machining centre",
+    specs: [
+      ["magazine", "24 tools"],
+      ["spindle", "12,000 rpm"],
+      ["tablesize", "1,200 × 600 mm"],
+      ["posacc", "±0.005 mm"],
     ],
   },
 ];

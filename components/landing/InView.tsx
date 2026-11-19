@@ -3,11 +3,11 @@
 import { useEffect, useRef } from "react";
 import type { CSSProperties, ReactNode } from "react";
 
-type Kind = "plot" | "reveal" | "draw";
+type Kind = "reveal";
 
 interface InViewProps {
-  // Which CSS choreography to run (see `[data-plot]`, `[data-reveal]`,
-  // `[data-draw]` in globals.css).
+  // Which CSS choreography to run (see `[data-reveal]` in globals.css: a
+  // short fade-up, skipped under reduced motion).
   kind: Kind;
   as?: "div" | "h2" | "li" | "section" | "ol" | "ul" | "p";
   id?: string;
