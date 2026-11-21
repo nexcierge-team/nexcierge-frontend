@@ -26,8 +26,8 @@ app/
 ├── globals.css
 ├── (marketing)/            Route group (no URL segment): layout.tsx renders Header + Footer ONCE,
 │   ├── layout.tsx            so they stay mounted across the marketing pages; wraps them in `bg-sheet`
-│   ├── page.tsx            Homepage, five sections: Hero, Benefits, Steps (3), MerchantOfRecord, ClosingCTA
-│   ├── how-it-works/page.tsx  Six-stage timeline + the live sourcing assistant console (AgentConsole)
+│   ├── page.tsx            Homepage, five sections: Hero, Risks (usual chain struck through + three risk/fix columns), Steps (3), MerchantOfRecord (text only), ClosingCTA
+│   ├── how-it-works/page.tsx  Six-stage timeline + the live sourcing assistant console (AgentConsole; chat panel only, no brief preview)
 │   ├── services/page.tsx   Service list + delivery selector (ScopeSelector)
 │   ├── why-nexcierge/page.tsx  Seller model (MorFlow), commitments, account preview (OrderHistory), FAQ
 │   └── contact/page.tsx    (/about redirects to /why-nexcierge, 307, in next.config.ts)

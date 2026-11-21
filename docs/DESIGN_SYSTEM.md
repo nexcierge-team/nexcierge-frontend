@@ -128,7 +128,8 @@ Vertical 8-step timeline (`SourcingProgressRail` buyer-side, `StageSection` for 
 - `PageHero`: inner-page opening (h1, lead, optional action row) on `bg-drafting`.
 - `ArrowLink`: the secondary "learn more →" text link (44px tall hit area; `tone="light"` on navy).
 - `ClosingCTA`: the shared closing invitation (`placement` sets the PostHog `cta` tag; `secondary` swaps the trailing link).
-- `MorFlow`: You → Nexcierge → Manufacturer. A container query (`@[34rem]`) switches it from vertical to horizontal, so it never shrinks labels or scrolls sideways. `tone` dark/light, `showFlows` adds the paperwork labels.
+- `Risks` (homepage): the usual chain (You, Agent, Trader, Factory) with the middlemen struck through in redline, the Nexcierge row on the same grid, then three columns: risk name circled in red pencil, one muted line, the fix under a 3px paint rule. Redline is used only here on the marketing pages, for marking up what goes wrong.
+- `MorFlow` (Why Nexcierge page only; the homepage uses the chain diagram instead): You → Nexcierge → Manufacturer. A container query (`@[34rem]`) switches it from vertical to horizontal, so it never shrinks labels or scrolls sideways. `tone` dark/light, `showFlows` adds the paperwork labels.
 - `InView`: one-shot fade-up on scroll (`kind="reveal"`). See Animations.
 - `rig/`: the hero's three.js machine drawing (`HeroRig` shell, `engine.ts`, `terms.ts`). The engine holds four models (0 excavator, 1 filling machine, 2 lab centrifuge, 3 CNC vertical machining centre); the hero shows the CNC (`MACHINE` in `HeroRig.tsx`, one-line switch) with two callouts, spindle speed and table size. The CNC is drawn without an enclosure so its axes read, and its pose runs a pocketing cycle: the head plunges (Z), the table traces a rectangle under the spinning tool (X on the table, Y on the saddle), then retracts. The engine takes `start` (which model is drawn first), `anchorIndex` (which model anchors the callouts point at) and `cycle` (off: no machine cycling); its surface colour matches sheet so the drawing reads as linework, and its floor grid is drawn at 45% opacity.
 - Copy lives in `lib/landingContent.ts`, never inline in components.
@@ -138,7 +139,7 @@ Vertical 8-step timeline (`SourcingProgressRail` buyer-side, `StageSection` for 
 - **Nothing server-renders hidden.** Entrances are CSS animations, not framer-motion `initial` props, so content is visible without JS.
   - Above the fold: `.hero-in` (a short fade and lift) runs at first paint.
   - Below the fold: `<InView>` sets `data-reveal` to `pending` only if the element is still below the viewport at mount, then `run` when it arrives. The keyframes are in `globals.css` under `prefers-reduced-motion: no-preference`.
-  - The headline "plot" wipe, sheet-rule draw-in, red-pencil scribbles, animated MoR flow lines and the pinned process roll were removed in the redesign (too much motion for the brand); their CSS is gone too.
+  - The homepage risk names keep their red-pencil circle (`.scribble`, an SVG path that draws itself once when its column is revealed). The headline "plot" wipe, sheet-rule draw-in, animated MoR flow lines and the pinned process roll were removed in the redesign; their CSS is gone too.
 - **Hero rig.** Loaded with a dynamic `import()` on idle; renders only while on screen and the tab is visible; disposes its WebGL context on unmount. Without WebGL the two callouts show as plain spec boxes.
 - No smooth-scroll library. `scroll-behavior: smooth` is set in CSS for motion-allowed users, with `data-scroll-behavior="smooth"` on `<html>` so Next 16 still jumps instantly on route changes.
 

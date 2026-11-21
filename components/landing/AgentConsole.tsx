@@ -13,25 +13,13 @@ import {
 import { cn } from "@/lib/utils";
 import { SEG, SEG_BTN } from "./styles";
 
-// One section of the sourcing file (Machine / Delivery / Buyer), mirroring
-// how the real brief card groups the same fields.
-export interface FileGroup {
-  title: string;
-  labels: string[];
-}
-
-interface AgentConsoleProps {
-  fileGroups: { en: FileGroup[]; zh: FileGroup[] };
-}
-
 const PANEL = "min-w-0 border border-rule-strong bg-sheet";
 const BAR =
   "flex flex-wrap items-center justify-between gap-3 border-b border-rule px-4 py-3";
 
-export function AgentConsole({ fileGroups }: AgentConsoleProps) {
+export function AgentConsole() {
   const router = useRouter();
   const [lang, setLang] = useState<ConsoleLang>("en");
-  const [view, setView] = useState<"en" | "zh">("en");
   const copy = CONSOLE_COPY[lang];
   const dir = lang === "ar" ? "rtl" : "ltr";
 
@@ -60,7 +48,7 @@ export function AgentConsole({ fileGroups }: AgentConsoleProps) {
   }
 
   return (
-    <div className="grid items-start gap-5 min-[960px]:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] min-[960px]:gap-8">
+    <div className="min-w-0">
       <div className={cn(PANEL, "grid")}>
         <div className={BAR}>
           <span className="type-title font-semibold">{AGENT.agentName}</span>
@@ -125,62 +113,6 @@ export function AgentConsole({ fileGroups }: AgentConsoleProps) {
         </div>
       </div>
 
-      <aside className={PANEL} aria-labelledby="brief-preview-title">
-        <header className={BAR}>
-          <h3 id="brief-preview-title" className="type-title font-semibold">
-            {AGENT.fileTitle}
-          </h3>
-          <div className={SEG} role="group" aria-label="Brief language">
-            <button
-              type="button"
-              aria-pressed={view === "en"}
-              onClick={() => setView("en")}
-              className={SEG_BTN}
-            >
-              English
-            </button>
-            <button
-              type="button"
-              aria-pressed={view === "zh"}
-              onClick={() => setView("zh")}
-              className={SEG_BTN}
-              lang="zh"
-            >
-              中文
-            </button>
-          </div>
-        </header>
-        <div className="px-4 pb-2" lang={view}>
-          {fileGroups[view].map((group, g) => (
-            <section key={fileGroups.en[g].title} className="pt-4">
-              <h4 className="type-data text-[13px] font-medium text-ink-soft">
-                {group.title}
-              </h4>
-              <dl className="mt-1.5">
-                {group.labels.map((label, i) => (
-                  <div
-                    key={fileGroups.en[g].labels[i]}
-                    className="grid min-h-10 grid-cols-[minmax(104px,42%)_1fr] items-center gap-3 border-b border-rule py-2 last:border-b-0"
-                  >
-                    <dt className="text-[15px] text-ink">{label}</dt>
-                    <dd className="flex items-center">
-                      <span
-                        aria-hidden="true"
-                        className="block h-px w-10 bg-rule-strong"
-                      />
-                      <span className="sr-only">Not filled in yet</span>
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            </section>
-          ))}
-        </div>
-        <footer className="grid gap-1 border-t border-rule px-4 py-3">
-          <span className="text-sm font-medium text-ink">{AGENT.fileStatus}</span>
-          <span className="text-sm text-ink-soft">{AGENT.fileNote}</span>
-        </footer>
-      </aside>
     </div>
   );
 }

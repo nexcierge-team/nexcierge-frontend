@@ -1,13 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { AgentConsole, type FileGroup } from "@/components/landing/AgentConsole";
+import { AgentConsole } from "@/components/landing/AgentConsole";
 import { ArrowLink } from "@/components/landing/ArrowLink";
 import { ClosingCTA } from "@/components/landing/ClosingCTA";
 import { InView } from "@/components/landing/InView";
 import { PageHero } from "@/components/landing/PageHero";
 import { BODY, H2, H3, LABEL, LEAD, SECTION } from "@/components/landing/styles";
-import { cardStrings } from "@/lib/cardStrings";
 import { AGENT, CTA, HOW } from "@/lib/landingContent";
 
 export const metadata: Metadata = {
@@ -15,29 +14,6 @@ export const metadata: Metadata = {
   description:
     "From your first request to the right equipment: how Nexcierge prepares your sourcing brief, finds and checks manufacturers, and sells you the machine under one contract.",
 };
-
-// The nine fields a brief needs before it can go to an account manager
-// (the canonical definition is the `rfqs.is_complete` generated column).
-// Labels come from the same table the real brief card uses, so the
-// preview and the product can't drift apart. Resolved here on the server
-// so the client island doesn't ship the whole i18n table.
-function fileGroups(language: string): FileGroup[] {
-  const s = cardStrings(language);
-  return [
-    {
-      title: s.sectionMachine,
-      labels: [s.labelType, s.labelApplication, s.labelQuantity],
-    },
-    {
-      title: s.sectionDelivery,
-      labels: [s.labelCountry, s.labelCityPort, s.labelTimeline],
-    },
-    {
-      title: s.sectionBuyer,
-      labels: [s.labelName, s.labelCompany, s.labelEmail],
-    },
-  ];
-}
 
 export default function HowItWorksPage() {
   return (
@@ -93,16 +69,17 @@ export default function HowItWorksPage() {
         aria-labelledby="assistant-title"
         className={`${SECTION} scroll-mt-[var(--nav-h)] bg-paper`}
       >
-        <div className="wrap">
-          <div className="mb-[clamp(32px,5vw,56px)] grid gap-5">
+        <div className="wrap grid gap-[clamp(32px,5vw,72px)] min-[1060px]:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] min-[1060px]:items-start">
+          <div className="grid gap-5">
             <h2 id="assistant-title" className={H2}>
               {AGENT.title}
             </h2>
             <p className={LEAD}>{AGENT.lead}</p>
+            <p className="max-w-[48ch] text-[15px] leading-[1.6] text-ink-soft">
+              {AGENT.note}
+            </p>
           </div>
-          <AgentConsole
-            fileGroups={{ en: fileGroups("en"), zh: fileGroups("zh") }}
-          />
+          <AgentConsole />
         </div>
       </section>
 

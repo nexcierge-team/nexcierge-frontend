@@ -125,6 +125,15 @@
   }
 }
 
+@keyframes scribble {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
 @keyframes row-in {
   from {
     opacity: 0;
@@ -143,6 +152,14 @@
   [data-reveal="run"] {
     animation: fade-up 0.6s ease-out both;
     animation-delay: var(--reveal-delay, 0s);
+  }
+  /* The red-pencil circle draws itself once its column fades in. */
+  [data-reveal="pending"] .scribble path {
+    stroke-dashoffset: 1;
+  }
+  [data-reveal="run"] .scribble path {
+    animation: scribble 0.9s ease-in-out both;
+    animation-delay: calc(var(--reveal-delay, 0s) + 0.3s);
   }
   .row-in {
     animation: row-in 0.35s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
@@ -259,6 +276,25 @@ body {
   &:active {
     transform: translateY(1px);
   }
+}
+
+/* Red pencil circle around a risk name (homepage). */
+.scribble {
+  position: absolute;
+  inset: -10px -16px;
+  width: calc(100% + 32px);
+  height: calc(100% + 20px);
+  overflow: visible;
+  pointer-events: none;
+}
+.scribble path {
+  fill: none;
+  stroke: var(--color-redline);
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
 }
 
 /* Safe-area utilities — pair with viewport-fit=cover in app/layout.tsx.

@@ -31,20 +31,52 @@ export const HERO = {
   lead: "Tell us what equipment you need. We’ll find the right manufacturer, help verify the supplier, and handle your purchase under one contract.",
 } as const;
 
-export const BENEFITS = {
+// Homepage section 2: the usual chain struck through in red pencil, then
+// the three things that go wrong in it, each with what we do instead.
+export const RISKS = {
   title: "A simpler way to buy equipment overseas.",
+  lead: "Buying from another country usually means a chain of agents and traders between you and the factory. We replace the chain with one seller.",
+  chain: {
+    usual: "The usual chain",
+    ours: "With Nexcierge",
+    buyer: "You",
+    middle: ["Agent", "Trader"],
+    factory: "Factory",
+    nex: "Nexcierge",
+    nexSub: "Your seller",
+    caption:
+      "Agents and traders between you and the factory, replaced by one seller.",
+  },
   items: [
     {
-      title: "One company to work with",
-      text: "Your contract, invoice, and payment are with Nexcierge. One company stays responsible for your order.",
+      risk: "Hook pricing",
+      riskText:
+        "A low quote wins your order. The real price shows up after the deposit is paid.",
+      fix: "The seller quotes the price",
+      fixText:
+        "Your quote comes from Nexcierge, the company that will invoice you, and the agreed price is written into your contract.",
+      scribble:
+        "M12,34 C8,10 186,2 192,26 C198,54 26,60 8,40 C0,28 26,12 72,8",
     },
     {
-      title: "Suppliers you can verify",
-      text: "We help source manufacturers and coordinate independent inspections when needed.",
+      risk: "A broken chain",
+      riskText:
+        "Someone in the chain drops out halfway through the deal, and accountability leaves with them.",
+      fix: "One company responsible for your order",
+      fixText:
+        "Your contract, invoice, and payment are all with Nexcierge, so there is no chain to fall apart.",
+      scribble:
+        "M10,30 C10,6 190,6 190,30 C190,56 14,56 8,32 C6,22 30,10 64,8",
     },
     {
-      title: "Support from start to finish",
-      text: "From finding the right machine to arranging delivery, our team helps you through the process.",
+      risk: "Lost in translation",
+      riskText:
+        "Technical specifications pass through several languages and arrive meaning something else.",
+      fix: "Clear specifications, in your language",
+      fixText:
+        "Describe what you need in your own language. We turn it into a clear sourcing brief, and your account manager checks the technical details with suppliers.",
+      scribble:
+        "M14,36 C6,12 184,0 192,24 C200,52 30,62 10,42 C2,30 22,14 60,10",
     },
   ],
 } as const;
@@ -152,9 +184,7 @@ export const AGENT = {
   title: "Start with a simple conversation.",
   lead: "Tell us what equipment you’re looking for. Our sourcing assistant helps gather the details and prepare a brief for our team.",
   agentName: "Sourcing assistant",
-  fileTitle: "Your sourcing brief",
-  fileStatus: "Filled in as you answer.",
-  fileNote: "Your conversation is saved, so you can pick it up where you left off.",
+  note: "Your conversation is saved, so you can pick it up where you left off.",
   hint: "Sending a message opens your request.",
 } as const;
 
