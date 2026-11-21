@@ -19,7 +19,7 @@ export function Footer() {
   const isAccountManager = role === "account_manager";
 
   return (
-    <footer className="relative bg-ink pb-[max(32px,env(safe-area-inset-bottom))] pt-[clamp(48px,7vw,88px)] text-white">
+    <footer className="bg-ink pb-[max(32px,env(safe-area-inset-bottom))] pt-[clamp(48px,7vw,88px)] text-white">
       <div className="wrap">
         <div className="grid gap-10 min-[860px]:grid-cols-[minmax(0,1.6fr)_repeat(3,minmax(0,1fr))]">
           <div className="grid content-start gap-3">

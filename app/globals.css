@@ -136,20 +136,6 @@
   }
 }
 
-/* The hero drawing fading into (or back out of) its pinned backdrop. Two
- * names so switching class restarts the animation; `from` only, so it
- * lands on whatever opacity the mode sets. */
-@keyframes rig-fade-backdrop {
-  from {
-    opacity: 0;
-  }
-}
-@keyframes rig-fade-hero {
-  from {
-    opacity: 0;
-  }
-}
-
 @keyframes row-in {
   from {
     opacity: 0;
@@ -176,12 +162,6 @@
   [data-reveal="run"] .scribble path {
     animation: scribble 0.9s ease-in-out both;
     animation-delay: calc(var(--reveal-delay, 0s) + 0.3s);
-  }
-  .rig-fade-backdrop {
-    animation: rig-fade-backdrop 0.8s ease-out both;
-  }
-  .rig-fade-hero {
-    animation: rig-fade-hero 0.5s ease-out both;
   }
   .row-in {
     animation: row-in 0.35s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
