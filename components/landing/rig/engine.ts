@@ -40,6 +40,10 @@ export interface RigHandle {
   show: (i: number, picked?: boolean) => boolean;
   isBusy: () => boolean;
   isVisible: () => boolean;
+  // Background mode (the drawing pinned behind the page once the hero
+  // has scrolled away): renders at ~30 fps and device pixel ratio 1 to
+  // stay cheap while it keeps animating.
+  setBackdrop: (on: boolean) => void;
   dispose: () => void;
 }
 
@@ -700,7 +704,9 @@ export function createRig(opts: RigOptions): RigHandle | null {
   }
 
   // p: eased scroll progress through the hero; mx: eased pointer x.
-  const state = { p: 0, pt: 0, mx: 0, mxt: 0 };
+  // q: eased scroll progress through the whole page (slow orbit while
+  // the drawing sits behind the page).
+  const state = { p: 0, pt: 0, mx: 0, mxt: 0, q: 0, qt: 0 };
 
   function leaders() {
     const anchors = models[active].anchors;
@@ -751,7 +757,7 @@ export function createRig(opts: RigOptions): RigHandle | null {
   function render(now: number) {
     const t = reduce ? 0 : now / 1000;
     const e = state.p * state.p * (3 - 2 * state.p);
-    root.rotation.y = -0.36 - 0.2 * e + state.mx * 0.16;
+    root.rotation.y = -0.36 - 0.2 * e + state.mx * 0.16 - 0.75 * state.q;
     models[active].pose(t, e, reduce ? 0 : Math.sin(t * 0.7));
     renderer.render(scene, cam);
     leaders();
@@ -759,10 +765,26 @@ export function createRig(opts: RigOptions): RigHandle | null {
 
   let raf = 0;
   let visible = true;
+  let backdrop = false;
+  let lastDraw = 0;
+  const fullDpr = Math.min(window.devicePixelRatio || 1, 2);
+  function setBackdrop(on: boolean) {
+    if (on === backdrop || disposed) return;
+    backdrop = on;
+    renderer.setPixelRatio(on ? 1 : fullDpr);
+    size();
+    kick();
+  }
   function frame(now: number) {
     raf = 0;
     if (disposed) return;
+    if (backdrop && now - lastDraw < 32) {
+      if (visible && !document.hidden && !reduce) raf = requestAnimationFrame(frame);
+      return;
+    }
+    lastDraw = now;
     state.p += (state.pt - state.p) * 0.09;
+    state.q += (state.qt - state.q) * 0.06;
     state.mx += (state.mxt - state.mx) * 0.06;
     stepTweens(now);
     render(now);
@@ -787,6 +809,8 @@ export function createRig(opts: RigOptions): RigHandle | null {
   const hero = host.closest("[data-hero]") ?? host;
   const onScroll = () => {
     state.pt = clamp(window.scrollY / (hero as HTMLElement).offsetHeight, 0, 1);
+    const span = document.documentElement.scrollHeight - window.innerHeight;
+    state.qt = span > 0 ? clamp(window.scrollY / span, 0, 1) : 0;
   };
   const onPointer = (ev: PointerEvent) => {
     state.mxt = (ev.clientX / window.innerWidth - 0.5) * 2;
@@ -962,6 +986,7 @@ export function createRig(opts: RigOptions): RigHandle | null {
     show,
     isBusy: () => busy,
     isVisible: () => visible,
+    setBackdrop,
     dispose,
   };
 }

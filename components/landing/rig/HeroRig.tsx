@@ -35,12 +35,18 @@ const SHOWN = [
  */
 export function HeroRig() {
   const hostRef = useRef<HTMLDivElement>(null);
+  const slotRef = useRef<HTMLDivElement>(null);
   const calloutRefs = useRef<(HTMLDivElement | null)[]>([]);
   const engineRef = useRef<RigHandle | null>(null);
 
   const [langI, setLangI] = useState(0);
   const [fading, setFading] = useState(false);
   const [noGl, setNoGl] = useState(false);
+  // "hero": the drawing sits in its box. "backdrop": the box has scrolled
+  // past, so the same canvas is pinned faintly behind the page and keeps
+  // animating. `returned` replays a fade when it comes back to the hero.
+  const [mode, setMode] = useState<"hero" | "backdrop">("hero");
+  const [returned, setReturned] = useState(false);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -88,6 +94,28 @@ export function HeroRig() {
     };
   }, []);
 
+  // Switch to the backdrop once the drawing's box is fully above the
+  // viewport, and back as soon as any of it is on screen again.
+  useEffect(() => {
+    const slot = slotRef.current;
+    if (!slot || noGl || !("IntersectionObserver" in window)) return;
+    let current: "hero" | "backdrop" = "hero";
+    const io = new IntersectionObserver(([entry]) => {
+      const past = !entry.isIntersecting && entry.boundingClientRect.bottom <= 0;
+      const next = past ? "backdrop" : "hero";
+      if (next === current) return;
+      if (current === "backdrop") setReturned(true);
+      current = next;
+      setMode(next);
+    });
+    io.observe(slot);
+    return () => io.disconnect();
+  }, [noGl]);
+
+  useEffect(() => {
+    engineRef.current?.setBackdrop(mode === "backdrop");
+  }, [mode]);
+
   // Each spec term slowly cycles through the languages a brief is held in.
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
@@ -113,14 +141,31 @@ export function HeroRig() {
 
   return (
     <figure className="min-w-0" aria-label={LABEL[MACHINE]}>
+      {/* The slot keeps the hero's layout (its aspect ratio never changes);
+          the stage inside it is what moves to the backdrop. */}
+      <div
+        ref={slotRef}
+        className={cn(
+          "relative",
+          !noGl &&
+            // Taller on phones so the bottom callout clears the tracks.
+            "aspect-[1/0.9] min-[600px]:aspect-[1/0.74] min-[960px]:-mr-[calc(var(--gutter)*0.5)]",
+        )}
+      >
       <div
         ref={hostRef}
+        data-mode={mode}
         className={cn(
-          "group/rig relative",
+          "group/rig",
           noGl
-            ? "flex flex-wrap gap-3"
-            : // Taller on phones so the bottom callout clears the tracks.
-              "aspect-[1/0.9] min-[600px]:aspect-[1/0.74] min-[960px]:-mr-[calc(var(--gutter)*0.5)]",
+            ? "relative flex flex-wrap gap-3"
+            : mode === "hero"
+              ? cn("absolute inset-0", returned && "rig-fade-hero")
+              : // Pinned behind the page: faint, off to the right, partly
+                // off screen, no callouts or leader lines, never clickable.
+                // Sections after the hero are positioned, so they paint over
+                // it; the navy section and footer cover it entirely.
+                "rig-fade-backdrop pointer-events-none fixed -right-[30vw] bottom-0 z-0 aspect-[1/0.9] w-[115vw] opacity-[0.07] min-[600px]:aspect-[1/0.74] min-[600px]:-right-[12vw] min-[600px]:w-[90vw] min-[600px]:opacity-[0.1] min-[960px]:-right-[4vw] min-[960px]:bottom-[2vh] min-[960px]:w-[min(64vw,940px)] min-[960px]:opacity-[0.12] [&>div]:opacity-0 [&>svg]:opacity-0!",
         )}
       >
         {SHOWN.map(({ spec, pos }, i) => {
@@ -154,6 +199,7 @@ export function HeroRig() {
             </div>
           );
         })}
+      </div>
       </div>
     </figure>
   );
