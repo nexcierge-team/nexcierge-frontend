@@ -88,6 +88,26 @@ export function HeroRig() {
     };
   }, []);
 
+  // The hero is `position: sticky`. Pin it at top 0 when it fits the
+  // viewport; when it is taller (phones, short laptop windows), pin it at
+  // a negative top so it scrolls until its bottom edge is on screen first.
+  useEffect(() => {
+    const hero = hostRef.current?.closest<HTMLElement>("[data-hero]");
+    if (!hero) return;
+    const place = () => {
+      hero.style.top = `${Math.min(0, window.innerHeight - hero.offsetHeight)}px`;
+    };
+    place();
+    const ro = new ResizeObserver(place);
+    ro.observe(hero);
+    window.addEventListener("resize", place);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", place);
+      hero.style.top = "";
+    };
+  }, []);
+
   // Each spec term slowly cycles through the languages a brief is held in.
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
