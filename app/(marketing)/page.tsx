@@ -17,7 +17,7 @@ export default function HomePage() {
       <Risks />
       <Steps />
       <MerchantOfRecord />
-      <ClosingCTA />
+      <ClosingCTA divider={false} />
     </main>
   );
 }

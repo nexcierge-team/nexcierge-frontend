@@ -1,6 +1,7 @@
 import { STEPS } from "@/lib/landingContent";
 import { ArrowLink } from "./ArrowLink";
 import { InView } from "./InView";
+import { SectionRule } from "./SectionRule";
 import { BODY, H2, H3, LEAD, SECTION } from "./styles";
 
 // Homepage section 3. Three numbered steps on one shared line (desktop)
@@ -8,7 +9,8 @@ import { BODY, H2, H3, LEAD, SECTION } from "./styles";
 // /how-it-works.
 export function Steps() {
   return (
-    <section aria-labelledby="steps-title" className={`${SECTION} bg-paper`}>
+    <section aria-labelledby="steps-title" className={SECTION}>
+      <SectionRule />
       <div className="wrap">
         <div className="grid gap-5">
           <h2 id="steps-title" className={H2}>
@@ -32,7 +34,7 @@ export function Steps() {
               delay={i * 0.08}
               className="relative grid content-start grid-cols-[32px_minmax(0,1fr)] gap-x-5 after:absolute after:-bottom-10 after:left-[15.5px] after:top-8 after:w-px after:bg-rule-strong last:after:hidden min-[860px]:grid-cols-1 min-[860px]:gap-y-6 min-[860px]:after:hidden"
             >
-              <span className="type-data relative grid h-8 w-8 place-items-center rounded-full border border-ink bg-paper text-[13px] font-semibold text-ink">
+              <span className="type-data relative grid h-8 w-8 place-items-center rounded-full border border-ink bg-sheet text-[13px] font-semibold text-ink">
                 {String(i + 1).padStart(2, "0")}
               </span>
               <div className="grid content-start gap-2.5 pt-0.5 min-[860px]:pt-0">

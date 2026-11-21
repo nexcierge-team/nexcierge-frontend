@@ -20,8 +20,11 @@ export const BODY = "text-base leading-[1.65] max-w-[60ch] text-ink-soft";
 // Small condensed label (step "who", panel captions).
 export const LABEL = "type-data text-[13px] font-medium text-ink-soft";
 
-// Vertical rhythm for every marketing section.
-export const SECTION = "py-[clamp(64px,9vw,128px)]";
+// Vertical rhythm for every marketing section: the same --section-y top
+// and bottom (globals.css), so every gap between sections is identical.
+// Light sections are separated by <SectionRule />; the navy section's
+// colour change is its own divider.
+export const SECTION = "relative py-[var(--section-y)]";
 
 // The first section of an inner page clears the fixed header.
 export const PAGE_TOP = "pt-[calc(var(--nav-h)+clamp(40px,7vw,96px))]";

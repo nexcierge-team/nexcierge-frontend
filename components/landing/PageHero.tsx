@@ -17,7 +17,7 @@ export function PageHero({
   return (
     <section
       aria-labelledby="page-title"
-      className={cn("bg-drafting pb-[clamp(56px,8vw,112px)]", PAGE_TOP, className)}
+      className={cn("bg-drafting relative pb-[var(--section-y)]", PAGE_TOP, className)}
     >
       <div className="wrap grid justify-items-start gap-6">
         <h1 id="page-title" className={cn(H1, "hero-in max-w-[20ch]")}>

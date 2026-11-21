@@ -53,7 +53,7 @@ export default function ContactPage() {
 
   return (
     <main>
-      <section className={`bg-drafting pb-[clamp(64px,9vw,128px)] ${PAGE_TOP}`}>
+      <section className={`bg-drafting pb-[var(--section-y)] ${PAGE_TOP}`}>
         <div className="wrap">
           <div className="grid max-w-2xl gap-6">
             <h1 className={`${H1} hero-in`}>Talk to our team.</h1>

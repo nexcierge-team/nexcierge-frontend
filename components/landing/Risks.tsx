@@ -1,6 +1,7 @@
 import { cn } from "@/lib/utils";
 import { RISKS } from "@/lib/landingContent";
 import { InView } from "./InView";
+import { SectionRule } from "./SectionRule";
 import { BODY, H2, H3, LABEL, LEAD, SECTION } from "./styles";
 
 const NODE =
@@ -63,6 +64,7 @@ function ChainDiagram() {
 export function Risks() {
   return (
     <section aria-labelledby="risks-title" className={SECTION}>
+      <SectionRule />
       <div className="wrap">
         <div className="grid gap-5">
           <h2 id="risks-title" className={H2}>

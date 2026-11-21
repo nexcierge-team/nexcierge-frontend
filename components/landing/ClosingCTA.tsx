@@ -2,7 +2,8 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { CLOSING, CTA } from "@/lib/landingContent";
 import { ArrowLink } from "./ArrowLink";
-import { H2, LEAD } from "./styles";
+import { SectionRule } from "./SectionRule";
+import { H2, LEAD, SECTION } from "./styles";
 
 // The closing invitation, shared by every marketing page. No lead form:
 // the sourcing assistant is the intake, and it is the only path that runs
@@ -11,20 +12,19 @@ import { H2, LEAD } from "./styles";
 export function ClosingCTA({
   secondary = { href: "/how-it-works", label: CLOSING.secondary },
   placement = "closing",
+  divider = true,
 }: {
   secondary?: { href: string; label: string } | null;
   // PostHog placement tag for the primary button.
   placement?: string;
+  // Off when the section above is the navy one (its edge is the divider).
+  divider?: boolean;
 }) {
   return (
-    // Only bottom padding of its own: the rule below carries the top
-    // spacing, so it doesn't double up on the section before it.
-    <section
-      aria-labelledby="closing-title"
-      className="pb-[clamp(64px,9vw,128px)] pt-[clamp(32px,5vw,64px)]"
-    >
+    <section aria-labelledby="closing-title" className={SECTION}>
+      {divider && <SectionRule />}
       <div className="wrap">
-        <div className="grid justify-items-start gap-5 border-t border-rule-strong pt-[clamp(48px,7vw,96px)]">
+        <div className="grid justify-items-start gap-5">
           <h2 id="closing-title" className={H2}>
             {CLOSING.title}
           </h2>

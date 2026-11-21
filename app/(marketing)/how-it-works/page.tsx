@@ -6,6 +6,7 @@ import { ArrowLink } from "@/components/landing/ArrowLink";
 import { ClosingCTA } from "@/components/landing/ClosingCTA";
 import { InView } from "@/components/landing/InView";
 import { PageHero } from "@/components/landing/PageHero";
+import { SectionRule } from "@/components/landing/SectionRule";
 import { BODY, H2, H3, LABEL, LEAD, SECTION } from "@/components/landing/styles";
 import { AGENT, CTA, HOW } from "@/lib/landingContent";
 
@@ -28,6 +29,7 @@ export default function HowItWorksPage() {
       </PageHero>
 
       <section aria-labelledby="process-title" className={SECTION}>
+        <SectionRule />
         <div className="wrap grid gap-[clamp(40px,6vw,96px)] min-[1060px]:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)]">
           <div className="grid content-start gap-5 min-[1060px]:sticky min-[1060px]:top-[calc(var(--nav-h)+32px)] min-[1060px]:self-start">
             <h2 id="process-title" className={H2}>
@@ -67,8 +69,9 @@ export default function HowItWorksPage() {
       <section
         id="assistant"
         aria-labelledby="assistant-title"
-        className={`${SECTION} scroll-mt-[var(--nav-h)] bg-paper`}
+        className={`${SECTION} scroll-mt-[var(--nav-h)]`}
       >
+        <SectionRule />
         <div className="wrap grid gap-[clamp(32px,5vw,72px)] min-[1060px]:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] min-[1060px]:items-start">
           <div className="grid gap-5">
             <h2 id="assistant-title" className={H2}>

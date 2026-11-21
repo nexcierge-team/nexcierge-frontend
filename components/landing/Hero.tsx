@@ -14,7 +14,7 @@ export function Hero() {
     <section
       data-hero
       aria-labelledby="hero-title"
-      className="bg-drafting relative pb-[clamp(48px,7vw,96px)] pt-[calc(var(--nav-h)+clamp(32px,6vw,80px))]"
+      className="bg-drafting relative pb-[var(--section-y)] pt-[calc(var(--nav-h)+clamp(32px,6vw,80px))]"
     >
       <div className="wrap grid items-center gap-[clamp(32px,4vw,56px)] min-[960px]:grid-cols-[minmax(0,1.12fr)_minmax(0,1fr)]">
         <div className="relative z-[2] grid justify-items-start gap-6">

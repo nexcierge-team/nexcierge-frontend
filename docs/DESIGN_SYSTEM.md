@@ -65,8 +65,9 @@ Hand-rolled primary buttons (composer send, "New sourcing request") mirror the p
 
 - Marketing container: the `wrap` utility (max 1320px, `--gutter` = `clamp(20px, 5vw, 72px)`: 20px phones, ~40px tablets, 64 to 72px desktop). Chat content stays `max-w-2xl`.
 - The marketing header is fixed at `--nav-h` (60px). An inner page's first section uses `PAGE_TOP` (or `PageHero`, which includes it).
-- Section rhythm on marketing pages: `SECTION` = `py-[clamp(64px,9vw,128px)]`. Sections are separated by background (sheet, then a `bg-paper` band, then the navy section), not by rules. `ClosingCTA` opens with a hairline rule and only bottom padding of its own.
-- Surfaces: marketing pages sit on `bg-sheet` (the warm off-white); `bg-paper` is the secondary band. The app (chat, dashboard) stays on paper.
+- Section rhythm on marketing pages: one token, `--section-y` = `clamp(48px, 5.5vw, 80px)` (about 70px on a laptop), used as both top and bottom padding by `SECTION` and as the bottom padding of the heroes, so every gap between sections is identical. Only a page's first section is taller (it also clears the fixed header).
+- Dividers: every light section that follows another light section starts with `<SectionRule />` (a `rule-strong` hairline across the content width with small end ticks, `.section-rule` in globals.css). The navy section takes none, and neither does the section after it (`ClosingCTA divider={false}` on the homepage): the colour edge is the divider. Lists inside a section use `divide-y divide-rule` (inner rules only) so a row rule never doubles the section divider.
+- Surfaces: marketing pages sit on `bg-sheet` (the warm off-white) throughout; the only band is the navy section. `bg-paper` is used inside components (the assistant's greeting bubble). The app (chat, dashboard) stays on paper.
 - Backgrounds: `bg-drafting` (faint 96px grid on sheet, fading out at the bottom; page heroes), `bg-navy-grid` (ink with a 3.5% white grid; the one dark marketing section), `bg-cyanotype` (blueprint grid, currently unused), `bg-ruled` (ruled lines behind chat logs).
 
 ### Mobile-web safe areas

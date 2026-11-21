@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ClosingCTA } from "@/components/landing/ClosingCTA";
 import { InView } from "@/components/landing/InView";
 import { PageHero } from "@/components/landing/PageHero";
+import { SectionRule } from "@/components/landing/SectionRule";
 import { ScopeSelector } from "@/components/landing/ScopeSelector";
 import { BODY, H2, H3, LEAD, SECTION } from "@/components/landing/styles";
 import { CTA, SCOPE, SERVICES } from "@/lib/landingContent";
@@ -25,15 +26,18 @@ export default function ServicesPage() {
         </Button>
       </PageHero>
 
-      <section aria-label="Services" className="pb-[clamp(64px,9vw,128px)]">
-        <ul className="wrap">
+      <section aria-label="Services" className={SECTION}>
+        <SectionRule />
+        {/* Rows are divided by inner rules only, so the section divider
+            above is never doubled. */}
+        <ul className="wrap divide-y divide-rule">
           {SERVICES.items.map((s) => (
             <InView
               key={s.id}
               id={s.id}
               kind="reveal"
               as="li"
-              className="grid scroll-mt-[calc(var(--nav-h)+24px)] gap-x-[clamp(28px,5vw,96px)] gap-y-2 border-t border-rule-strong py-[clamp(24px,3.5vw,40px)] last:border-b min-[760px]:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]"
+              className="grid scroll-mt-[calc(var(--nav-h)+24px)] gap-x-[clamp(28px,5vw,96px)] gap-y-2 py-[clamp(20px,3vw,32px)] first:pt-0 last:pb-0 min-[760px]:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]"
             >
               <h2 className={H3}>{s.title}</h2>
               <p className={BODY}>{s.text}</p>
@@ -45,8 +49,9 @@ export default function ServicesPage() {
       <section
         id="delivery"
         aria-labelledby="delivery-title"
-        className={`${SECTION} scroll-mt-[var(--nav-h)] bg-paper`}
+        className={`${SECTION} scroll-mt-[var(--nav-h)]`}
       >
+        <SectionRule />
         <div className="wrap">
           <div className="mb-[clamp(32px,5vw,56px)] grid gap-5">
             <h2 id="delivery-title" className={H2}>
